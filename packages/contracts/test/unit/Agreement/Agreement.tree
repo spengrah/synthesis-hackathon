@@ -1,0 +1,188 @@
+Agreement_submitInput
+├── when state is CLOSED or REJECTED
+│   └── it should revert with InvalidState
+├── when inputId is not recognized for current state
+│   └── it should revert with InvalidInput
+└── when inputId is valid for current state
+    ├── it should emit InputAccepted
+    └── it should route to the correct internal handler
+
+Agreement_handlePropose
+├── it should store termsHash from ProposalData
+├── it should store termsUri from ProposalData
+├── it should set turn to the other party
+├── it should set state to PROPOSED
+├── it should emit ProposalSubmitted
+└── it should emit AgreementStateChanged
+NOTE: handlePropose is called by the constructor during deployment (via AgreementRegistry).
+      No external auth check needed — caller is always the deployer.
+
+Agreement_handleCounter
+├── when caller is not the party whose turn it is
+│   └── it should revert with NotYourTurn
+└── when caller is the correct party
+    ├── it should overwrite termsHash
+    ├── it should overwrite termsUri
+    ├── it should flip turn to the other party
+    ├── given state was PROPOSED
+    │   ├── it should set state to NEGOTIATING
+    │   └── it should emit AgreementStateChanged
+    ├── given state was NEGOTIATING
+    │   └── it should remain in NEGOTIATING
+    ├── it should emit ProposalSubmitted
+    └── it should emit InputAccepted
+
+Agreement_handleAccept
+├── when state is PROPOSED and caller is not the other party
+│   └── it should revert with NotYourTurn
+├── when state is NEGOTIATING and caller is not the party whose turn it is
+│   └── it should revert with NotYourTurn
+└── when caller is authorized
+    ├── it should lock the terms (termsHash and termsUri immutable)
+    ├── it should set state to ACCEPTED
+    ├── it should emit AgreementStateChanged
+    └── it should emit InputAccepted
+
+Agreement_handleReject
+├── when state is PROPOSED and caller is not the other party
+│   └── it should revert with NotYourTurn
+└── when caller is authorized
+    ├── it should set state to REJECTED
+    ├── it should emit AgreementStateChanged
+    └── it should emit InputAccepted
+
+Agreement_handleActivate
+├── when state is not ACCEPTED
+│   └── it should revert with InvalidState
+├── when caller is not a party
+│   └── it should revert with NotAParty
+└── when caller is a party and state is ACCEPTED
+    ├── given a zone has agentId != 0 and ownerOf(agentId) != party
+    │   └── it should revert with AgentIdVerificationFailed
+    ├── given zones length is not 2
+    │   └── it should revert with InvalidZoneCount
+    └── given all validations pass
+        ├── for each zone
+        │   ├── it should create a zone hat via Hats Protocol
+        │   ├── it should mint the zone hat to the party
+        │   ├── it should deploy a TrustZone clone via Clones.cloneDeterministic
+        │   ├── it should initialize the TrustZone clone
+        │   ├── it should install CONSTRAINT mechanisms as ERC-7579 hooks
+        │   ├── it should register ELIGIBILITY, REWARD, and PENALTY mechanisms
+        │   ├── it should mint resource tokens to the TrustZone
+        │   ├── it should emit ZoneDeployed
+        │   ├── it should emit MechanismRegistered for each mechanism
+        │   └── it should emit ResourceTokenAssigned for each token
+        ├── it should store trustZones addresses
+        ├── it should store zoneHatIds
+        ├── it should store agentIds
+        ├── it should set state to ACTIVE
+        ├── it should emit AgreementActivated
+        └── it should emit AgreementStateChanged
+
+Agreement_handleClaim
+├── when state is not ACTIVE
+│   └── it should revert with InvalidState
+├── when mechanismIndex is out of bounds
+│   └── it should revert with InvalidMechanismIndex
+└── when inputs are valid
+    ├── it should increment claimCount
+    ├── it should emit ClaimFiled
+    └── it should emit InputAccepted
+
+Agreement_handleAdjudicate
+├── when state is not ACTIVE
+│   └── it should revert with InvalidState
+├── when caller is not the adjudicator
+│   └── it should revert with NotAdjudicator
+├── when claimId is invalid
+│   └── it should revert with InvalidClaimId
+└── when inputs are valid
+    ├── for each AdjudicationAction
+    │   ├── given actionType is PENALIZE
+    │   │   └── it should call the mechanism module with penalize params
+    │   ├── given actionType is REWARD
+    │   │   └── it should call the mechanism module with reward params
+    │   ├── given actionType is FEEDBACK
+    │   │   └── it should call reputationRegistry.giveFeedback
+    │   ├── given actionType is DEACTIVATE
+    │   │   └── it should call HATS.setHatStatus(hatId, false)
+    │   └── given actionType is CLOSE
+    │       └── it should trigger close with outcome ADJUDICATED
+    ├── it should emit AdjudicationDelivered
+    └── it should emit InputAccepted
+
+Agreement_handleComplete
+├── when state is not ACTIVE
+│   └── it should revert with InvalidState
+├── when caller is not a party
+│   └── it should revert with NotAParty
+├── when caller has already signaled completion
+│   └── it should revert with AlreadySignaled
+└── when caller has not yet signaled
+    ├── it should store feedbackURI and feedbackHash for this party
+    ├── it should set completionSignaled[partyIndex] to true
+    ├── it should emit CompletionSignaled
+    ├── given the other party has not yet signaled
+    │   └── it should remain in ACTIVE
+    └── given the other party has already signaled
+        └── it should trigger close with outcome COMPLETED
+
+Agreement_handleExit
+├── when state is not ACTIVE
+│   └── it should revert with InvalidState
+├── when caller is not a party
+│   └── it should revert with NotAParty
+├── when caller has already signaled exit
+│   └── it should revert with AlreadySignaled
+└── when caller has not yet signaled
+    ├── it should store feedbackURI and feedbackHash for this party
+    ├── it should set exitSignaled[partyIndex] to true
+    ├── it should emit ExitSignaled
+    ├── given the other party has not yet signaled
+    │   └── it should remain in ACTIVE
+    └── given the other party has already signaled
+        └── it should trigger close with outcome EXITED
+
+Agreement_handleFinalize
+├── when state is not ACTIVE
+│   └── it should revert with InvalidState
+├── when deadline has not passed
+│   └── it should revert with DeadlineNotReached
+└── when deadline has passed
+    └── it should trigger close with outcome EXPIRED
+
+Agreement_close
+├── it should set state to CLOSED
+├── it should store the outcome
+├── it should deactivate zone hats via HATS.setHatStatus(hatId, false)
+├── it should burn resource tokens from each TrustZone
+├── given a party has agentId != 0
+│   ├── it should call reputationRegistry.giveFeedback
+│   ├── it should use tag1 = "trust-zone-agreement"
+│   ├── it should use tag2 = outcome string
+│   ├── it should use endpoint = agreement address
+│   ├── it should use counterparty's feedback URI and hash
+│   └── it should emit ReputationFeedbackWritten for that party
+├── given a party has agentId == 0
+│   └── it should not call giveFeedback for that party
+├── it should emit AgreementClosed
+└── it should emit AgreementStateChanged
+
+Agreement_acceptAndActivate
+├── when state is not PROPOSED or NEGOTIATING
+│   └── it should revert with InvalidState
+├── when caller is not authorized to accept
+│   └── it should revert with NotYourTurn
+└── when caller is authorized
+    ├── it should execute accept logic
+    ├── it should execute activate logic
+    └── it should transition directly to ACTIVE
+
+Agreement_getHatStatus
+├── given state is not ACTIVE
+│   └── it should return false
+├── given state is ACTIVE and deadline has passed
+│   └── it should return false
+└── given state is ACTIVE and deadline has not passed
+    └── it should return true

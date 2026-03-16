@@ -1,0 +1,64 @@
+TrustZone_initialize
+├── when already initialized
+│   └── it should revert with AlreadyInitialized
+└── when not yet initialized
+    ├── it should store the hatValidator address
+    ├── it should install HatValidator as validator module (type 1)
+    ├── it should install agreement contract as executor module (type 2)
+    ├── it should install HookMultiPlexer as hook module (type 4)
+    └── it should emit TrustZoneInitialized
+
+TrustZone_hatValidator
+├── given not yet initialized
+│   └── it should return address(0)
+└── given initialized
+    └── it should return the hatValidator address passed to initialize
+
+TrustZone_checkEntryPointOrSelf
+├── when caller is the entryPoint
+│   └── it should not revert
+├── when caller is address(this)
+│   └── it should not revert
+├── when caller wears the hat (via HatValidator.isAuthorized)
+│   └── it should not revert
+└── when caller is none of the above
+    └── it should revert with Unauthorized
+
+TrustZone_execute_convenience
+├── when caller is the entryPoint
+│   ├── it should execute the call on the target
+│   └── it should run hooks (preCheck + postCheck)
+├── when caller wears the hat
+│   ├── it should execute the call on the target
+│   ├── it should forward the ETH value
+│   └── it should run hooks (preCheck + postCheck)
+└── when caller is not authorized
+    └── it should revert with Unauthorized
+
+TrustZone_execute_7579
+├── when caller is the entryPoint
+│   ├── given mode is single call
+│   │   ├── it should execute the call
+│   │   └── it should run hooks
+│   └── given mode is batch call
+│       ├── it should execute all calls
+│       └── it should run hooks for each call
+├── when caller wears the hat
+│   └── it should execute the call
+└── when caller is not authorized
+    └── it should revert with Unauthorized
+
+TrustZone_executeFromExecutor
+├── when caller is not an installed executor module
+│   └── it should revert
+└── when caller is an installed executor module
+    └── it should execute the call as the TrustZone
+
+TrustZone_isValidSignature
+├── given no validator is installed
+│   └── it should return failure magic value
+└── given HatValidator is installed
+    ├── when signer wears the hat
+    │   └── it should return 0x1626ba7e (ERC-1271 magic value)
+    └── when signer does not wear the hat
+        └── it should return failure magic value

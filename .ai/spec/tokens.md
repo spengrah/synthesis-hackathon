@@ -2,7 +2,7 @@
 
 ## Overview
 
-Single ERC-6909 contract holding three typed tokens. All types held as balances by TZ accounts. Onchain metadata per token ID.
+Single ERC-6909 contract holding three typed tokens. Non-transferable (except by creator). Max balance of 1 per holder per token ID. Immutable onchain metadata set on mint. Resource tokens are delegated assets — the holder does not control them; the creator (agreement contract) retains transfer and burn authority.
 
 ## Token types
 
@@ -24,37 +24,55 @@ Single ERC-6909 contract holding three typed tokens. All types held as balances 
 
 Token IDs are self-describing — type is parseable from the ID without storage reads.
 
-## ERC-6909 interface
+## ERC-6909 interface (with restrictions)
 
-Standard ERC-6909 functions:
-- `transfer(address receiver, uint256 id, uint256 amount)`
-- `transferFrom(address sender, address receiver, uint256 id, uint256 amount)`
-- `approve(address spender, uint256 id, uint256 amount)`
-- `setOperator(address operator, bool approved)`
-- `balanceOf(address owner, uint256 id) → uint256`
+Standard ERC-6909 read functions:
+- `balanceOf(address owner, uint256 id) → uint256` (always 0 or 1)
 - `allowance(address owner, address spender, uint256 id) → uint256`
 - `isOperator(address owner, address operator) → bool`
 
-## Custom extensions
+Transfer functions (restricted — only callable by token creator):
+- `transfer(address receiver, uint256 id, uint256 amount)` — reverts unless `msg.sender == creator[id]`
+- `transferFrom(address sender, address receiver, uint256 id, uint256 amount)` — reverts unless `msg.sender == creator[id]`
 
-### Minting
+Approval functions (disabled — holders have no transfer authority):
+- `approve` / `setOperator` — revert unconditionally
+
+## Minting
 
 ```solidity
-function mint(address to, uint256 id, uint256 amount, bytes calldata metadata) external;
+function mint(address to, uint256 id, bytes calldata metadata) external;
 ```
 
-Open minting (anyone can mint). The token ID prefix determines the type. Metadata is stored onchain.
+- Restricted to authorized minters (agreement contracts registered by AgreementRegistry)
+- Reverts if `balanceOf(to, id) > 0` (max balance = 1)
+- First mint of a token ID sets its creator and metadata permanently
+- Subsequent mints of the same token ID to other addresses use the existing metadata (no `metadata` param needed, or ignored)
 
-### Metadata
+```solidity
+function burn(address from, uint256 id) external;
+```
+
+- Only callable by creator of token ID (the agreement contract that minted it)
+
+## Minter registration
+
+```solidity
+function registerMinter(address minter) external;  // only callable by registry owner
+function isMinter(address minter) external view returns (bool);
+```
+
+AgreementRegistry calls `registerMinter(agreementAddress)` when deploying a new agreement.
+
+## Metadata
 
 ```solidity
 function tokenMetadata(uint256 id) external view returns (bytes memory);
-function setTokenMetadata(uint256 id, bytes calldata metadata) external;
 ```
 
-- Onchain metadata per token ID (for demo simplicity)
-- `setTokenMetadata` restricted to token creator (first minter) or current holder
-- Metadata format is type-specific (see below)
+- Immutable — set once on first `mint()`, never changed
+- Read-only accessor
+- ABI-encoded onchain for structured reading by contracts/adjudicators
 
 ## Metadata schemas (per type)
 
@@ -88,24 +106,33 @@ function setTokenMetadata(uint256 id, bytes calldata metadata) external;
 }
 ```
 
-Metadata is ABI-encoded onchain for structured reading by contracts/adjudicators.
-
 ## Events
 
 ```solidity
 // ERC-6909 standard
 event Transfer(address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
-event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
 event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
 // Custom
-event TokenMetadataSet(uint256 indexed tokenId, bytes metadata);
+event TokenCreated(uint256 indexed tokenId, address indexed creator, bytes metadata);
+event MinterRegistered(address indexed minter);
+```
+
+## State
+
+```solidity
+mapping(uint256 id => address) public creator;          // first minter / agreement contract
+mapping(uint256 id => bytes) internal _metadata;         // immutable after first mint
+mapping(address => bool) public isMinter;                // authorized minters
+address public owner;                                     // registry owner (AgreementRegistry or deployer)
 ```
 
 ## Properties
 
 - Tokens are independent artifacts — reusable across multiple trust zones and agreements
-- All three types held as balances by TZ accounts
+- **Non-transferable** except by creator (the agreement contract that minted them)
+- **Max balance = 1** per holder per token ID
+- **Holders have no authority** — cannot transfer, approve, or modify
+- **Metadata is immutable** — set once on first mint
 - The TZ account's complete token inventory = full scope of the zone
-- Per-ID allowances (ERC-6909 feature) allow granular authorization
 - No receiver callbacks (ERC-6909 feature) — cheap transfers to contract addresses

@@ -8,28 +8,37 @@ Factory + Hats tree manager. Deploys agreement contracts and manages the Trust Z
 ### Functions
 
 ```solidity
-function createAgreement(address[] calldata parties) external returns (address agreement);
+function createAgreement(address partyA, address partyB) external returns (address agreement);
 ```
 
 On `createAgreement`:
 1. Deploy Agreement contract via CREATE2 (deterministic address)
 2. Create agreement-level hat (child of the Trust Zones top hat)
 3. Transfer admin of the agreement hat to the new agreement contract
-4. Store: agreement address → hat ID mapping
-5. Emit: `AgreementCreated(address agreement, address creator, uint256 agreementHatId)`
+4. Register agreement as authorized minter on ResourceTokenRegistry
+5. Store: agreement address → hat ID mapping
+6. Emit: `AgreementCreated(address agreement, address creator, uint256 agreementHatId, address partyA, address partyB)`
 
 ### State
 - Wears the "Trust Zones" top hat
 - `mapping(address => uint256) public agreementHatIds`
 - `address public hats` — Hats Protocol contract address
-- `uint256 public topHatId` — the Trust Zones top hat`
+- `uint256 public topHatId` — the Trust Zones top hat
+- `address public resourceTokenRegistry` — ResourceTokenRegistry address
+- `address public identityRegistry` — ERC-8004 IdentityRegistry address
+- `address public reputationRegistry` — ERC-8004 ReputationRegistry address
 
 ---
 
 ## Agreement Contract
 
 ### Role
-State machine + zone manager. Generic — deploys from pre-compiled ProposalData bytes.
+State machine + zone manager + mechanism router. All interactions flow through `submitInput`.
+
+### Parties
+- Exactly 2 parties, defined by the initiator at creation time
+- Both parties set in constructor (from `createAgreement(partyA, partyB)`)
+- During negotiation: strict turn alternation, `msg.sender` must be a party
 
 ### Shodai-compatible interface
 
@@ -47,108 +56,343 @@ See `ponder.md` for full event list.
 ### Shared structs
 
 ```solidity
-struct MechanismInstall {
-    uint8 moduleType;        // 1=validator, 2=executor, 4=hook
-    address module;          // contract address
-    bytes initData;          // module-specific init params
-    bytes4[] selectors;      // HookMultiPlexer routing (empty = global)
-    address[] targets;       // HookMultiPlexer routing (empty = all)
+/// @notice Mechanism parameter types — drawn from the Trust Zone model
+uint8 constant ELIGIBILITY = 0x01;  // requirements to participate (staking, reputation)
+uint8 constant INCENTIVE   = 0x02;  // consequences — positive or negative (slash, return, feedback)
+uint8 constant CONSTRAINT  = 0x03;  // deterministic rules (ERC-7579 hooks)
+
+/// @notice A mechanism attached to a trust zone. Used for negotiation terms,
+///         activation config, and runtime claim/adjudication routing.
+struct Mechanism {
+    uint8 paramType;       // ELIGIBILITY, INCENTIVE, CONSTRAINT
+    address module;        // target contract
+    bytes params;          // negotiable, module-specific config
 }
 
-struct ZoneConfig {
+/// @notice A resource token to mint to a trust zone's TZ account.
+struct ResourceTokenConfig {
+    uint256 tokenId;       // full ID with type prefix (0x01/0x02/0x03)
+    bytes metadata;        // immutable metadata, ABI-encoded
+}
+
+/// @notice Configuration for a single trust zone within an agreement.
+struct TZConfig {
     address party;
+    uint256 agentId;             // ERC-8004 agent identity (0 = no 8004, e.g. human party)
     uint32 hatMaxSupply;
     string hatDetails;
-    address hatEligibility;
-    bytes hatEligibilityInitData;
-    address hatToggle;            // address(0) = agreement contract as toggle
-    bytes hatToggleInitData;
-    MechanismInstall[] mechanisms;
+    Mechanism[] mechanisms;      // all mechanisms: ELIGIBILITY, INCENTIVE, CONSTRAINT
+    ResourceTokenConfig[] resources;
 }
 
+/// @notice Full proposal terms. Submitted as calldata, hash stored onchain.
 struct ProposalData {
     bytes32 termsDocHash;
     string termsDocUri;
-    ZoneConfig[] zones;
+    TZConfig[] zones;
     address adjudicator;
     uint256 deadline;
 }
 ```
 
-### State machine
+---
+
+## State machine
+
+### States (bytes32 keccak constants)
+
+```solidity
+// bytes32(0) = uninitialized (pre-deploy)
+bytes32 constant PROPOSED    = keccak256("PROPOSED");
+bytes32 constant NEGOTIATING = keccak256("NEGOTIATING");
+bytes32 constant ACCEPTED    = keccak256("ACCEPTED");
+bytes32 constant ACTIVE      = keccak256("ACTIVE");
+bytes32 constant CLOSED      = keccak256("CLOSED");
+bytes32 constant REJECTED    = keccak256("REJECTED");
+```
+
+### Input IDs (bytes32 keccak constants)
+
+```solidity
+bytes32 constant PROPOSE  = keccak256("PROPOSE");
+bytes32 constant COUNTER  = keccak256("COUNTER");
+bytes32 constant ACCEPT   = keccak256("ACCEPT");
+bytes32 constant REJECT   = keccak256("REJECT");
+bytes32 constant ACTIVATE = keccak256("ACTIVATE");
+bytes32 constant CLAIM    = keccak256("CLAIM");
+bytes32 constant ADJUDICATE = keccak256("ADJUDICATE");
+bytes32 constant COMPLETE = keccak256("COMPLETE");
+bytes32 constant EXIT     = keccak256("EXIT");
+bytes32 constant FINALIZE = keccak256("FINALIZE");
+```
+
+### Transition diagram
 
 ```
-PROPOSED ──counter──→ PROPOSED ──accept──→ ACCEPTED ──activate──→ ACTIVE
-    │                                          │                     │
-    └──reject──→ REJECTED              [async conditions]     ┌──────┼──────┐
-                                              │           [dispute] [term] [complete]
-                                    acceptAndActivate()       ▼      ▼      ▼
-                                    (atomic shortcut)     DISPUTED TERMINATED COMPLETED
-                                                              │
-                                                         [resolve]
-                                                              ▼
-                                                          RESOLVED
+bytes32(0) ─[deploy+PROPOSE]─→ PROPOSED
+
+PROPOSED    ─[COUNTER]──→ NEGOTIATING
+PROPOSED    ─[ACCEPT]───→ ACCEPTED
+PROPOSED    ─[REJECT]───→ REJECTED
+
+NEGOTIATING ─[COUNTER]──→ NEGOTIATING  (flips turn)
+NEGOTIATING ─[ACCEPT]───→ ACCEPTED
+NEGOTIATING ─[REJECT]───→ REJECTED
+
+ACCEPTED    ─[ACTIVATE]─→ ACTIVE
+
+ACTIVE      ─[CLAIM]────→ ACTIVE       (logs claim, no state change)
+ACTIVE      ─[ADJUDICATE]→ ACTIVE or CLOSED (catastrophic → CLOSED)
+ACTIVE      ─[COMPLETE]──→ ACTIVE or CLOSED (two-step: second signal → CLOSED)
+ACTIVE      ─[EXIT]──────→ ACTIVE or CLOSED (two-step: second signal → CLOSED)
+ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 ```
 
-### PROPOSED (initial + reentrant)
-- Creating the contract IS proposing
-- Auth: sender-based (`msg.sender` must be a party)
-- `submitInput(COUNTER, abi.encode(ProposalData))` — overwrites terms, flips turn
-- `submitInput(ACCEPT, "")` — locks terms, moves to ACCEPTED
-- `submitInput(REJECT, "")` — terminal
-- Each proposal stores `(termsHash, termsUri)` onchain + emits `ProposalSubmitted`
+`acceptAndActivate()` — atomic shortcut: PROPOSED/NEGOTIATING → ACCEPTED → ACTIVE.
+
+### Auth per state
+
+| State | Input | Auth |
+|-------|-------|------|
+| PROPOSED | COUNTER, ACCEPT, REJECT | Other party only (not the proposer) |
+| NEGOTIATING | COUNTER, ACCEPT | Party whose turn it is |
+| NEGOTIATING | REJECT | Either party |
+| ACCEPTED | ACTIVATE | Either party |
+| ACTIVE | CLAIM | TBD — parties, registered observers, etc. |
+| ACTIVE | ADJUDICATE | Adjudicator only (`msg.sender == adjudicator`) |
+| ACTIVE | COMPLETE, EXIT | Either party (two-step mutual agreement) |
+| ACTIVE | FINALIZE | Anyone (if `block.timestamp >= deadline`) |
+| CLOSED, REJECTED | — | No inputs accepted |
+
+---
+
+## State details
+
+### PROPOSED
+- Set on deploy. Creating the contract IS proposing.
+- Initial `ProposalData` submitted by the creator as the first proposal.
+- Stores `(termsHash, termsUri)` onchain, emits `ProposalSubmitted`.
+- If `agentId != 0` in any `TZConfig`, verified at activation (not at proposal time).
+
+### NEGOTIATING
+- Entered on first COUNTER.
+- Counters overwrite terms, flip turn.
+- Accept locks terms → ACCEPTED.
+- Reject by either party → REJECTED (terminal).
 
 ### ACCEPTED
 - Terms locked. No more negotiation.
-- TZ Accounts deployed, zone hats created. But hats may not be wearable yet (eligibility conditions).
-- `tryActivate()` — checks hat eligibility for all zones → ACTIVE if all pass
-- `acceptAndActivate()` — accept + activate atomically (demo convenience)
+- ACTIVATE deploys zones, installs mechanisms, mints hats and resource tokens.
 
 ### Activation logic (ACCEPTED → ACTIVE)
-1. Create zone hats (children of agreement hat) via Hats Protocol
-2. Mint zone hats to parties
-3. Deploy TZ Account clones via `Clones.cloneDeterministic`
-4. Install HatValidator + agreement executor + HookMultiPlexer on each TZ Account
-5. Install each mechanism from `ProposalData.zones[i].mechanisms[]`
-6. Mint/transfer resource tokens to TZ accounts (from ProposalData)
-7. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
+1. For each zone (`TZConfig`):
+   a. Create zone hat (child of agreement hat) via Hats Protocol
+      - ELIGIBILITY mechanisms configure hat eligibility modules (chained)
+      - Toggle from `TZConfig.hatToggle` (default: agreement contract as `IHatsToggle`)
+   b. Verify `agentId`: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
+   c. Mint zone hat to party
+   d. Deploy TZ Account clone via `Clones.cloneDeterministic`
+   e. Install HatValidator + agreement executor + HookMultiPlexer on TZ Account
+   f. Install CONSTRAINT mechanisms as ERC-7579 hooks on TZ Account
+   g. Register INCENTIVE mechanisms in the claimable mechanism registry
+   h. Mint resource tokens to TZ account
+2. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
 
 ### ACTIVE
-- Auth: hat-based (zone hat required for inputs)
-- Continuous constraint enforcement via hooks
-- `submitInput(DISPUTE, abi.encode(tokenRefs, claim, evidenceHash))` → DISPUTED
-- `submitInput(TERMINATE, "")` → TERMINATED (requires both parties or deadline)
-- `submitInput(COMPLETE, "")` → COMPLETED
 
-### DISPUTED
-- Routes to IAdjudicator with claim + evidence
-- `submitInput(RESOLVE, abi.encode(verdict, severity))` — called by adjudicator → RESOLVED
+All runtime interactions flow through `submitInput`. The agreement contract routes to the appropriate mechanism based on the input.
 
-### Terminal states (COMPLETED, TERMINATED, RESOLVED)
-- Agreement contract (as toggle module) deactivates zone hats
-- Bond/escrow settlement based on outcome
-- 8004 reputation feedback submitted if applicable
-- Trust beliefs updated (Tier 3)
+#### CLAIM — file a claim against a mechanism
+```
+submitInput(CLAIM, abi.encode(mechanismIndex, evidence))
+```
+- Logs the claim, assigns a `claimId`, emits event.
+- **Does not change agreement state.** Claims are intra-ACTIVE signals.
+- Auth: TBD (parties, registered observers, etc.)
 
-### Onchain storage (minimal)
-- `bytes32 public currentState`
-- `bytes32 public termsHash` (set on accept)
-- `string public termsUri` (set on accept)
-- `address public proposer` (whose turn to respond)
-- `address[] public parties`
-- `address[] public tzAccounts` (set on activation)
-- `uint256[] public zoneHatIds` (set on activation)
-- `address public adjudicator`
-- `uint256 public deadline`
-- ProposalData: submitted as calldata, hash verified, not stored in full
+#### ADJUDICATE — deliver a verdict on a claim
+```
+submitInput(ADJUDICATE, abi.encode(claimId, verdict, actions))
+```
+where `actions` is:
+```solidity
+struct AdjudicationAction {
+    uint8 mechanismIndex;    // which mechanism to act on
+    bytes32 actionType;      // SLASH, FEEDBACK, DEACTIVATE, CLOSE
+    bytes params;            // action-specific parameters
+}
+```
+- Auth: `msg.sender == adjudicator` only.
+- Agreement executes each action against the referenced mechanism:
+  - `SLASH` → calls staking module's slash function
+  - `FEEDBACK` → calls `reputationRegistry.giveFeedback()` on the mechanism's associated agentId
+  - `DEACTIVATE` → calls `HATS.setHatStatus(hatId, false)` for the zone
+  - `CLOSE` → transitions agreement to CLOSED
+- If any action is CLOSE, agreement transitions to CLOSED with outcome `ADJUDICATED`.
+- Otherwise, agreement stays ACTIVE (minor penalties don't end the agreement).
 
-### Incentive mechanisms (in agreement contract, not separate contracts)
-- **Bond**: parties deposit ETH/USDC. Tracked per-party. Returned or slashed on resolution.
-- **Escrow**: depositor's funds held. Released to counterparty or returned based on outcome.
-- **8004 Identity stake**: 8004 NFT transferred to agreement contract. Returned on completion. On adverse resolution: returned + reputation feedback via `ERC8004ReputationRegistry.giveFeedback()`.
+#### COMPLETE — signal successful completion (two-step)
+```
+submitInput(COMPLETE, abi.encode(feedbackURI, feedbackHash))
+```
+- Party signals completion and provides optional peer feedback about the other party.
+- Feedback is stored: `feedbackURI` and `feedbackHash` from party A will be written to party B's 8004 identity on close (and vice versa).
+- First signal: logged, state stays ACTIVE.
+- Second signal (from other party): agreement transitions to CLOSED with outcome `COMPLETED`.
 
-### Shodai compatibility notes
+#### EXIT — signal mutual early termination (two-step)
+```
+submitInput(EXIT, abi.encode(feedbackURI, feedbackHash))
+```
+- Same two-step flow as COMPLETE.
+- First signal: logged, state stays ACTIVE.
+- Second signal: agreement transitions to CLOSED with outcome `EXITED`.
+
+#### FINALIZE — poke to formalize expiry
+```
+submitInput(FINALIZE, "")
+```
+- Auth: anyone, but `block.timestamp >= deadline` required.
+- Agreement transitions to CLOSED with outcome `EXPIRED`.
+
+### CLOSED (terminal)
+
+On transition to CLOSED:
+1. Store `outcome` (bytes32: `COMPLETED`, `EXITED`, `EXPIRED`, `ADJUDICATED`)
+2. Deactivate zone hats via `HATS.setHatStatus(hatId, false)`
+3. Burn resource tokens from TZ accounts (agreement is creator, has burn authority)
+4. Write 8004 reputation feedback for each party that has an `agentId != 0`:
+   - `tag1`: `"trust-zone-agreement"`
+   - `tag2`: outcome string
+   - `endpoint`: agreement contract address (as string)
+   - `feedbackURI` / `feedbackHash`: counterparty's peer feedback (from COMPLETE/EXIT signal), or agreement reference (for EXPIRED/ADJUDICATED)
+5. Emit `AgreementClosed(outcome)`
+
+### REJECTED (terminal)
+
+No settlement needed. No zones were deployed.
+
+---
+
+## Mechanism registry
+
+During activation, the agreement builds a registry of claimable mechanisms from the `TZConfig.mechanisms[]` arrays:
+
+```solidity
+struct ClaimableMechanism {
+    uint8 paramType;       // ELIGIBILITY, INCENTIVE, CONSTRAINT
+    address module;        // target contract
+    uint8 zoneIndex;       // which zone this belongs to
+    bytes context;         // module-specific context (hatId, agentId, etc.)
+}
+
+ClaimableMechanism[] public mechanisms;
+```
+
+CLAIM and ADJUDICATE inputs reference mechanisms by index in this array.
+
+---
+
+## Onchain storage
+
+```solidity
+// State
+bytes32 public currentState;
+bytes32 public outcome;              // set on CLOSED
+
+// Terms (set on ACCEPT)
+bytes32 public termsHash;
+string public termsUri;
+
+// Parties
+address[2] public parties;
+address public turn;                 // whose turn during negotiation
+
+// Activation (set on ACTIVATE)
+address[2] public tzAccounts;
+uint256[2] public zoneHatIds;
+uint256[2] public agentIds;          // from TZConfig, 0 = no 8004
+
+// Config
+address public adjudicator;
+uint256 public deadline;
+
+// Mechanisms
+ClaimableMechanism[] public mechanisms;
+
+// Two-step close signals
+bool[2] public completionSignaled;
+bool[2] public exitSignaled;
+bytes[2] internal _completionFeedbackURI;
+bytes32[2] internal _completionFeedbackHash;
+bytes[2] internal _exitFeedbackURI;
+bytes32[2] internal _exitFeedbackHash;
+
+// Claims
+uint256 public claimCount;
+// Claim details stored in events (not in storage) for gas efficiency
+
+// ProposalData: submitted as calldata, hash verified, not stored in full
+```
+
+---
+
+## IHatsToggle implementation
+
+Agreement contract implements `IHatsToggle` for deadline-based auto-deactivation:
+
+```solidity
+function getHatStatus(uint256 hatId) external view returns (bool active, bool) {
+    // active = (currentState == ACTIVE) && (block.timestamp < deadline)
+    // Hats Protocol checks this on any hat interaction — zones go inert
+    // after deadline even before FINALIZE is called (no lame duck period).
+}
+```
+
+FINALIZE is still needed to formalize the state change and emit events, but the toggle ensures zones can't operate past deadline regardless.
+
+---
+
+## 8004 Reputation integration
+
+On CLOSED, the agreement writes one `giveFeedback()` call per party that has an `agentId != 0`:
+
+```solidity
+reputationRegistry.giveFeedback(
+    agentId,                              // the party's 8004 identity
+    0,                                    // value: neutral (let consumers interpret)
+    0,                                    // valueDecimals
+    "trust-zone-agreement",               // tag1
+    outcomeString,                        // tag2: "COMPLETED", "EXITED", "EXPIRED", "ADJUDICATED"
+    Strings.toHexString(address(this)),   // endpoint: agreement contract address
+    counterpartyFeedbackURI,              // feedbackURI: peer feedback from the other party
+    counterpartyFeedbackHash              // feedbackHash
+);
+```
+
+Downstream consumers of 8004 data:
+1. See the feedback entry tagged `trust-zone-agreement`
+2. Follow the `endpoint` to the agreement contract
+3. Read the agreement's full state, outcome, claims, and adjudications
+4. Form their own assessment of the agent's behavior
+
+The agreement contract does not assign scores — it just records "this happened."
+
+---
+
+## Shodai compatibility notes
 - `submitInput(bytes32, bytes)` is the universal write interface
 - `currentState()` returns the DFSM state as bytes32
 - `InputAccepted` and `AgreementStateChanged` events match Shodai's event signatures
 - State names are `keccak256(utf8("PROPOSED"))`, etc. — same encoding as Shodai
+- All runtime interactions (claims, adjudication, completion, exit) flow through `submitInput`
+
+---
+
+## RFP expansion story (post-hackathon)
+
+The PROPOSED state generalizes to support RFP-style negotiation:
+- In 1:1 mode (hackathon): PROPOSED = "first offer on table, awaiting response"
+- In RFP mode: PROPOSED = "RFP posted, collecting bids" (one-to-many)
+- A new `SELECT` input would transition from PROPOSED → NEGOTIATING (now 1:1 with selected bidder)
+- Everything from NEGOTIATING onward is unchanged

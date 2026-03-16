@@ -8,16 +8,16 @@ Indexes contract events into a queryable store. Feeds Tier 1 of the Trust Zones 
 
 | Consumer | Queries |
 |----------|---------|
-| OpenServ demo agents | Agreements involving me, current state, resource tokens held, action receipts |
+| OpenServ demo agents | Agreements involving me, current state, resource tokens held, claims |
 | Mock data APIs | Permission tokens on TZ account (also possible via direct chain read) |
-| GenLayer | Directive tokens + action receipts for dispute period |
+| GenLayer | Directive tokens + claims for adjudication |
 | Bonfires | Stable entities as KG triplets, action receipts as episodes |
-| Demo logs | Full negotiation history, activation events, dispute timeline |
+| Demo logs | Full negotiation history, activation events, claim/adjudication timeline |
 
 ## Events indexed
 
 ### From Agreement Registry
-- `AgreementCreated(address indexed agreement, address indexed creator, uint256 agreementHatId)`
+- `AgreementCreated(address indexed agreement, address indexed creator, uint256 agreementHatId, address partyA, address partyB)`
 
 ### From Agreement Contract
 ```
@@ -30,27 +30,26 @@ ProposalSubmitted(address indexed proposer, bytes32 termsHash, string termsUri)
 
 // Activation
 AgreementActivated(address indexed agreement, address[] tzAccounts, uint256[] zoneHatIds)
-ZoneDeployed(address indexed agreement, address indexed tzAccount, uint256 indexed zoneHatId, address party)
+ZoneDeployed(address indexed agreement, address indexed tzAccount, uint256 indexed zoneHatId, address party, uint256 agentId)
 ResourceTokenAssigned(address indexed tzAccount, uint256 indexed tokenId, uint8 tokenType)
+MechanismRegistered(uint8 indexed mechanismIndex, uint8 paramType, address module, uint8 zoneIndex)
 
-// Dispute
-DisputeRaised(address indexed disputer, uint256[] tokenRefs, string claim, bytes32 evidenceHash)
-DisputeResolved(address indexed agreement, bool verdict, uint256 severity)
+// Claims + Adjudication
+ClaimFiled(uint256 indexed claimId, uint8 indexed mechanismIndex, address indexed claimant, bytes evidence)
+AdjudicationDelivered(uint256 indexed claimId, bool verdict, bytes32[] actionTypes)
 
-// Incentives
-BondDeposited(address indexed party, uint256 amount)
-BondSlashed(address indexed party, uint256 amount, uint256 severity)
-EscrowDeposited(address indexed party, uint256 amount)
-EscrowReleased(address indexed recipient, uint256 amount)
-IdentityStaked(address indexed party, uint256 indexed erc8004TokenId)
-IdentityReturned(address indexed party, uint256 indexed erc8004TokenId)
-ReputationFeedbackSubmitted(uint256 indexed erc8004TokenId, int256 rating)
+// Close
+AgreementClosed(bytes32 indexed outcome)
+CompletionSignaled(address indexed party, string feedbackURI, bytes32 feedbackHash)
+ExitSignaled(address indexed party, string feedbackURI, bytes32 feedbackHash)
+ReputationFeedbackWritten(uint256 indexed agentId, string tag2, string feedbackURI, bytes32 feedbackHash)
 ```
 
 ### From Resource Token Registry
 ```
 Transfer(address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount)
-TokenMetadataSet(uint256 indexed tokenId, bytes metadata)
+TokenCreated(uint256 indexed tokenId, address indexed creator, bytes metadata)
+MinterRegistered(address indexed minter)
 ```
 
 ## Ponder entities
@@ -59,25 +58,30 @@ TokenMetadataSet(uint256 indexed tokenId, bytes metadata)
 Agreement {
   id: address
   state: bytes32
+  outcome: bytes32?
   parties: [address]
+  agentIds: [uint256]         // from TZConfig, 0 = no 8004
   termsHash: bytes32
   termsUri: string
+  adjudicator: address
+  deadline: uint256
   agreementHatId: uint256
   createdAt: timestamp
   activatedAt: timestamp?
-  resolvedAt: timestamp?
+  closedAt: timestamp?
 }
 
 Zone {
-  id: address           // TZ account address
+  id: address                 // TZ account address
   agreement: Agreement
   party: address
+  agentId: uint256            // 0 = no 8004
   hatId: uint256
   createdAt: timestamp
 }
 
 Proposal {
-  id: string            // agreement + sequence index
+  id: string                  // agreement + sequence index
   agreement: Agreement
   proposer: address
   termsHash: bytes32
@@ -86,43 +90,33 @@ Proposal {
 }
 
 ResourceTokenHolding {
-  id: string            // zone + tokenId
+  id: string                  // zone + tokenId
   zone: Zone
   tokenId: uint256
-  tokenType: uint8      // 0x01, 0x02, 0x03
+  tokenType: uint8            // 0x01, 0x02, 0x03
   balance: uint256
   metadata: bytes
 }
 
-Dispute {
-  id: string
+RegisteredMechanism {
+  id: string                  // agreement + mechanismIndex
   agreement: Agreement
-  disputer: address
-  tokenRefs: [uint256]
-  claim: string
-  evidenceHash: bytes32
+  mechanismIndex: uint8
+  paramType: uint8            // ELIGIBILITY, INCENTIVE, CONSTRAINT
+  module: address
+  zoneIndex: uint8
+}
+
+Claim {
+  id: string                  // agreement + claimId
+  agreement: Agreement
+  mechanism: RegisteredMechanism
+  claimant: address
+  evidence: bytes
   verdict: boolean?
-  severity: uint256?
+  actionTypes: [bytes32]?
   timestamp: timestamp
-  resolvedAt: timestamp?
-}
-
-Bond {
-  id: string
-  agreement: Agreement
-  party: address
-  amount: uint256
-  slashedAmount: uint256
-  status: string        // deposited | returned | slashed
-}
-
-IdentityStake {
-  id: string
-  agreement: Agreement
-  party: address
-  erc8004TokenId: uint256
-  status: string        // staked | returned | burned
-  reputationDelta: int256?
+  adjudicatedAt: timestamp?
 }
 ```
 
@@ -136,13 +130,12 @@ IdentityStake {
 | `AgreementActivated` | Agreement.activatedAt |
 | `ZoneDeployed` | Zone (new) |
 | `ResourceTokenAssigned` | ResourceTokenHolding (new) |
+| `MechanismRegistered` | RegisteredMechanism (new) |
 | `Transfer` (ERC-6909) | ResourceTokenHolding.balance |
-| `TokenMetadataSet` | ResourceTokenHolding.metadata |
-| `DisputeRaised` | Dispute (new) |
-| `DisputeResolved` | Dispute.verdict/severity/resolvedAt, Agreement.resolvedAt |
-| `BondDeposited` | Bond (new) |
-| `BondSlashed` | Bond.slashedAmount/status |
-| `EscrowDeposited` / `EscrowReleased` | tracked on Agreement or separate entity |
-| `IdentityStaked` | IdentityStake (new) |
-| `IdentityReturned` | IdentityStake.status |
-| `ReputationFeedbackSubmitted` | IdentityStake.reputationDelta |
+| `TokenCreated` | ResourceTokenHolding (new, with metadata) |
+| `ClaimFiled` | Claim (new) |
+| `AdjudicationDelivered` | Claim.verdict/actionTypes/adjudicatedAt |
+| `CompletionSignaled` | tracked on Agreement |
+| `ExitSignaled` | tracked on Agreement |
+| `AgreementClosed` | Agreement.outcome/closedAt |
+| `ReputationFeedbackWritten` | tracked on Agreement or Zone |

@@ -1,0 +1,101 @@
+ResourceTokenRegistry_mint
+├── when caller is not an authorized minter
+│   └── it should revert with NotAuthorizedMinter
+└── when caller is an authorized minter
+    ├── given recipient already holds this token ID
+    │   └── it should revert with BalanceExceedsMax
+    └── given recipient does not hold this token ID
+        ├── given token ID does not exist yet
+        │   ├── it should set the creator to msg.sender
+        │   ├── it should store the metadata
+        │   ├── it should set the balance to 1
+        │   ├── it should emit TokenCreated
+        │   └── it should emit Transfer
+        └── given token ID already exists
+            ├── it should not change the creator
+            ├── it should not change the metadata
+            ├── it should set the balance to 1
+            └── it should emit Transfer
+
+ResourceTokenRegistry_burn
+├── when caller is not the token creator
+│   └── it should revert with NotTokenCreator
+└── when caller is the token creator
+    ├── given holder balance is 0
+    │   └── it should revert with InsufficientBalance
+    └── given holder balance is 1
+        ├── it should set the balance to 0
+        └── it should emit Transfer
+
+ResourceTokenRegistry_transfer
+├── when caller is not the token creator
+│   └── it should revert with NotTokenCreator
+└── when caller is the token creator
+    ├── given receiver already holds this token ID
+    │   └── it should revert with BalanceExceedsMax
+    └── given receiver does not hold this token ID
+        ├── it should set sender balance to 0
+        ├── it should set receiver balance to 1
+        └── it should emit Transfer
+
+ResourceTokenRegistry_transferFrom
+├── when caller is not the token creator
+│   └── it should revert with NotTokenCreator
+└── when caller is the token creator
+    ├── given receiver already holds this token ID
+    │   └── it should revert with BalanceExceedsMax
+    └── given receiver does not hold this token ID
+        ├── it should set sender balance to 0
+        ├── it should set receiver balance to 1
+        └── it should emit Transfer
+
+ResourceTokenRegistry_approve
+└── it should revert with ApprovalsDisabled
+
+ResourceTokenRegistry_setOperator
+└── it should revert with ApprovalsDisabled
+
+ResourceTokenRegistry_registerMinter
+├── when caller is not the owner
+│   └── it should revert with NotOwner
+└── when caller is the owner
+    ├── it should set isMinter to true
+    └── it should emit MinterRegistered
+
+ResourceTokenRegistry_tokenMetadata
+├── given token ID does not exist
+│   └── it should return empty bytes
+└── given token ID exists
+    └── it should return the metadata set on first mint
+
+ResourceTokenRegistry_creator
+├── given token ID does not exist
+│   └── it should return address(0)
+└── given token ID exists
+    └── it should return the first minter address
+
+ResourceTokenRegistry_tokenType
+├── given token ID has 0x01 prefix
+│   └── it should return 0x01
+├── given token ID has 0x02 prefix
+│   └── it should return 0x02
+└── given token ID has 0x03 prefix
+    └── it should return 0x03
+
+ResourceTokenRegistry_isPermission
+├── given token ID has 0x01 prefix
+│   └── it should return true
+└── given token ID does not have 0x01 prefix
+    └── it should return false
+
+ResourceTokenRegistry_isResponsibility
+├── given token ID has 0x02 prefix
+│   └── it should return true
+└── given token ID does not have 0x02 prefix
+    └── it should return false
+
+ResourceTokenRegistry_isDirective
+├── given token ID has 0x03 prefix
+│   └── it should return true
+└── given token ID does not have 0x03 prefix
+    └── it should return false

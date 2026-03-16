@@ -1,0 +1,65 @@
+HatValidator_onInstall
+├── when caller has already installed
+│   └── it should revert with AlreadyInstalled
+└── when caller has not installed
+    ├── it should store the hats address keyed by msg.sender
+    ├── it should store the hatId keyed by msg.sender
+    └── it should emit HatValidatorInstalled
+
+HatValidator_onUninstall
+├── when caller has not installed
+│   └── it should revert with NotInstalled
+└── when caller has installed
+    ├── it should clear the config for msg.sender
+    └── it should emit HatValidatorUninstalled
+
+HatValidator_isModuleType
+├── given typeID is 1 (validator)
+│   └── it should return true
+└── given typeID is not 1
+    └── it should return false
+
+HatValidator_isAuthorized
+├── given account has no config (not installed)
+│   └── it should return false
+└── given account has a config
+    ├── when caller wears the hat
+    │   └── it should return true
+    └── when caller does not wear the hat
+        └── it should return false
+
+HatValidator_validateUserOp
+├── given account has no config
+│   └── it should return SIG_VALIDATION_FAILED
+└── given account has a config
+    ├── when recovered signer wears the hat
+    │   └── it should return 0 (success)
+    └── when recovered signer does not wear the hat
+        └── it should return SIG_VALIDATION_FAILED
+
+HatValidator_isValidSignatureWithSender
+├── given account has no config
+│   └── it should return 0xffffffff (failure)
+└── given account has a config
+    ├── when recovered signer wears the hat
+    │   └── it should return 0x1626ba7e (ERC-1271 magic value)
+    └── when recovered signer does not wear the hat
+        └── it should return 0xffffffff (failure)
+
+HatValidator_hats
+├── given account has no config
+│   └── it should return address(0)
+└── given account has a config
+    └── it should return the configured hats address
+
+HatValidator_hatId
+├── given account has no config
+│   └── it should return 0
+└── given account has a config
+    └── it should return the configured hat ID
+
+HatValidator_isInstalledOn
+├── given account has not called onInstall
+│   └── it should return false
+└── given account has called onInstall
+    └── it should return true

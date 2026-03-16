@@ -4,7 +4,7 @@
 
 **Trust Zones are the interoperability standard for machine agreements.** An agreement is a contract; a contract is an agreement. Trust Zones make this literal: each agreement is a smart contract, each zone within an agreement is a smart account that holds real resources, and permissions to those resources are the stakes of the agreement.
 
-**Judge-facing framing:** "Machines can keep promises when the promise is a Trust Zone: constraints are explicit, enforcement is onchain, resources are at stake, disputes are adjudicated, and trust updates from every interaction."z
+**Judge-facing framing:** "Machines can keep promises when the promise is a Trust Zone: constraints are explicit, enforcement is onchain, resources are at stake, disputes are adjudicated, and trust updates from every interaction."
 
 ## Core Primitives
 
@@ -17,7 +17,7 @@
 |   ↳ Permission | "What you CAN do" | `0x01` prefix |
 |   ↳ Responsibility | "What you MUST do" (rivalrous) | `0x02` prefix |
 |   ↳ Directive | "What you SHOULD/SHOULDN'T do" (subjective rules) | `0x03` prefix |
-| **Plugins** | Boundary mechanisms | ERC-7579 hooks + Hats modules |
+| **Mechanisms** | Typed parameters governing zones | ELIGIBILITY, INCENTIVE, CONSTRAINT |
 
 ## Relationships
 

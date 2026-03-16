@@ -17,42 +17,50 @@ Trust Zones Top Hat (worn by Agreement Registry)
 - **Agreement Registry** wears the top hat → can create agreement hats (children)
 - **Agreement Contract** admins the agreement hat → creates zone hats (children), mints to agents on activation
 - **Zone hat wearing** = TZ membership. Checked by HatValidator on TZ Account.
-- **Hat revocation** = agent removal from zone. Cascades to loss of all zone access.
+- **Hat deactivation** (via toggle or `setHatStatus`) = agent loses all zone access. Cascades to TZ Account lockout.
 
-## Modules used
+## Zone hat configuration
 
-### Eligibility modules (chained)
+Zone hats are created during activation. Their configuration comes from `TZConfig`:
 
-Two chained eligibility modules on each zone hat:
+### Hat metadata (from TZConfig fields)
+- `hatMaxSupply` — how many of this zone hat can exist (typically 1 for 1:1 agreements)
+- `hatDetails` — human/agent-readable description
 
-1. **Staking eligibility** (existing Hats module) — checks agent has deposited ≥ required bond amount
-2. **8004ReputationEligibility** (new module) — checks agent's ERC-8004 reputation score ≥ threshold
+### Eligibility modules (from TZConfig.mechanisms where paramType == ELIGIBILITY)
 
-Both thresholds are negotiable terms in the agreement. The inverse relationship between reputation and bond is a negotiation outcome, not hardcoded logic.
+ELIGIBILITY mechanisms are installed as Hats eligibility modules on the zone hat. Multiple eligibility modules can be chained.
 
-### Toggle module
+Example mechanisms:
 
-**AgreementToggle** — the agreement contract itself acts as the toggle module for its zone hats:
-- `getHatStatus(hatId)` returns `true` if the agreement is in ACTIVE state and deadline has not passed
-- When agreement reaches a terminal state (COMPLETED, TERMINATED, RESOLVED), returns `false` → zones deactivate
+1. **Staking eligibility** (existing Hats module) — agent deposits ETH/tokens to become hat-eligible
+   - `minStake` threshold is a negotiated term encoded in `Mechanism.params`
+   - Agreement contract is configured as the `judge` (can call `slash()`)
 
-## 8004ReputationEligibility module (new, to build)
+2. **8004ReputationEligibility** (new module) — checks agent's 8004 reputation history
+   - Threshold/criteria are negotiated terms encoded in `Mechanism.params`
+   - For hackathon: simple check against 8004 feedback count/tags
 
-```solidity
-contract ERC8004ReputationEligibility is IHatsEligibility {
-    address public reputationRegistry;  // ERC-8004 ReputationRegistry address
-    uint256 public erc8004TokenId;      // which 8004 identity to check
-    int256 public minScore;             // minimum reputation threshold
+### Toggle module (from TZConfig.hatToggle)
 
-    function getWearerStatus(address wearer, uint256 hatId)
-        external view returns (bool eligible, bool standing) {
-        // Query ERC-8004 ReputationRegistry for aggregate score
-        // Return eligible = score >= minScore, standing = true
-    }
-}
-```
+- `address(0)` = agreement contract as toggle (default)
+- Agreement implements `IHatsToggle.getHatStatus(hatId)`:
+  - Returns `active = true` when agreement is ACTIVE and `block.timestamp < deadline`
+  - Returns `active = false` after deadline or when agreement is CLOSED
+  - Provides automatic lame-duck prevention — zones go inert on deadline
 
-Configured per zone hat via init data. The threshold is a negotiated term.
+### Explicit deactivation
+
+On CLOSED, the agreement also calls `HATS.setHatStatus(hatId, false)` to immediately and permanently deactivate zone hats, regardless of toggle.
+
+## Settlement flow (on CLOSED)
+
+When the agreement transitions to CLOSED, it interacts with mechanisms based on the outcome:
+
+1. **Deactivate zone hats** — `HATS.setHatStatus(hatId, false)` for each zone
+2. **INCENTIVE mechanisms** — the adjudicator can trigger actions (SLASH, FEEDBACK, etc.) via ADJUDICATE before or as part of closure
+3. **8004 reputation** — agreement writes `giveFeedback()` for each party with an `agentId` (see agreement.md)
+4. **Resource tokens** — agreement burns all resource tokens from TZ accounts
 
 ## Hats Protocol addresses
 

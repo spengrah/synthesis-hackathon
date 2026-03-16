@@ -1,0 +1,30 @@
+AgreementRegistry_createAgreement
+├── when msg.sender is address(0)
+│   └── it should revert with InvalidParty
+├── when partyB is address(0)
+│   └── it should revert with InvalidParty
+├── when msg.sender equals partyB
+│   └── it should revert with PartiesIdentical
+└── when parties are valid
+    ├── it should deploy an Agreement contract via CREATE2
+    ├── it should create an agreement-level hat (child of top hat)
+    ├── it should transfer hat admin to the new agreement contract
+    ├── it should register the agreement as a minter on ResourceTokenRegistry
+    ├── it should store the agreement → hatId mapping
+    ├── it should forward proposalData to the agreement as the initial proposal
+    ├── it should set the agreement state to PROPOSED
+    ├── it should set turn to partyB
+    ├── it should emit AgreementCreated with creator = msg.sender
+    └── it should return the agreement address
+
+AgreementRegistry_createAgreement_deterministic
+├── given the same caller, partyB, and proposalData
+│   └── it should deploy to a deterministic address
+└── given different proposalData for the same parties
+    └── it should deploy to a different address
+
+AgreementRegistry_agreementHatIds
+├── given agreement has not been created
+│   └── it should return 0
+└── given agreement has been created
+    └── it should return the agreement-level hat ID

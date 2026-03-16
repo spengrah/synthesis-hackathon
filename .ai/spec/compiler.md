@@ -15,30 +15,29 @@ Offchain TypeScript library + x402-gated API server. Translates between TZ schem
 
 Atomic, composable functions. Each maps one TZ schema dimension to one onchain artifact.
 
-### Constraint templates (→ ERC-7579 hooks)
+### CONSTRAINT templates (paramType 0x03 → ERC-7579 hooks on TZ Account)
 ```
-budget-cap             →  SpendingLimitHook + init params
-target-allowlist       →  PermissionsHook + init params
-time-lock              →  ColdStorageHook + init params
-```
-
-### Eligibility templates (→ Hats modules)
-```
-reputation-gate        →  8004ReputationEligibility + init params
-staking-requirement    →  StakingEligibility (existing) + init params
+budget-cap             →  Mechanism{CONSTRAINT, SpendingLimitHook, params}
+target-allowlist       →  Mechanism{CONSTRAINT, PermissionsHook, params}
+time-lock              →  Mechanism{CONSTRAINT, ColdStorageHook, params}
 ```
 
-### Incentive templates (→ agreement-level config)
+### ELIGIBILITY templates (paramType 0x01 → Hats eligibility modules on zone hat)
 ```
-payment-escrow         →  EscrowMechanism params
-slashable-bond         →  BondMechanism params
-identity-stake         →  IdentityStakeMechanism params
+reputation-gate        →  Mechanism{ELIGIBILITY, 8004ReputationEligibility, params}
+staking-requirement    →  Mechanism{ELIGIBILITY, StakingEligibility, params}
 ```
 
-### Adjudication templates
+### INCENTIVE templates (paramType 0x02 → claimable mechanisms in agreement registry)
 ```
-genlayer-adjudicator   →  IAdjudicator address + init params
-stub-adjudicator       →  StubAdjudicator address + init params
+slashable-bond         →  Mechanism{INCENTIVE, StakingModule, params{slashPercent, ...}}
+reputation-feedback    →  Mechanism{INCENTIVE, ReputationRegistry, params{...}}
+```
+
+### Adjudication (agreement-level, not per-zone)
+```
+genlayer-adjudicator   →  ProposalData.adjudicator = GenLayer address
+stub-adjudicator       →  ProposalData.adjudicator = StubAdjudicator address
 ```
 
 ## Compile function

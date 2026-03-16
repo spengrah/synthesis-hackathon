@@ -35,11 +35,13 @@ requiredTrustLevel = f(resourcesAtRisk)
 
 Enforced via Hats eligibility module chaining: existing staking module + new 8004 reputation module. Both thresholds are negotiated terms. The inverse relationship between reputation and bond emerges from negotiation.
 
-## Incentive mechanisms
+## Mechanisms per zone
 
-- **Slashable bond**: each agent deposits ETH. Returned on completion. Slashed on adverse resolution.
-- **8004 identity stake**: each agent transfers their 8004 NFT to agreement contract. Returned on completion. On adverse resolution: returned + negative reputation via `giveFeedback()`.
-- **Payment escrow** (optional): principal deposits USDC for agent. Released on completion.
+Each zone has mechanisms of all three types, configured as negotiated terms:
+
+- **ELIGIBILITY**: Staking module (bond requirement) + 8004 reputation check
+- **INCENTIVE**: Bond slash parameters, 8004 reputation feedback on close
+- **CONSTRAINT**: ERC-7579 hooks (target allowlist, rate limit enforcement)
 
 ## Demo flow (9 beats)
 
@@ -55,12 +57,14 @@ Agent B counters with modified terms. Agent A accepts.
 
 ### 2. STAKE + ACTIVATE
 `acceptAndActivate()`:
-- Both agents deposit ETH bonds
-- Both agents transfer 8004 NFTs to agreement contract
-- Zone hats created and minted
+- Both agents deposit ETH bonds (via staking ELIGIBILITY module)
+- Zone hats created with chained eligibility (staking + 8004 reputation)
+- Zone hats minted to agents (both agents' `agentId` verified against 8004 IdentityRegistry)
 - TZ Accounts deployed (ERC-1167 clones)
 - Modules installed (HatValidator, agreement executor, HookMultiPlexer)
-- Resource tokens minted/transferred to each TZ account:
+- CONSTRAINT mechanisms installed as ERC-7579 hooks
+- INCENTIVE mechanisms registered in claimable mechanism registry
+- Resource tokens minted to each TZ account:
   - TZ Account 1 (B's zone): permission tokens for A's endpoints + directive tokens
   - TZ Account 2 (A's zone): permission tokens for B's endpoints + directive tokens
 - State: ACTIVE
@@ -76,32 +80,39 @@ Agent B tries to access /raw-export on A's API (not in permission tokens).
 → A's API checks: does TZ Account 1 hold a permission token for /raw-export? No.
 → Request denied. "Deterministic enforcement."
 
-### 5. DIRECTIVE VIOLATION + DISPUTE
+### 5. DIRECTIVE VIOLATION + CLAIM
 Agent A reviews B's access receipts from Tier 2.
 - B queried /market-data 47 times in 2 hours (directive token: rateLimit=10/hr)
 - B's derived outputs lack attribution (directive token: attribution=required)
 
-Agent A files: `submitInput(DISPUTE, {tokenRefs, claim, evidenceRefs})`
+Agent A files: `submitInput(CLAIM, abi.encode(mechanismIndex, evidence))`
+- References the INCENTIVE mechanism (bond slash) for Zone 1
+- State stays ACTIVE — claim is logged, adjudicator is notified
 
 ### 6. ADJUDICATION
-GenLayer reads from chain:
-- Directive tokens + metadata (the rules)
-- Action receipts (what happened)
+Adjudicator (GenLayer or stub) evaluates:
+- Reads directive tokens + metadata (the rules)
+- Reads action receipts (what happened)
 - Evaluates: rate limit violation (moderate), attribution violation (minor)
-- Returns: verdict + 35% severity
 
-### 7. RESOLUTION
-- 35% of B's bond slashed
-- Agreement contract calls `ERC8004ReputationRegistry.giveFeedback()` on B's identity
-- B's 8004 NFT returned (moderate severity — not burned)
-- A's bond returned in full, reputation untouched
-- Zone hats deactivated
-- State: RESOLVED
+Adjudicator delivers: `submitInput(ADJUDICATE, abi.encode(claimId, verdict, actions))`
+- actions: SLASH 35% of B's bond + CLOSE agreement
+
+### 7. RESOLUTION + CLOSE
+Agreement executes adjudication actions:
+- 35% of B's bond slashed via staking module
+- Agreement transitions to CLOSED with outcome `ADJUDICATED`
+- Zone hats deactivated via `HATS.setHatStatus(hatId, false)`
+- Resource tokens burned from TZ accounts
+- 8004 reputation feedback written for both parties:
+  - B: tagged `trust-zone-agreement` / `ADJUDICATED`, referencing the agreement
+  - A: tagged `trust-zone-agreement` / `ADJUDICATED`, referencing the agreement
 
 ### 8. ASYMMETRIC TRUST UPDATE
-- A's trust in B dropped (visible in 8004 reputation registry)
-- B's trust in A unchanged
-- Trust beliefs updated in Tier 3
+- B's 8004 record now shows an `ADJUDICATED` agreement (downstream consumers see this)
+- A's 8004 record shows the same agreement but as the non-at-fault party
+- Downstream consumers form their own assessment of each agent's trustworthiness
+- The asymmetry is in the agreement details, not in a single score
 
 ### 9. RENEGOTIATION (the money shot)
 Same agents, new agreement.
