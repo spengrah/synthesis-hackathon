@@ -34,8 +34,8 @@ interface IHatValidator is IERC7579Validator, IHatValidatorErrors, IHatValidator
 
   // ---- Config reads ----
 
-  /// @notice Get the Hats Protocol address configured for an account.
-  /// @param account The TZ account to query.
+  /// @notice The Hats Protocol address (immutable, same for all accounts).
+  /// @param account Ignored — included for interface consistency.
   /// @return The IHats contract address.
   function hats(address account) external view returns (address);
 

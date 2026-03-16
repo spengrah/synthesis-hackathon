@@ -8,6 +8,11 @@ library TestHelpers {
     return uint8(id & 0xFF);
   }
 
+  /// @dev Build a token ID from a base value and a type prefix.
+  function makeTokenId(uint256 base, uint8 typePrefix) internal pure returns (uint256) {
+    return (base << 8) | typePrefix;
+  }
+
   /// @dev Compute a deterministic salt for TrustZone clone deployment.
   function cloneSalt(address agreement, uint256 zoneIndex) internal pure returns (bytes32) {
     return keccak256(abi.encode(agreement, zoneIndex));

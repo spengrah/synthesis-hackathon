@@ -11,6 +11,9 @@ library Defaults {
   // Resource token IDs
   // --------------------
 
+  /// @dev Default metadata bytes for test minting.
+  bytes internal constant DEFAULT_METADATA = "test metadata";
+
   /// @dev Permission token: type 0x01, namespace 0x00...01, id 0x01
   uint256 internal constant PERMISSION_TOKEN_ID = (0x01) | (uint256(1) << 8) | (uint256(1) << 72);
 
@@ -19,6 +22,9 @@ library Defaults {
 
   /// @dev Directive token: type 0x03, namespace 0x00...01, id 0x01
   uint256 internal constant DIRECTIVE_TOKEN_ID = (0x03) | (uint256(1) << 8) | (uint256(1) << 72);
+
+  /// @dev Invalid token: type 0x00 (not permission, responsibility, or directive)
+  uint256 internal constant INVALID_TOKEN_ID = (0x00) | (uint256(1) << 8) | (uint256(1) << 72);
 
   // --------------------
   // Metadata

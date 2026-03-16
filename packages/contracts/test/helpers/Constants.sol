@@ -22,6 +22,14 @@ library Constants {
   address internal constant REPUTATION_REGISTRY = 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63;
 
   // --------------------
+  // Resource token type prefixes
+  // --------------------
+
+  uint8 internal constant PERMISSION_PREFIX = 0x01;
+  uint8 internal constant RESPONSIBILITY_PREFIX = 0x02;
+  uint8 internal constant DIRECTIVE_PREFIX = 0x03;
+
+  // --------------------
   // Test values
   // --------------------
 

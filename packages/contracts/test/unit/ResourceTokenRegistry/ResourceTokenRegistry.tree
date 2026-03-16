@@ -1,101 +1,79 @@
-ResourceTokenRegistry_mint
-├── when caller is not an authorized minter
-│   └── it should revert with NotAuthorizedMinter
-└── when caller is an authorized minter
-    ├── given recipient already holds this token ID
-    │   └── it should revert with BalanceExceedsMax
-    └── given recipient does not hold this token ID
-        ├── given token ID does not exist yet
-        │   ├── it should set the creator to msg.sender
-        │   ├── it should store the metadata
-        │   ├── it should set the balance to 1
-        │   ├── it should emit TokenCreated
-        │   └── it should emit Transfer
-        └── given token ID already exists
-            ├── it should not change the creator
-            ├── it should not change the metadata
-            ├── it should set the balance to 1
-            └── it should emit Transfer
-
-ResourceTokenRegistry_burn
-├── when caller is not the token creator
-│   └── it should revert with NotTokenCreator
-└── when caller is the token creator
-    ├── given holder balance is 0
-    │   └── it should revert with InsufficientBalance
-    └── given holder balance is 1
-        ├── it should set the balance to 0
-        └── it should emit Transfer
-
-ResourceTokenRegistry_transfer
-├── when caller is not the token creator
-│   └── it should revert with NotTokenCreator
-└── when caller is the token creator
-    ├── given receiver already holds this token ID
-    │   └── it should revert with BalanceExceedsMax
-    └── given receiver does not hold this token ID
-        ├── it should set sender balance to 0
-        ├── it should set receiver balance to 1
-        └── it should emit Transfer
-
-ResourceTokenRegistry_transferFrom
-├── when caller is not the token creator
-│   └── it should revert with NotTokenCreator
-└── when caller is the token creator
-    ├── given receiver already holds this token ID
-    │   └── it should revert with BalanceExceedsMax
-    └── given receiver does not hold this token ID
-        ├── it should set sender balance to 0
-        ├── it should set receiver balance to 1
-        └── it should emit Transfer
-
-ResourceTokenRegistry_approve
-└── it should revert with ApprovalsDisabled
-
-ResourceTokenRegistry_setOperator
-└── it should revert with ApprovalsDisabled
-
-ResourceTokenRegistry_registerMinter
-├── when caller is not the owner
-│   └── it should revert with NotOwner
-└── when caller is the owner
-    ├── it should set isMinter to true
-    └── it should emit MinterRegistered
-
-ResourceTokenRegistry_tokenMetadata
-├── given token ID does not exist
-│   └── it should return empty bytes
-└── given token ID exists
-    └── it should return the metadata set on first mint
-
-ResourceTokenRegistry_creator
-├── given token ID does not exist
-│   └── it should return address(0)
-└── given token ID exists
-    └── it should return the first minter address
-
-ResourceTokenRegistry_tokenType
-├── given token ID has 0x01 prefix
-│   └── it should return 0x01
-├── given token ID has 0x02 prefix
-│   └── it should return 0x02
-└── given token ID has 0x03 prefix
-    └── it should return 0x03
-
-ResourceTokenRegistry_isPermission
-├── given token ID has 0x01 prefix
-│   └── it should return true
-└── given token ID does not have 0x01 prefix
-    └── it should return false
-
-ResourceTokenRegistry_isResponsibility
-├── given token ID has 0x02 prefix
-│   └── it should return true
-└── given token ID does not have 0x02 prefix
-    └── it should return false
-
-ResourceTokenRegistry_isDirective
-├── given token ID has 0x03 prefix
-│   └── it should return true
-└── given token ID does not have 0x03 prefix
-    └── it should return false
+ResourceTokenRegistry
+├── mint
+│   ├── when caller is not a registered minter
+│   │   └── it should revert with Unauthorized
+│   ├── when caller is a registered minter
+│   │   ├── when recipient already has balance for that token id
+│   │   │   └── it should revert with BalanceOverflow
+│   │   ├── when token id has invalid type prefix (not 0x01, 0x02, 0x03)
+│   │   │   └── it should revert with InvalidTokenType
+│   │   ├── when token already has metadata set and new metadata differs
+│   │   │   └── it should revert with MetadataAlreadySet
+│   │   ├── when token already has metadata set and new metadata matches
+│   │   │   └── it should mint successfully without changing metadata
+│   │   └── when minting a fresh token
+│   │       ├── it should set balance to 1
+│   │       ├── it should store creator as msg.sender
+│   │       ├── it should store metadata
+│   │       └── it should emit Transfer event
+├── burn
+│   ├── when caller is not the creator of the token
+│   │   └── it should revert with Unauthorized
+│   ├── when target has no balance
+│   │   └── it should revert with InsufficientBalance
+│   └── when caller is the creator and target has balance
+│       ├── it should set balance to 0
+│       └── it should emit Transfer event
+├── transfer
+│   ├── when caller is not the creator of the token
+│   │   └── it should revert with NonTransferable
+│   ├── when caller is the creator
+│   │   ├── when sender has insufficient balance
+│   │   │   └── it should revert with InsufficientBalance
+│   │   ├── when receiver already has balance
+│   │   │   └── it should revert with BalanceOverflow
+│   │   └── when valid
+│   │       ├── it should move the token
+│   │       └── it should emit Transfer event
+├── transferFrom
+│   ├── when caller is not the creator of the token
+│   │   └── it should revert with NonTransferable
+│   ├── when caller is the creator
+│   │   ├── when sender has insufficient balance
+│   │   │   └── it should revert with InsufficientBalance
+│   │   ├── when receiver already has balance
+│   │   │   └── it should revert with BalanceOverflow
+│   │   └── when valid
+│   │       ├── it should move the token
+│   │       └── it should emit Transfer event
+├── approve
+│   └── it should revert with ApprovalsDisabled
+├── setOperator
+│   └── it should revert with ApprovalsDisabled
+├── registerMinter
+│   ├── when caller is not the owner
+│   │   └── it should revert with Unauthorized
+│   └── when caller is the owner
+│       ├── it should set isMinter to true
+│       └── it should emit MinterRegistered event
+├── tokenMetadata
+│   └── it should return stored metadata for the token id
+├── creator
+│   └── it should return the creator address for the token id
+├── tokenType
+│   └── it should return the lowest 8 bits of the token id
+├── isPermission
+│   ├── when lowest 8 bits == 0x01
+│   │   └── it should return true
+│   └── otherwise
+│       └── it should return false
+├── isResponsibility
+│   ├── when lowest 8 bits == 0x02
+│   │   └── it should return true
+│   └── otherwise
+│       └── it should return false
+└── isDirective
+    ├── when lowest 8 bits == 0x03
+    │   └── it should return true
+    └── otherwise
+        └── it should return false

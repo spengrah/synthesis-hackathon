@@ -8,9 +8,14 @@ import { Constants } from "./helpers/Constants.sol";
 import { Defaults } from "./helpers/Defaults.sol";
 import { TestHelpers } from "./helpers/TestHelpers.sol";
 
+import { ResourceTokenRegistry } from "../src/ResourceTokenRegistry.sol";
+import { HatValidator } from "../src/modules/HatValidator.sol";
 import { IReputationRegistry } from "../src/interfaces/IERC8004.sol";
 import { TZTypes } from "../src/lib/TZTypes.sol";
 import { AgreementTypes } from "../src/lib/AgreementTypes.sol";
+
+import { DeployResourceTokenRegistry } from "../script/DeployResourceTokenRegistry.s.sol";
+import { DeployHatValidator } from "../script/DeployHatValidator.s.sol";
 
 // ====================
 // ForkTestBase
@@ -25,8 +30,8 @@ abstract contract ForkTestBase is Test {
   address internal identityRegistry = Constants.IDENTITY_REGISTRY;
 
   // ---- Our contracts (set by deployment helpers) ----
-  // ResourceTokenRegistry internal registry;
-  // HatValidator internal hatValidator;
+  ResourceTokenRegistry internal registry;
+  HatValidator internal hatValidator;
   // TrustZone internal trustZoneImpl;
   // AgreementRegistry internal agreementRegistry;
 
@@ -65,17 +70,19 @@ abstract contract ForkTestBase is Test {
   // Deployment helpers
   // ====================
 
-  /// @dev Deploy ResourceTokenRegistry with `deployer` as owner.
-  function _deployResourceTokenRegistry() internal {
+  /// @dev Deploy ResourceTokenRegistry using the deploy script. `deployer` becomes owner.
+  function _deployResourceTokenRegistry() internal virtual {
     vm.startPrank(deployer);
-    // registry = new ResourceTokenRegistry();
+    DeployResourceTokenRegistry deployScript = new DeployResourceTokenRegistry();
+    registry = deployScript.execute(deployer);
     vm.stopPrank();
   }
 
-  /// @dev Deploy HatValidator (single instance, shared across accounts).
-  function _deployHatValidator() internal {
+  /// @dev Deploy HatValidator using the deploy script.
+  function _deployHatValidator() internal virtual {
     vm.startPrank(deployer);
-    // hatValidator = new HatValidator();
+    DeployHatValidator deployScript = new DeployHatValidator();
+    hatValidator = deployScript.execute(address(hats));
     vm.stopPrank();
   }
 
@@ -141,7 +148,7 @@ abstract contract ForkTestBase is Test {
   /// @dev Register an address as an authorized minter on the ResourceTokenRegistry.
   function _registerMinter(address minter) internal {
     vm.prank(deployer);
-    // registry.registerMinter(minter);
+    registry.registerMinter(minter);
   }
 
   // ====================
@@ -209,14 +216,29 @@ abstract contract ForkTestBase is Test {
 // ====================
 
 /// @notice Base for ResourceTokenRegistry unit tests.
-abstract contract ResourceTokenRegistryBase is ForkTestBase {
-  address internal minter;
+/// @dev Does NOT require a fork — ResourceTokenRegistry has no external dependencies.
+///      Uses the deploy script to ensure tests validate the actual deployment path.
+abstract contract ResourceTokenRegistryBase is Test {
+  ResourceTokenRegistry internal registry;
 
-  function setUp() public virtual override {
-    super.setUp();
-    minter = makeAddr("minter");
-    _deployResourceTokenRegistry();
-    _registerMinter(minter);
+  address internal registryOwner = makeAddr("registryOwner");
+  address internal minter = makeAddr("minter");
+  address internal alice = makeAddr("alice");
+  address internal bob = makeAddr("bob");
+  address internal unauthorized = makeAddr("unauthorized");
+
+  function setUp() public virtual {
+    vm.startPrank(registryOwner);
+    DeployResourceTokenRegistry deployScript = new DeployResourceTokenRegistry();
+    registry = deployScript.execute(registryOwner);
+    registry.registerMinter(minter);
+    vm.stopPrank();
+  }
+
+  /// @dev Helper: mint a default token to `to` from `minter`.
+  function _mintDefault(address to, uint256 id) internal {
+    vm.prank(minter);
+    registry.mint(to, id, Defaults.DEFAULT_METADATA);
   }
 }
 
