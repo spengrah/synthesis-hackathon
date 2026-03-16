@@ -4,6 +4,7 @@ forge-std/=lib/forge-std/src/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 hats-protocol/=lib/hats-protocol/src/
 core-modules/=lib/core-modules/src/
+experimental-modules/=lib/experimental-modules/src/
 modulekit/=lib/modulekit/src/
 solady/=lib/modulekit/node_modules/solady/src/
 solarray/=lib/modulekit/node_modules/solarray/src/

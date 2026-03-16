@@ -16,3 +16,6 @@
 [submodule "packages/contracts/lib/modulekit"]
 	path = packages/contracts/lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
+[submodule "packages/contracts/lib/experimental-modules"]
+	path = packages/contracts/lib/experimental-modules
+	url = https://github.com/rhinestonewtf/experimental-modules
