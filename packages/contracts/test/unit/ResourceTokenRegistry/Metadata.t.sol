@@ -6,8 +6,8 @@ import { Defaults } from "../../helpers/Defaults.sol";
 
 contract Metadata_Test is ResourceTokenRegistryBase {
   function test_TokenMetadata_ReturnsStoredMetadata() public {
-    _mintDefault(alice, Defaults.PERMISSION_TOKEN_ID);
-    assertEq(registry.tokenMetadata(Defaults.PERMISSION_TOKEN_ID), Defaults.DEFAULT_METADATA);
+    uint256 id = _mintDefault(alice, Defaults.PERMISSION_TYPE);
+    assertEq(registry.tokenMetadata(id), Defaults.DEFAULT_METADATA);
   }
 
   function test_TokenMetadata_ReturnsEmptyForUnmintedToken() public view {
@@ -15,8 +15,8 @@ contract Metadata_Test is ResourceTokenRegistryBase {
   }
 
   function test_Creator_ReturnsCreatorAddress() public {
-    _mintDefault(alice, Defaults.PERMISSION_TOKEN_ID);
-    assertEq(registry.creator(Defaults.PERMISSION_TOKEN_ID), minter);
+    uint256 id = _mintDefault(alice, Defaults.PERMISSION_TYPE);
+    assertEq(registry.creator(id), minter);
   }
 
   function test_Creator_ReturnsZeroForUnmintedToken() public view {

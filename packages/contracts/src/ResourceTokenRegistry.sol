@@ -4,21 +4,49 @@ pragma solidity >=0.8.28;
 import { IResourceTokenRegistry } from "./interfaces/IResourceTokenRegistry.sol";
 
 contract ResourceTokenRegistry is IResourceTokenRegistry {
-  mapping(address owner => mapping(uint256 id => uint256)) internal _balances;
+  // ─── Storage
+  // ───────────────────────────────────────────────────────────────
+
+  /// @dev Balance is always 0 or 1, so bool is sufficient.
+  mapping(address holder => mapping(uint256 id => bool)) internal _held;
   mapping(uint256 id => address) public creator;
   mapping(uint256 id => bytes) internal _metadata;
   mapping(address => bool) public isMinter;
+  mapping(uint8 => uint256) public lastId;
   address public owner;
 
   constructor(address _owner) {
     owner = _owner;
   }
 
+  // ─── Internal checks
+  // ──────────────────────────────────────────────────────
+
+  function _checkIsMinter() internal view {
+    if (!isMinter[msg.sender]) revert NotAuthorizedMinter();
+  }
+
+  function _checkIsCreator(uint256 id) internal view {
+    if (msg.sender != creator[id]) revert NotTokenCreator();
+  }
+
+  function _checkIsHeld(address holder, uint256 id) internal view {
+    if (!_held[holder][id]) revert InsufficientBalance(holder, id);
+  }
+
+  function _checkNotHeld(address holder, uint256 id) internal view {
+    if (_held[holder][id]) revert BalanceExceedsMax();
+  }
+
+  function _checkValidTokenType(uint8 _tokenType) internal pure {
+    if (_tokenType < 0x01 || _tokenType > 0x03) revert InvalidTokenType(_tokenType);
+  }
+
   // ─── ERC-6909 reads
-  // ──────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────
 
   function balanceOf(address _owner, uint256 id) external view returns (uint256) {
-    return _balances[_owner][id];
+    return _held[_owner][id] ? 1 : 0;
   }
 
   function allowance(address, address, uint256) external pure returns (uint256) {
@@ -30,27 +58,27 @@ contract ResourceTokenRegistry is IResourceTokenRegistry {
   }
 
   // ─── ERC-6909 writes (restricted)
-  // ────────────────────────────────────────────
+  // ──────────────────────────────────────────
 
   function transfer(address receiver, uint256 id, uint256 amount) external returns (bool) {
-    if (msg.sender != creator[id]) revert NotTokenCreator();
-    if (_balances[msg.sender][id] < amount) revert InsufficientBalance(msg.sender, id);
-    if (_balances[receiver][id] + amount > 1) revert BalanceExceedsMax();
+    _checkIsCreator(id);
+    _checkIsHeld(msg.sender, id);
+    _checkNotHeld(receiver, id);
 
-    _balances[msg.sender][id] -= amount;
-    _balances[receiver][id] += amount;
+    _held[msg.sender][id] = false;
+    _held[receiver][id] = true;
 
     emit Transfer(msg.sender, msg.sender, receiver, id, amount);
     return true;
   }
 
   function transferFrom(address sender, address receiver, uint256 id, uint256 amount) external returns (bool) {
-    if (msg.sender != creator[id]) revert NotTokenCreator();
-    if (_balances[sender][id] < amount) revert InsufficientBalance(sender, id);
-    if (_balances[receiver][id] + amount > 1) revert BalanceExceedsMax();
+    _checkIsCreator(id);
+    _checkIsHeld(sender, id);
+    _checkNotHeld(receiver, id);
 
-    _balances[sender][id] -= amount;
-    _balances[receiver][id] += amount;
+    _held[sender][id] = false;
+    _held[receiver][id] = true;
 
     emit Transfer(msg.sender, sender, receiver, id, amount);
     return true;
@@ -67,26 +95,28 @@ contract ResourceTokenRegistry is IResourceTokenRegistry {
   // ─── Minting / burning
   // ─────────────────────────────────────────────────────
 
-  function mint(address to, uint256 id, bytes calldata metadata) external {
-    if (!isMinter[msg.sender]) revert NotAuthorizedMinter();
-    if (_balances[to][id] != 0) revert BalanceExceedsMax();
+  function mint(address to, uint8 _tokenType, bytes calldata metadata) external returns (uint256 id) {
+    _checkIsMinter();
+    _checkValidTokenType(_tokenType);
 
-    if (creator[id] == address(0)) {
-      // First mint of this token ID — set creator and metadata permanently
-      creator[id] = msg.sender;
-      _metadata[id] = metadata;
-      emit TokenCreated(id, msg.sender, metadata);
-    }
+    // Auto-generate token ID: (++counter << 8) | typePrefix
+    id = (++lastId[_tokenType] << 8) | _tokenType;
 
-    _balances[to][id] = 1;
+    _checkNotHeld(to, id);
+
+    creator[id] = msg.sender;
+    _metadata[id] = metadata;
+    _held[to][id] = true;
+
+    emit TokenCreated(id, msg.sender, _tokenType, metadata);
     emit Transfer(msg.sender, address(0), to, id, 1);
   }
 
   function burn(address from, uint256 id) external {
-    if (msg.sender != creator[id]) revert NotTokenCreator();
-    if (_balances[from][id] == 0) revert InsufficientBalance(from, id);
+    _checkIsCreator(id);
+    _checkIsHeld(from, id);
 
-    _balances[from][id] = 0;
+    _held[from][id] = false;
     emit Transfer(msg.sender, from, address(0), id, 1);
   }
 

@@ -9,6 +9,7 @@ interface IResourceTokenRegistryErrors {
   error NotOwner();
   error BalanceExceedsMax();
   error InsufficientBalance(address from, uint256 id);
+  error InvalidTokenType(uint8 tokenType);
   error ApprovalsDisabled();
 }
 
@@ -18,8 +19,8 @@ interface IResourceTokenRegistryEvents {
   /// @notice Emitted on any balance change (mint, burn, transfer). ERC-6909 standard.
   event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
 
-  /// @notice Emitted when a new token ID is created (first mint).
-  event TokenCreated(uint256 indexed tokenId, address indexed creator, bytes metadata);
+  /// @notice Emitted when a new token ID is created via mint.
+  event TokenCreated(uint256 indexed tokenId, address indexed creator, uint8 tokenType, bytes metadata);
 
   /// @notice Emitted when a new minter is registered.
   event MinterRegistered(address indexed minter);
@@ -28,8 +29,9 @@ interface IResourceTokenRegistryEvents {
 /// @title IResourceTokenRegistry
 /// @notice ERC-6909 registry for Trust Zone resource tokens (permissions, responsibilities, directives).
 /// @dev Non-transferable except by creator. Max balance of 1 per holder per token ID.
-///      Metadata is immutable — set on first mint. Holders have no transfer or approval authority.
+///      Metadata is immutable — set on mint. Holders have no transfer or approval authority.
 ///      Resource tokens are delegated assets: the creator (agreement contract) retains control.
+///      Token IDs are auto-generated: (counter << 8) | typePrefix.
 interface IResourceTokenRegistry is IResourceTokenRegistryErrors, IResourceTokenRegistryEvents {
   // ---- ERC-6909 reads ----
 
@@ -67,17 +69,17 @@ interface IResourceTokenRegistry is IResourceTokenRegistryErrors, IResourceToken
 
   // ---- Minting / burning ----
 
-  /// @notice Mint a resource token to an address.
+  /// @notice Mint a new resource token to an address. Token ID is auto-generated.
   /// @dev Only callable by authorized minters (agreement contracts).
-  ///      First mint of a token ID sets its creator and metadata permanently.
   ///      Reverts if the recipient already holds this token ID (max balance = 1).
   /// @param to The recipient address.
-  /// @param id The token ID (type prefix in bits 0-7).
-  /// @param metadata ABI-encoded metadata. Ignored if token ID already exists.
-  function mint(address to, uint256 id, bytes calldata metadata) external;
+  /// @param tokenType The token type prefix (0x01 permission, 0x02 responsibility, 0x03 directive).
+  /// @param metadata ABI-encoded metadata, stored immutably.
+  /// @return id The auto-generated token ID.
+  function mint(address to, uint8 tokenType, bytes calldata metadata) external returns (uint256 id);
 
   /// @notice Burn a resource token from an address.
-  /// @dev Only callable by the token's creator (the agreement contract that first minted it).
+  /// @dev Only callable by the token's creator (the agreement contract that minted it).
   /// @param from The address to burn from.
   /// @param id The token ID.
   function burn(address from, uint256 id) external;
@@ -96,10 +98,10 @@ interface IResourceTokenRegistry is IResourceTokenRegistryErrors, IResourceToken
 
   /// @notice Get the immutable metadata for a token ID.
   /// @param id The token ID.
-  /// @return metadata ABI-encoded metadata, set on first mint.
+  /// @return metadata ABI-encoded metadata, set on mint.
   function tokenMetadata(uint256 id) external view returns (bytes memory);
 
-  /// @notice Get the creator (first minter) of a token ID.
+  /// @notice Get the creator (minter) of a token ID.
   /// @param id The token ID.
   /// @return The creator address.
   function creator(uint256 id) external view returns (address);
@@ -118,6 +120,9 @@ interface IResourceTokenRegistry is IResourceTokenRegistryErrors, IResourceToken
 
   /// @notice Check if a token ID is a directive token (0x03).
   function isDirective(uint256 id) external pure returns (bool);
+
+  /// @notice Get the last minted ID counter for a given token type.
+  function lastId(uint8 tokenType) external view returns (uint256);
 
   // ---- Admin ----
 

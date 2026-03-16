@@ -1,24 +1,20 @@
 ResourceTokenRegistry
 ├── mint
 │   ├── when caller is not a registered minter
-│   │   └── it should revert with Unauthorized
-│   ├── when caller is a registered minter
-│   │   ├── when recipient already has balance for that token id
-│   │   │   └── it should revert with BalanceOverflow
-│   │   ├── when token id has invalid type prefix (not 0x01, 0x02, 0x03)
-│   │   │   └── it should revert with InvalidTokenType
-│   │   ├── when token already has metadata set and new metadata differs
-│   │   │   └── it should revert with MetadataAlreadySet
-│   │   ├── when token already has metadata set and new metadata matches
-│   │   │   └── it should mint successfully without changing metadata
-│   │   └── when minting a fresh token
-│   │       ├── it should set balance to 1
-│   │       ├── it should store creator as msg.sender
-│   │       ├── it should store metadata
-│   │       └── it should emit Transfer event
+│   │   └── it should revert with NotAuthorizedMinter
+│   ├── when token type is invalid (not 0x01, 0x02, 0x03)
+│   │   └── it should revert with InvalidTokenType
+│   ├── when caller is a registered minter and type is valid
+│   │   ├── it should auto-generate a unique token ID
+│   │   ├── it should set balance to 1
+│   │   ├── it should store creator as msg.sender
+│   │   ├── it should store metadata
+│   │   ├── it should emit TokenCreated event
+│   │   ├── it should emit Transfer event
+│   │   └── it should increment lastId for that type
 ├── burn
 │   ├── when caller is not the creator of the token
-│   │   └── it should revert with Unauthorized
+│   │   └── it should revert with NotTokenCreator
 │   ├── when target has no balance
 │   │   └── it should revert with InsufficientBalance
 │   └── when caller is the creator and target has balance
@@ -26,23 +22,19 @@ ResourceTokenRegistry
 │       └── it should emit Transfer event
 ├── transfer
 │   ├── when caller is not the creator of the token
-│   │   └── it should revert with NonTransferable
+│   │   └── it should revert with NotTokenCreator
 │   ├── when caller is the creator
 │   │   ├── when sender has insufficient balance
 │   │   │   └── it should revert with InsufficientBalance
-│   │   ├── when receiver already has balance
-│   │   │   └── it should revert with BalanceOverflow
 │   │   └── when valid
 │   │       ├── it should move the token
 │   │       └── it should emit Transfer event
 ├── transferFrom
 │   ├── when caller is not the creator of the token
-│   │   └── it should revert with NonTransferable
+│   │   └── it should revert with NotTokenCreator
 │   ├── when caller is the creator
 │   │   ├── when sender has insufficient balance
 │   │   │   └── it should revert with InsufficientBalance
-│   │   ├── when receiver already has balance
-│   │   │   └── it should revert with BalanceOverflow
 │   │   └── when valid
 │   │       ├── it should move the token
 │   │       └── it should emit Transfer event
@@ -52,7 +44,7 @@ ResourceTokenRegistry
 │   └── it should revert with ApprovalsDisabled
 ├── registerMinter
 │   ├── when caller is not the owner
-│   │   └── it should revert with Unauthorized
+│   │   └── it should revert with NotOwner
 │   └── when caller is the owner
 │       ├── it should set isMinter to true
 │       └── it should emit MinterRegistered event
@@ -60,6 +52,8 @@ ResourceTokenRegistry
 │   └── it should return stored metadata for the token id
 ├── creator
 │   └── it should return the creator address for the token id
+├── lastId
+│   └── it should return the mint counter for a given token type
 ├── tokenType
 │   └── it should return the lowest 8 bits of the token id
 ├── isPermission

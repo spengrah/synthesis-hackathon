@@ -10,12 +10,15 @@ import { TestHelpers } from "./helpers/TestHelpers.sol";
 
 import { ResourceTokenRegistry } from "../src/ResourceTokenRegistry.sol";
 import { HatValidator } from "../src/modules/HatValidator.sol";
+import { TrustZone } from "../src/TrustZone.sol";
 import { IReputationRegistry } from "../src/interfaces/IERC8004.sol";
 import { TZTypes } from "../src/lib/TZTypes.sol";
 import { AgreementTypes } from "../src/lib/AgreementTypes.sol";
 
 import { DeployResourceTokenRegistry } from "../script/DeployResourceTokenRegistry.s.sol";
 import { DeployHatValidator } from "../script/DeployHatValidator.s.sol";
+import { DeployTrustZone } from "../script/DeployTrustZone.s.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 // ====================
 // ForkTestBase
@@ -32,7 +35,7 @@ abstract contract ForkTestBase is Test {
   // ---- Our contracts (set by deployment helpers) ----
   ResourceTokenRegistry internal registry;
   HatValidator internal hatValidator;
-  // TrustZone internal trustZoneImpl;
+  TrustZone internal trustZoneImpl;
   // AgreementRegistry internal agreementRegistry;
 
   // ---- Hat tree (set by _createHatTree) ----
@@ -89,7 +92,8 @@ abstract contract ForkTestBase is Test {
   /// @dev Deploy TrustZone implementation (used as clone source).
   function _deployTrustZoneImpl() internal {
     vm.startPrank(deployer);
-    // trustZoneImpl = new TrustZone();
+    DeployTrustZone deployScript = new DeployTrustZone();
+    trustZoneImpl = deployScript.execute();
     vm.stopPrank();
   }
 
@@ -235,10 +239,10 @@ abstract contract ResourceTokenRegistryBase is Test {
     vm.stopPrank();
   }
 
-  /// @dev Helper: mint a default token to `to` from `minter`.
-  function _mintDefault(address to, uint256 id) internal {
+  /// @dev Helper: mint a default token to `to` from `minter`. Returns the auto-generated token ID.
+  function _mintDefault(address to, uint8 tokenType) internal returns (uint256) {
     vm.prank(minter);
-    registry.mint(to, id, Defaults.DEFAULT_METADATA);
+    return registry.mint(to, tokenType, Defaults.DEFAULT_METADATA);
   }
 }
 
@@ -255,14 +259,46 @@ abstract contract HatValidatorBase is ForkTestBase {
 
 /// @notice Base for TrustZone unit tests.
 abstract contract TrustZoneBase is ForkTestBase {
+  TrustZone internal trustZone;
+  address internal mockExecutor;
+
   function setUp() public virtual override {
     super.setUp();
     _deployHatValidator();
     _deployTrustZoneImpl();
     _createHatTree();
-    // Deploy and initialize a clone for testing:
-    // trustZone = TrustZone(Clones.cloneDeterministic(address(trustZoneImpl), salt));
-    // trustZone.initialize(hatValidator, ..., agreement, ..., hookMultiplexer, ...);
+
+    // Deploy a mock executor module that reports isModuleType(2) = true
+    mockExecutor = address(new MockExecutorModule());
+
+    // Deploy and initialize a clone for testing
+    bytes32 salt = keccak256("trustzone-test");
+    trustZone = TrustZone(payable(Clones.cloneDeterministic(address(trustZoneImpl), salt)));
+
+    // Initialize with zoneHatA (partyA is the hat wearer)
+    trustZone.initialize(
+      address(hatValidator),
+      abi.encode(zoneHatA),
+      mockExecutor,
+      "",
+      address(0), // no hook
+      ""
+    );
+
+    // Fund the trust zone
+    vm.deal(address(trustZone), 10 ether);
+  }
+}
+
+import { IERC7579Module, MODULE_TYPE_EXECUTOR } from "@openzeppelin/contracts/interfaces/draft-IERC7579.sol";
+
+/// @dev Minimal mock executor module for testing. Reports isModuleType(2)=true and no-ops on install/uninstall.
+contract MockExecutorModule is IERC7579Module {
+  function onInstall(bytes calldata) external override { }
+  function onUninstall(bytes calldata) external override { }
+
+  function isModuleType(uint256 moduleTypeId) external pure override returns (bool) {
+    return moduleTypeId == MODULE_TYPE_EXECUTOR;
   }
 }
 

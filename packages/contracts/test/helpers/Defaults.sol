@@ -14,17 +14,22 @@ library Defaults {
   /// @dev Default metadata bytes for test minting.
   bytes internal constant DEFAULT_METADATA = "test metadata";
 
-  /// @dev Permission token: type 0x01, namespace 0x00...01, id 0x01
-  uint256 internal constant PERMISSION_TOKEN_ID = (0x01) | (uint256(1) << 8) | (uint256(1) << 72);
+  /// @dev First auto-generated permission token ID: (1 << 8) | 0x01
+  uint256 internal constant PERMISSION_TOKEN_ID = (uint256(1) << 8) | 0x01;
 
-  /// @dev Responsibility token: type 0x02, namespace 0x00...01, id 0x01
-  uint256 internal constant RESPONSIBILITY_TOKEN_ID = (0x02) | (uint256(1) << 8) | (uint256(1) << 72);
+  /// @dev First auto-generated responsibility token ID: (1 << 8) | 0x02
+  uint256 internal constant RESPONSIBILITY_TOKEN_ID = (uint256(1) << 8) | 0x02;
 
-  /// @dev Directive token: type 0x03, namespace 0x00...01, id 0x01
-  uint256 internal constant DIRECTIVE_TOKEN_ID = (0x03) | (uint256(1) << 8) | (uint256(1) << 72);
+  /// @dev First auto-generated directive token ID: (1 << 8) | 0x03
+  uint256 internal constant DIRECTIVE_TOKEN_ID = (uint256(1) << 8) | 0x03;
 
   /// @dev Invalid token: type 0x00 (not permission, responsibility, or directive)
-  uint256 internal constant INVALID_TOKEN_ID = (0x00) | (uint256(1) << 8) | (uint256(1) << 72);
+  uint256 internal constant INVALID_TOKEN_ID = (uint256(1) << 8) | 0x00;
+
+  // Token type constants
+  uint8 internal constant PERMISSION_TYPE = 0x01;
+  uint8 internal constant RESPONSIBILITY_TYPE = 0x02;
+  uint8 internal constant DIRECTIVE_TYPE = 0x03;
 
   // --------------------
   // Metadata
@@ -54,12 +59,12 @@ library Defaults {
     // mechanisms and resources left empty — callers add as needed
   }
 
-  function resourceTokenConfig(uint256 tokenId, bytes memory metadata)
+  function resourceTokenConfig(TZTypes.TZParamType _tokenType, bytes memory metadata)
     internal
     pure
     returns (TZTypes.TZResourceTokenConfig memory)
   {
-    return TZTypes.TZResourceTokenConfig({ tokenId: tokenId, metadata: metadata });
+    return TZTypes.TZResourceTokenConfig({ tokenType: _tokenType, metadata: metadata });
   }
 
   // --------------------
