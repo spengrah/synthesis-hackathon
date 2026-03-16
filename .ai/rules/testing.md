@@ -49,7 +49,7 @@ Deployment logic lives ONCE in `ForkTestBase` as helper functions. Each contract
 
 ### Deploy scripts in tests
 
-Tests use the same deploy scripts from `script/` to ensure the deployment path is tested:
+Tests deploy contracts by instantiating the deploy script and calling `execute()` — do not use `new Contract()` directly. This ensures the deployment path is tested:
 
 ```solidity
 function _deployResourceTokenRegistry() internal virtual {
@@ -59,6 +59,19 @@ function _deployResourceTokenRegistry() internal virtual {
     vm.stopPrank();
 }
 ```
+
+### Error references in tests
+
+Import the Errors interface directly and reference errors via `IContractErrors.ErrorName.selector`. For errors with parameters, use `abi.encodeWithSelector`:
+
+```solidity
+vm.expectRevert(IResourceTokenRegistryErrors.NotAuthorizedMinter.selector);
+vm.expectRevert(abi.encodeWithSelector(IResourceTokenRegistryErrors.InsufficientBalance.selector, from, id));
+```
+
+### Returned values
+
+When a function returns a value (e.g., auto-generated token ID from `mint`), tests must capture and use the return value. Do not compute expected IDs independently — use the actual returned value for subsequent assertions.
 
 ### Harness pattern
 

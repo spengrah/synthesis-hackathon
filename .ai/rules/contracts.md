@@ -24,11 +24,13 @@ IContract            — inherits both, declares all functions
 
 NatSpec: `@notice` for public docs, `@dev` for implementation details, `@param`/`@return` for all parameters.
 
+## Constructor ownership
+
+Constructors must take `owner` as an explicit parameter — never use `msg.sender`. `vm.prank` doesn't propagate through nested `new` calls in deploy scripts, so `msg.sender` in a constructor will be the deploy script contract, not the intended owner.
+
 ## Deploy scripts
 
 Deploy scripts live in `script/`. Tests use the same deploy scripts to ensure the deployment path is tested.
-
-Contracts that use `msg.sender` for ownership must take `owner` as an explicit constructor parameter so the deploy script can pass it through correctly (`vm.prank` doesn't propagate through nested `new` calls).
 
 ## Dependencies
 
