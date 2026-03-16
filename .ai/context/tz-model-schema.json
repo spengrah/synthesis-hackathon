@@ -1,0 +1,331 @@
+{
+  "version": "1.0.0",
+  "title": "Context-Graph Data Model",
+  "actionPhases": [
+    "propose",
+    "decide",
+    "execute",
+    "evaluate"
+  ],
+  "entities": {
+    "ACTOR": [
+      "string id PK",
+      "enum kind",
+      "string name"
+    ],
+    "TRUST_ZONE": [
+      "string id PK",
+      "string name",
+      "string parent FK",
+      "string[] actors",
+      "string[] responsible_for",
+      "string[] children",
+      "string[] constraints",
+      "string[] directives",
+      "string[] eligibilities",
+      "string[] decision_models",
+      "string[] principal_alignments",
+      "string[] statuses",
+      "string[] incentive_refs"
+    ],
+    "PROBLEM": [
+      "string id PK",
+      "string statement",
+      "enum status",
+      "string[] refs"
+    ],
+    "RESOURCE": [
+      "string id PK",
+      "string resource_type",
+      "string locator",
+      "string owner_zone FK"
+    ],
+    "BELIEF": [
+      "string id PK",
+      "string held_by FK",
+      "string claim",
+      "number_or_enum confidence"
+    ],
+    "CONSTRAINT": [
+      "string id PK",
+      "enum kind constructed|natural",
+      "string[] refs",
+      "string notes"
+    ],
+    "DIRECTIVE": [
+      "string id PK",
+      "string[] refs",
+      "string notes"
+    ],
+    "ELIGIBILITY": [
+      "string id PK",
+      "string[] refs",
+      "string notes"
+    ],
+    "DECISION_MODEL": [
+      "string id PK",
+      "string m",
+      "string n",
+      "string[] refs",
+      "string notes"
+    ],
+    "CONTEXT": [
+      "string id PK",
+      "enum scope message_turn|session_window|job_run|manual_bundle",
+      "string[] refs",
+      "string snapshot_hash",
+      "string notes"
+    ],
+    "ACTION": [
+      "string id PK",
+      "enum type",
+      "string created_by FK",
+      "string in_zone FK",
+      "string parent_action FK",
+      "enum status",
+      "string[] contexts",
+      "string[] inputs",
+      "string[] outputs",
+      "object outcome"
+    ],
+    "PRINCIPAL_ALIGNMENT": [
+      "string id PK",
+      "string principal_actor FK",
+      "string[] refs",
+      "string notes"
+    ],
+    "STATUS": [
+      "string id PK",
+      "enum status",
+      "string[] refs",
+      "string notes"
+    ]
+  },
+  "trustZonePropertySurface": {
+    "required": [
+      "id",
+      "name"
+    ],
+    "coreRecommended": [
+      "actors",
+      "responsible_for",
+      "parent",
+      "children"
+    ],
+    "coreResourceAuthority": [
+      "resource_authorities.owner_of",
+      "resource_authorities.delegated_permissions"
+    ],
+    "optionalAnalytical": [
+      "constraints[] -> constraint:*",
+      "directives[] -> directive:*",
+      "eligibilities[] -> eligibility:*",
+      "decision_models[] -> decision_model:*",
+      "principal_alignments[] -> principal_alignment:*",
+      "statuses[] -> status:*",
+      "incentive_refs"
+    ]
+  },
+  "relationships": [
+    [
+      "TRUST_ZONE",
+      "ACTOR",
+      "actors"
+    ],
+    [
+      "TRUST_ZONE",
+      "TRUST_ZONE",
+      "parent (inverse: children)"
+    ],
+    [
+      "TRUST_ZONE",
+      "PROBLEM",
+      "responsible_for"
+    ],
+    [
+      "ACTION",
+      "PROBLEM",
+      "intends_to_solve"
+    ],
+    [
+      "TRUST_ZONE",
+      "RESOURCE",
+      "owner_zone (root owner)"
+    ],
+    [
+      "TRUST_ZONE",
+      "RESOURCE",
+      "delegated_permissions.zone"
+    ],
+    [
+      "TRUST_ZONE",
+      "RESOURCE",
+      "resource_authorities.owner_of"
+    ],
+    [
+      "TRUST_ZONE",
+      "RESOURCE",
+      "resource_authorities.delegated_permissions.resource"
+    ],
+    [
+      "ACTION",
+      "RESOURCE",
+      "inputs"
+    ],
+    [
+      "ACTION",
+      "RESOURCE",
+      "outputs"
+    ],
+    [
+      "ACTION",
+      "ACTION",
+      "parent_action (inverse: child_actions)"
+    ],
+    [
+      "BELIEF",
+      "ACTOR",
+      "held_by"
+    ],
+    [
+      "BELIEF",
+      "BELIEF",
+      "supports (inverse: supported_by)"
+    ],
+    [
+      "BELIEF",
+      "ACTOR",
+      "about.refs"
+    ],
+    [
+      "BELIEF",
+      "TRUST_ZONE",
+      "about.refs"
+    ],
+    [
+      "BELIEF",
+      "PROBLEM",
+      "about.refs"
+    ],
+    [
+      "BELIEF",
+      "RESOURCE",
+      "about.refs"
+    ],
+    [
+      "BELIEF",
+      "ACTION",
+      "evidence.refs / about.refs"
+    ],
+    [
+      "ACTION",
+      "BELIEF",
+      "outcome.belief_effects"
+    ],
+    [
+      "ACTION",
+      "PROBLEM",
+      "outcome.problem_effects"
+    ],
+    [
+      "ACTION",
+      "RESOURCE",
+      "outcome.resource_effects"
+    ],
+    [
+      "ACTION",
+      "CONTEXT",
+      "contexts[]"
+    ],
+    [
+      "CONTEXT",
+      "ACTION",
+      "refs (optional prior action references)"
+    ],
+    [
+      "CONTEXT",
+      "TRUST_ZONE",
+      "refs (optional zone context artifacts)"
+    ],
+    [
+      "CONTEXT",
+      "BELIEF",
+      "refs"
+    ],
+    [
+      "CONTEXT",
+      "RESOURCE",
+      "refs (optional; avoid duplicating inputs when unnecessary)"
+    ],
+    [
+      "TRUST_ZONE",
+      "CONSTRAINT",
+      "constraints[]"
+    ],
+    [
+      "TRUST_ZONE",
+      "DIRECTIVE",
+      "directives[]"
+    ],
+    [
+      "TRUST_ZONE",
+      "ELIGIBILITY",
+      "eligibilities[]"
+    ],
+    [
+      "TRUST_ZONE",
+      "DECISION_MODEL",
+      "decision_models[]"
+    ],
+    [
+      "CONSTRAINT",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "DIRECTIVE",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "ELIGIBILITY",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "DECISION_MODEL",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "TRUST_ZONE",
+      "PRINCIPAL_ALIGNMENT",
+      "principal_alignments[]"
+    ],
+    [
+      "PRINCIPAL_ALIGNMENT",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "PRINCIPAL_ALIGNMENT",
+      "ACTOR",
+      "principal_actor"
+    ],
+    [
+      "PROBLEM",
+      "RESOURCE",
+      "refs"
+    ],
+    [
+      "TRUST_ZONE",
+      "STATUS",
+      "statuses[]"
+    ],
+    [
+      "STATUS",
+      "RESOURCE",
+      "refs"
+    ]
+  ]
+}

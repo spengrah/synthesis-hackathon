@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Foundry
+packages/contracts/out/
+packages/contracts/cache/
+
+# Env
+.env
+.env.*
+
+# Build
+dist/
+
+# OS
+.DS_Store

@@ -1,0 +1,10 @@
+{
+  "name": "@synthesis/ponder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ponder dev",
+    "build": "ponder codegen"
+  }
+}
