@@ -13,3 +13,6 @@
 [submodule "packages/contracts/lib/core-modules"]
 	path = packages/contracts/lib/core-modules
 	url = https://github.com/rhinestonewtf/core-modules
+[submodule "packages/contracts/lib/modulekit"]
+	path = packages/contracts/lib/modulekit
+	url = https://github.com/rhinestonewtf/modulekit
