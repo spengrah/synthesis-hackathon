@@ -76,8 +76,6 @@ library Defaults {
     pure
     returns (AgreementTypes.ProposalData memory)
   {
-    return AgreementTypes.ProposalData({
-      termsDocHash: bytes32(0), termsDocUri: "", zones: zones, adjudicator: adjudicator, deadline: deadline
-    });
+    return AgreementTypes.ProposalData({ termsDocUri: "", zones: zones, adjudicator: adjudicator, deadline: deadline });
   }
 }

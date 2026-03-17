@@ -48,7 +48,6 @@ library AgreementTypes {
 
   /// @notice Full proposal terms. Submitted as calldata, hash stored onchain.
   struct ProposalData {
-    bytes32 termsDocHash; // optional — bytes32(0) if unused
     string termsDocUri; // optional — "" if unused
     TZTypes.TZConfig[] zones;
     address adjudicator;

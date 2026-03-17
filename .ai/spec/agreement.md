@@ -87,7 +87,6 @@ struct TZConfig {
 
 /// @notice Full proposal terms. Submitted as calldata, hash stored onchain.
 struct ProposalData {
-    bytes32 termsDocHash;
     string termsDocUri;
     TZConfig[] zones;
     address adjudicator;

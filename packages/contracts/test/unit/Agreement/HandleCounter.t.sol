@@ -53,7 +53,7 @@ contract Agreement_handleCounter is AgreementBase {
   function test_EmitsProposalSubmitted() public {
     bytes memory payload = _defaultProposalPayload();
     vm.expectEmit(true, false, false, true);
-    emit IAgreementEvents.ProposalSubmitted(partyB, keccak256(payload), "", payload);
+    emit IAgreementEvents.ProposalSubmitted(partyB, keccak256(payload), payload);
     vm.prank(partyB);
     agreement.submitInput(AgreementTypes.COUNTER, payload);
   }
