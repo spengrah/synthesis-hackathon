@@ -57,8 +57,9 @@ abstract contract IntegrationBase is ForkTestBase {
 
     // Add a dummy mechanism to zone 0 so CLAIM has a valid mechanismIndex
     zones[0].mechanisms = new TZTypes.TZMechanism[](1);
-    zones[0].mechanisms[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: address(0), initData: "" });
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Penalty, moduleKind: TZTypes.TZModuleKind.External, module: address(0), data: ""
+    });
 
     AgreementTypes.ProposalData memory data =
       Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);

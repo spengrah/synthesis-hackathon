@@ -24,7 +24,12 @@ contract Agreement_handleAdjudicate is AgreementHarnessBase {
     zones[1] = Defaults.tzConfig(partyB, 0);
 
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Reward, module: address(0xdead), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: address(0xdead),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =

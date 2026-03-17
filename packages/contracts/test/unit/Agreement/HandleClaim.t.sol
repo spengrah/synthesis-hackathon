@@ -4,7 +4,7 @@ pragma solidity >=0.8.28;
 import { AgreementHarnessBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { TZTypes } from "../../../src/lib/TZTypes.sol";
-import { IAgreement, IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
+import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
 import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 import { Defaults } from "../../helpers/Defaults.sol";
 import { Constants } from "../../helpers/Constants.sol";
@@ -25,7 +25,12 @@ contract Agreement_handleClaim is AgreementHarnessBase {
 
     // Add a dummy mechanism to zone 0
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Reward, module: address(0xdead), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: address(0xdead),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -67,5 +72,10 @@ contract Agreement_handleClaim is AgreementHarnessBase {
     vm.expectEmit(true, true, true, true);
     emit IAgreementEvents.ClaimFiled(0, 0, partyA, bytes("evidence"));
     activeHarness.exposed_handleClaim(partyA, abi.encode(uint256(0), bytes("evidence")));
+  }
+
+  function test_RevertIf_CallerIsNotParty() public {
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.NotAParty.selector, observer));
+    activeHarness.exposed_handleClaim(observer, abi.encode(uint256(0), bytes("evidence")));
   }
 }

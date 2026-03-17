@@ -4,7 +4,6 @@ pragma solidity >=0.8.28;
 import { AgreementHarnessBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { TZTypes } from "../../../src/lib/TZTypes.sol";
-import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
 import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 import { Defaults } from "../../helpers/Defaults.sol";
 import { Constants } from "../../helpers/Constants.sol";
@@ -17,7 +16,12 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
     zones[1] = Defaults.tzConfig(partyB, 0);
 
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Reward, module: address(0xdead), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: address(0xdead),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -67,6 +71,11 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
     vm.warp(harness.deadline() + 1);
     harness.exposed_handleFinalize();
     assertFalse(harness.getHatStatus(0));
+  }
+
+  function test_ReturnsTrue_GivenStateIsAccepted() public {
+    _advanceToAccepted();
+    assertTrue(harness.getHatStatus(0));
   }
 
   // ---- Local advance helpers ----

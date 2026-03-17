@@ -8,8 +8,9 @@ import { TZTypes } from "../../../src/lib/TZTypes.sol";
 import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
 import { Constants } from "../../helpers/Constants.sol";
 import { Defaults } from "../../helpers/Defaults.sol";
-import { ResourceTokenRegistry } from "../../../src/ResourceTokenRegistry.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 contract Agreement_HarnessActivation is AgreementHarnessBase {
   // ---- test_RevertIf_InvalidZoneCount (1 zone) ----
@@ -131,17 +132,26 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     // Zone 0: one Reward + one Penalty mechanism
     TZTypes.TZMechanism[] memory mechs0 = new TZTypes.TZMechanism[](2);
     mechs0[0] = TZTypes.TZMechanism({
-      paramType: TZTypes.TZParamType.Reward, module: makeAddr("rewardModule"), initData: hex"aa"
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("rewardModule"),
+      data: hex"aa"
     });
     mechs0[1] = TZTypes.TZMechanism({
-      paramType: TZTypes.TZParamType.Penalty, module: makeAddr("penaltyModule"), initData: hex"bb"
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("penaltyModule"),
+      data: hex"bb"
     });
     zones[0].mechanisms = mechs0;
 
     // Zone 1: one Constraint mechanism
     TZTypes.TZMechanism[] memory mechs1 = new TZTypes.TZMechanism[](1);
     mechs1[0] = TZTypes.TZMechanism({
-      paramType: TZTypes.TZParamType.Constraint, module: makeAddr("constraintModule"), initData: hex"cc"
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: makeAddr("constraintModule"),
+      data: hex"cc"
     });
     zones[1].mechanisms = mechs1;
 
@@ -161,19 +171,19 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     assertEq(clone.mechanismCount(), 3);
 
     // Mechanism 0: Reward from zone 0
-    (TZTypes.TZParamType pt0, address mod0, uint256 zi0,) = clone.mechanisms(0);
+    (TZTypes.TZParamType pt0,, address mod0, uint256 zi0,) = clone.mechanisms(0);
     assertEq(uint8(pt0), uint8(TZTypes.TZParamType.Reward));
     assertEq(mod0, makeAddr("rewardModule"));
     assertEq(zi0, 0);
 
     // Mechanism 1: Penalty from zone 0
-    (TZTypes.TZParamType pt1, address mod1, uint256 zi1,) = clone.mechanisms(1);
+    (TZTypes.TZParamType pt1,, address mod1, uint256 zi1,) = clone.mechanisms(1);
     assertEq(uint8(pt1), uint8(TZTypes.TZParamType.Penalty));
     assertEq(mod1, makeAddr("penaltyModule"));
     assertEq(zi1, 0);
 
     // Mechanism 2: Constraint from zone 1
-    (TZTypes.TZParamType pt2, address mod2, uint256 zi2,) = clone.mechanisms(2);
+    (TZTypes.TZParamType pt2,, address mod2, uint256 zi2,) = clone.mechanisms(2);
     assertEq(uint8(pt2), uint8(TZTypes.TZParamType.Constraint));
     assertEq(mod2, makeAddr("constraintModule"));
     assertEq(zi2, 1);
@@ -233,11 +243,24 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
   function test_ConstraintHooksCollected() public {
     // Test the pure function directly via harness
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](3);
-    mechs[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: makeAddr("hook1"), initData: "" });
-    mechs[1] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Reward, module: makeAddr("reward"), initData: "" });
-    mechs[2] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: makeAddr("hook2"), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: makeAddr("hook1"),
+      data: ""
+    });
+    mechs[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("reward"),
+      data: ""
+    });
+    mechs[2] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: makeAddr("hook2"),
+      data: ""
+    });
 
     address[] memory hooks = harness.exposed_collectConstraintHooks(mechs);
     assertEq(hooks.length, 2);
@@ -256,7 +279,12 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[1] = Defaults.tzConfig(partyB, 0);
 
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: mockHook,
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -287,8 +315,12 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[1] = Defaults.tzConfig(partyB, 0);
 
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
-    mechs[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Eligibility, module: address(mockEligImpl), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Eligibility,
+      moduleKind: TZTypes.TZModuleKind.HatsModule,
+      module: address(mockEligImpl),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -325,10 +357,18 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[1] = Defaults.tzConfig(partyB, 0);
 
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
-    mechs[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Eligibility, module: address(mockEligImpl1), initData: "" });
-    mechs[1] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Eligibility, module: address(mockEligImpl2), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Eligibility,
+      moduleKind: TZTypes.TZModuleKind.HatsModule,
+      module: address(mockEligImpl1),
+      data: ""
+    });
+    mechs[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Eligibility,
+      moduleKind: TZTypes.TZModuleKind.HatsModule,
+      module: address(mockEligImpl2),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -367,7 +407,10 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     bytes memory initData = abi.encode(uint256(42), address(0xbeef));
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
     mechs[0] = TZTypes.TZMechanism({
-      paramType: TZTypes.TZParamType.Constraint, module: address(recordingHook), initData: initData
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(recordingHook),
+      data: initData
     });
     zones[0].mechanisms = mechs;
 
@@ -400,8 +443,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
     mechs[0] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
       module: address(recordingHook),
-      initData: "" // empty initData
+      data: "" // empty data
     });
     zones[0].mechanisms = mechs;
 
@@ -432,8 +476,18 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     // Two CONSTRAINT mechanisms with the same hook address but different initData
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: hex"aa" });
-    mechs[1] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: hex"bb" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: mockHook,
+      data: hex"aa"
+    });
+    mechs[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: mockHook,
+      data: hex"bb"
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -451,6 +505,234 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     assertEq(clone.currentState(), AgreementTypes.ACTIVE);
   }
 
+  function test_EmitsMechanismRegistered_ForEachMechanismWithExpectedIndexZoneAndType() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+
+    TZTypes.TZMechanism[] memory mechs0 = new TZTypes.TZMechanism[](2);
+    mechs0[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("rewardModule"),
+      data: hex"aa"
+    });
+    mechs0[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("penaltyModule"),
+      data: hex"bb"
+    });
+    zones[0].mechanisms = mechs0;
+
+    TZTypes.TZMechanism[] memory mechs1 = new TZTypes.TZMechanism[](1);
+    mechs1[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(new MockHook()),
+      data: hex"cc"
+    });
+    zones[1].mechanisms = mechs1;
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.expectEmit(true, false, false, true);
+    emit IAgreementEvents.MechanismRegistered(0, uint8(TZTypes.TZParamType.Reward), makeAddr("rewardModule"), 0);
+    vm.expectEmit(true, false, false, true);
+    emit IAgreementEvents.MechanismRegistered(1, uint8(TZTypes.TZParamType.Penalty), makeAddr("penaltyModule"), 0);
+    vm.expectEmit(true, false, false, true);
+    emit IAgreementEvents.MechanismRegistered(2, uint8(TZTypes.TZParamType.Constraint), mechs1[0].module, 1);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+  }
+
+  function test_EmitsResourceTokenAssigned_ForEachMintedResource() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+
+    zones[0].resources = new TZTypes.TZResourceTokenConfig[](1);
+    zones[0].resources[0] = Defaults.resourceTokenConfig(TZTypes.TZParamType.Permission, Defaults.permissionMetadata());
+    zones[1].resources = new TZTypes.TZResourceTokenConfig[](1);
+    zones[1].resources[0] = Defaults.resourceTokenConfig(TZTypes.TZParamType.Directive, Defaults.directiveMetadata());
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    address predictedTz0 = Clones.predictDeterministicAddress(
+      address(trustZoneImpl), keccak256(abi.encode(address(clone), uint256(0))), address(clone)
+    );
+    address predictedTz1 = Clones.predictDeterministicAddress(
+      address(trustZoneImpl), keccak256(abi.encode(address(clone), uint256(1))), address(clone)
+    );
+
+    vm.recordLogs();
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    Vm.Log[] memory logs = vm.getRecordedLogs();
+    bytes32 eventSig = IAgreementEvents.ResourceTokenAssigned.selector;
+    uint256 matchCount;
+    for (uint256 i; i < logs.length; i++) {
+      if (logs[i].topics[0] != eventSig) continue;
+      matchCount++;
+      if (matchCount == 1) {
+        assertEq(logs[i].topics[1], bytes32(uint256(uint160(predictedTz0))));
+        assertEq(logs[i].topics[2], bytes32((uint256(1) << 8) | uint256(Defaults.PERMISSION_TYPE)));
+        assertEq(abi.decode(logs[i].data, (uint8)), Defaults.PERMISSION_TYPE);
+      } else if (matchCount == 2) {
+        assertEq(logs[i].topics[1], bytes32(uint256(uint160(predictedTz1))));
+        assertEq(logs[i].topics[2], bytes32((uint256(1) << 8) | uint256(Defaults.DIRECTIVE_TYPE)));
+        assertEq(abi.decode(logs[i].data, (uint8)), Defaults.DIRECTIVE_TYPE);
+      }
+    }
+    assertEq(matchCount, 2, "expected exactly 2 ResourceTokenAssigned events");
+  }
+
+  function test_Mechanisms_ReturnStoredInitDataContext() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+
+    bytes memory rewardContext = abi.encode(uint256(123), "reward");
+    bytes memory constraintContext = abi.encode(address(0xBEEF), uint256(456));
+
+    zones[0].mechanisms = new TZTypes.TZMechanism[](1);
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("rewardModule"),
+      data: rewardContext
+    });
+    zones[1].mechanisms = new TZTypes.TZMechanism[](1);
+    zones[1].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(new MockHook()),
+      data: constraintContext
+    });
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    (,,,, bytes memory context0) = clone.mechanisms(0);
+    (,,,, bytes memory context1) = clone.mechanisms(1);
+    assertEq(context0, rewardContext);
+    assertEq(context1, constraintContext);
+  }
+
+  function test_DefaultEligibility_UsesAgreementAsEligibilityModuleWhenNoEligibilityMechanisms() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    (,,, address eligibility0,,,,,) = hats.viewHat(clone.zoneHatIds(0));
+    (,,, address eligibility1,,,,,) = hats.viewHat(clone.zoneHatIds(1));
+    assertEq(eligibility0, address(clone));
+    assertEq(eligibility1, address(clone));
+  }
+
+  function test_DistinctConstraintHooks_BothInstalled() public {
+    RecordingMockHook hook1 = new RecordingMockHook();
+    RecordingMockHook hook2 = new RecordingMockHook();
+
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    zones[0].mechanisms = new TZTypes.TZMechanism[](2);
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(hook1),
+      data: hex"aa"
+    });
+    zones[0].mechanisms[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(hook2),
+      data: hex"bb"
+    });
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    address[] memory installedHooks = hookMultiplexer.getHooks(clone.trustZones(0));
+    assertEq(installedHooks.length, 2);
+    assertTrue(
+      (installedHooks[0] == address(hook1) && installedHooks[1] == address(hook2))
+        || (installedHooks[0] == address(hook2) && installedHooks[1] == address(hook1))
+    );
+  }
+
+  function test_DistinctConstraintHooks_BothReceiveInitData() public {
+    RecordingMockHook hook1 = new RecordingMockHook();
+    RecordingMockHook hook2 = new RecordingMockHook();
+    bytes memory initData1 = abi.encode(uint256(1), address(0xAAA1));
+    bytes memory initData2 = abi.encode(uint256(2), address(0xAAA2));
+
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    zones[0].mechanisms = new TZTypes.TZMechanism[](2);
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(hook1),
+      data: initData1
+    });
+    zones[0].mechanisms[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: address(hook2),
+      data: initData2
+    });
+
+    bytes memory payload =
+      abi.encode(Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE));
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    assertTrue(hook1.onInstallCalled());
+    assertTrue(hook2.onInstallCalled());
+    assertEq(hook1.lastInitData(), initData1);
+    assertEq(hook2.lastInitData(), initData2);
+  }
+
   // ---- test_MechanismRegistryIncludesAllTypes ----
 
   function test_MechanismRegistryIncludesAllTypes() public {
@@ -463,11 +745,23 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     // Zone 0: Constraint + Eligibility + Penalty — all should be registered
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](3);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
-    mechs[1] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Eligibility, module: address(mockEligImpl), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: mockHook,
+      data: ""
+    });
+    mechs[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Eligibility,
+      moduleKind: TZTypes.TZModuleKind.HatsModule,
+      module: address(mockEligImpl),
+      data: ""
+    });
     mechs[2] = TZTypes.TZMechanism({
-      paramType: TZTypes.TZParamType.Penalty, module: makeAddr("penaltyModule"), initData: hex"dd"
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("penaltyModule"),
+      data: hex"dd"
     });
     zones[0].mechanisms = mechs;
 
@@ -485,9 +779,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     // All 3 mechanisms registered
     assertEq(clone.mechanismCount(), 3);
-    (TZTypes.TZParamType pt0,,,) = clone.mechanisms(0);
-    (TZTypes.TZParamType pt1,,,) = clone.mechanisms(1);
-    (TZTypes.TZParamType pt2, address mod2,,) = clone.mechanisms(2);
+    (TZTypes.TZParamType pt0,,,,) = clone.mechanisms(0);
+    (TZTypes.TZParamType pt1,,,,) = clone.mechanisms(1);
+    (TZTypes.TZParamType pt2,, address mod2,,) = clone.mechanisms(2);
     assertEq(uint8(pt0), uint8(TZTypes.TZParamType.Constraint));
     assertEq(uint8(pt1), uint8(TZTypes.TZParamType.Eligibility));
     assertEq(uint8(pt2), uint8(TZTypes.TZParamType.Penalty));
@@ -505,9 +799,18 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     // Zone 0: Constraint at index 0, Penalty at index 1
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
-    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
-    mechs[1] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: makeAddr("penaltyModule"), initData: "" });
+    mechs[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Constraint,
+      moduleKind: TZTypes.TZModuleKind.ERC7579Hook,
+      module: mockHook,
+      data: ""
+    });
+    mechs[1] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("penaltyModule"),
+      data: ""
+    });
     zones[0].mechanisms = mechs;
 
     AgreementTypes.ProposalData memory data =
@@ -550,6 +853,8 @@ contract RecordingMockHook {
   }
 
   fallback() external payable { }
+
+  receive() external payable { }
 }
 
 /// @dev Minimal mock HatsModule eligibility implementation.

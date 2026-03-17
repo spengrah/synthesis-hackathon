@@ -109,6 +109,41 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
     harness.submitInput(AgreementTypes.FINALIZE, "");
   }
 
+  function test_InputAccepted_Adjudicate_NonClose() public {
+    AgreementHarness claimHarness = _createClaimedHarnessWithMechanism();
+    AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](1);
+    actions[0] = AgreementTypes.AdjudicationAction({
+      mechanismIndex: 0,
+      targetIndex: 0,
+      actionType: AgreementTypes.REWARD,
+      params: abi.encodeWithSignature("reward(address,uint256)", partyA, 1)
+    });
+    bytes memory payload = abi.encode(uint256(0), true, actions);
+
+    vm.expectEmit(true, true, true, false);
+    emit IAgreementEvents.InputAccepted(
+      AgreementTypes.ACTIVE, AgreementTypes.ACTIVE, AgreementTypes.ADJUDICATE, payload
+    );
+    vm.prank(adjudicator);
+    claimHarness.submitInput(AgreementTypes.ADJUDICATE, payload);
+  }
+
+  function test_InputAccepted_Adjudicate_Close() public {
+    AgreementHarness claimHarness = _createClaimedHarnessWithMechanism();
+    AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](1);
+    actions[0] = AgreementTypes.AdjudicationAction({
+      mechanismIndex: 0, targetIndex: 0, actionType: AgreementTypes.CLOSE, params: ""
+    });
+    bytes memory payload = abi.encode(uint256(0), true, actions);
+
+    vm.expectEmit(true, true, true, false);
+    emit IAgreementEvents.InputAccepted(
+      AgreementTypes.ACTIVE, AgreementTypes.CLOSED, AgreementTypes.ADJUDICATE, payload
+    );
+    vm.prank(adjudicator);
+    claimHarness.submitInput(AgreementTypes.ADJUDICATE, payload);
+  }
+
   function test_InputAccepted_AcceptAndActivate() public {
     bytes memory payload = _defaultProposalPayload();
 
@@ -141,8 +176,12 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
 
     // Add a dummy Penalty mechanism to zone 0
     zones[0].mechanisms = new TZTypes.TZMechanism[](1);
-    zones[0].mechanisms[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: makeAddr("mockMechanism"), initData: "" });
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: makeAddr("mockMechanism"),
+      data: ""
+    });
 
     AgreementTypes.ProposalData memory data =
       Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);
@@ -154,5 +193,11 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
     vm.prank(partyA);
     h.submitInput(AgreementTypes.ACTIVATE, "");
     return h;
+  }
+
+  function _createClaimedHarnessWithMechanism() internal returns (AgreementHarness h) {
+    h = _createHarnessWithMechanism();
+    vm.prank(partyA);
+    h.submitInput(AgreementTypes.CLAIM, abi.encode(uint256(0), bytes("evidence")));
   }
 }

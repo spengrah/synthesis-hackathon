@@ -20,6 +20,13 @@ library TZTypes {
     DecisionModel // 8 — internal composition: 1-of-n, m-of-n (→ Eligibility requirement)
   }
 
+  /// @notice The deployment/activation strategy for a mechanism module.
+  enum TZModuleKind {
+    HatsModule, // 0 — deploy via HatsModuleFactory; wire to hat if Eligibility/Penalty
+    ERC7579Hook, // 1 — pre-deployed singleton; onInstall via executeFromExecutor
+    External // 2 — pre-deployed; module.call(data) during activation if data non-empty
+  }
+
   /// @notice A mechanism attached to a trust zone. Used for negotiation terms,
   ///         activation config, and runtime claim/adjudication routing.
   /// @dev Only Constraint, Eligibility, Reward, and Penalty appear as deployed mechanisms.
@@ -28,8 +35,9 @@ library TZTypes {
   /// forge-lint: disable-next-item(pascal-case-struct)
   struct TZMechanism {
     TZParamType paramType;
+    TZModuleKind moduleKind;
     address module;
-    bytes initData;
+    bytes data;
   }
 
   /// @notice A resource token to mint to a trust zone's TZ account on activation.

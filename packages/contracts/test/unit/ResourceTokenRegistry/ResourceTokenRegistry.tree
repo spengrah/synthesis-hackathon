@@ -40,8 +40,12 @@ ResourceTokenRegistry
 │   │       └── it should emit Transfer event
 ├── approve
 │   └── it should revert with ApprovalsDisabled
+├── allowance
+│   └── it should always return 0
 ├── setOperator
 │   └── it should revert with ApprovalsDisabled
+├── isOperator
+│   └── it should always return false
 ├── registerMinter
 │   ├── when caller is not the owner
 │   │   └── it should revert with NotOwner
@@ -71,3 +75,17 @@ ResourceTokenRegistry
     │   └── it should return true
     └── otherwise
         └── it should return false
+
+ResourceTokenRegistry_invariants
+├── balance per holder and token id is always binary
+├── at most one holder exists per token id
+├── token id encoding matches helper methods
+├── creator is immutable after mint
+├── metadata is immutable after mint
+├── transfers preserve creator and metadata
+├── burns clear possession but preserve token identity data
+├── lastId counters are monotonic
+├── minter registration is monotonic
+├── owner is immutable
+├── non-creators cannot transfer or burn tokens
+└── approvals surface is stateless

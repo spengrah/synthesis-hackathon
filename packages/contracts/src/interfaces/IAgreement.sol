@@ -132,7 +132,13 @@ interface IAgreement is IAgreementErrors, IAgreementEvents {
   function mechanisms(uint256 index)
     external
     view
-    returns (TZTypes.TZParamType paramType, address module, uint256 zoneIndex, bytes memory context);
+    returns (
+      TZTypes.TZParamType paramType,
+      TZTypes.TZModuleKind moduleKind,
+      address module,
+      uint256 zoneIndex,
+      bytes memory context
+    );
 
   /// @notice Number of registered mechanisms.
   function mechanismCount() external view returns (uint256);

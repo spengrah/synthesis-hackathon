@@ -1,11 +1,17 @@
 Agreement_submitInput
-├── when state is CLOSED or REJECTED
+├── when state is CLOSED
+│   └── it should revert with InvalidState
+├── when state is REJECTED
 │   └── it should revert with InvalidState
 ├── when inputId is not recognized for current state
 │   └── it should revert with InvalidInput
 └── when inputId is valid for current state
     ├── it should emit InputAccepted
-    └── it should route to the correct internal handler
+    ├── it should route to the correct internal handler
+    ├── given inputId is ADJUDICATE and no CLOSE action is present
+    │   └── it should emit InputAccepted with ACTIVE -> ACTIVE
+    └── given inputId is ADJUDICATE and a CLOSE action is present
+        └── it should emit InputAccepted with ACTIVE -> CLOSED
 
 Agreement_handlePropose
 ├── it should store termsHash from ProposalData
@@ -81,14 +87,27 @@ Agreement_handleActivate
         │   ├── it should mint the zone hat to the party
         │   ├── it should deploy a TrustZone clone via Clones.cloneDeterministic
         │   ├── it should initialize the TrustZone clone
-        │   ├── it should install CONSTRAINT mechanisms as ERC-7579 hooks via HookMultiPlexer
-        │   ├── it should initialize CONSTRAINT sub-hooks with their initData via executeFromExecutor
-        │   ├── it should deploy ELIGIBILITY modules via HatsModuleFactory and wire to zone hat
-        │   ├── it should register all mechanisms in the mechanism registry
+        │   ├── given moduleKind is HatsModule and paramType is Eligibility or Penalty
+        │   │   └── it should deploy via HatsModuleFactory and wire to zone hat
+        │   ├── given moduleKind is HatsModule and paramType is not Eligibility or Penalty
+        │   │   └── it should deploy via HatsModuleFactory but not wire to hat (standalone)
+        │   ├── given moduleKind is ERC7579Hook
+        │   │   ├── it should install as ERC-7579 hooks via HookMultiPlexer
+        │   │   └── it should initialize sub-hooks with their data via executeFromExecutor
+        │   ├── given moduleKind is External and data is non-empty
+        │   │   └── it should call module.call(data) during activation
+        │   ├── it should register all mechanisms in the mechanism registry (with moduleKind)
+        │   ├── it should preserve mechanism data as stored mechanism context
+        │   ├── it should store deployed clone address for HatsModule mechanisms in registry
         │   ├── it should mint resource tokens to the TrustZone
         │   ├── it should emit ZoneDeployed
         │   ├── it should emit MechanismRegistered for each mechanism
         │   └── it should emit ResourceTokenAssigned for each token
+        ├── given no hat-wired HatsModule mechanisms (Eligibility/Penalty)
+        │   └── it should use the agreement as the default eligibility module
+        ├── given multiple distinct ERC7579Hook mechanisms
+        │   ├── it should install both hooks
+        │   └── it should initialize both hooks with their data
         ├── it should store trustZones addresses
         ├── it should store zoneHatIds
         ├── it should store agentIds
@@ -99,7 +118,11 @@ Agreement_handleActivate
 Agreement_handleClaim
 ├── when state is not ACTIVE
 │   └── it should revert with InvalidState
+├── when caller is not a party
+│   └── it should revert with NotAParty
 ├── when mechanismIndex is out of bounds
+│   └── it should revert with InvalidMechanismIndex
+├── when mechanismIndex refers to a CONSTRAINT mechanism
 │   └── it should revert with InvalidMechanismIndex
 └── when inputs are valid
     ├── it should increment claimCount
@@ -115,6 +138,8 @@ Agreement_handleAdjudicate
 │   └── it should revert with InvalidClaimId
 ├── when claimId is already adjudicated
 │   └── it should revert with ClaimAlreadyAdjudicated
+├── when action execution reverts
+│   └── it should leave the claim retryable
 └── when inputs are valid
     ├── it should mark the claim as adjudicated
     ├── for each AdjudicationAction
@@ -127,8 +152,19 @@ Agreement_handleAdjudicate
     │   ├── given actionType is DEACTIVATE
     │   │   ├── it should set _hatDeactivated[zoneHatId] to true
     │   │   └── it should call HATS.setHatStatus(zoneHatIds[action.targetIndex], false)
+    │   ├── given actionType is DEACTIVATE and targetIndex is out of bounds
+    │   │   └── it should revert with InvalidMechanismIndex
     │   └── given actionType is CLOSE
     │       └── it should trigger close with outcome ADJUDICATED
+    ├── given multiple actions are present
+    │   ├── it should execute them in order
+    │   ├── it should support mixed PENALIZE + FEEDBACK + DEACTIVATE + CLOSE verdicts
+    │   └── it should remain ACTIVE when no CLOSE action is present
+    ├── given targetIndex is 1
+    │   ├── it should write FEEDBACK for party B
+    │   └── it should DEACTIVATE zone hat 1
+    ├── given actionType is unknown
+    │   └── it should preserve the documented fallback behavior
     ├── it should emit AdjudicationDelivered
     └── it should emit InputAccepted
 
@@ -176,7 +212,8 @@ Agreement_close
 ├── it should set state to CLOSED
 ├── it should store the outcome
 ├── it should deactivate zone hats via HATS.setHatStatus(hatId, false)
-├── it should burn resource tokens from each TrustZone
+├── it should leave resource tokens held by each TrustZone
+├── it should make TrustZone accounts inoperative after close
 ├── given a party has agentId != 0
 │   ├── it should call reputationRegistry.giveFeedback
 │   ├── it should use tag1 = "trust-zone-agreement"
@@ -194,6 +231,10 @@ Agreement_acceptAndActivate
 │   └── it should revert with InvalidState
 ├── when caller is not authorized to accept
 │   └── it should revert with NotYourTurn
+├── when the activate step reverts
+│   ├── it should roll back atomically from PROPOSED
+│   ├── it should roll back atomically from NEGOTIATING
+│   └── it should not leave partial trust zones, resources, or mechanisms behind
 └── when caller is authorized
     ├── it should execute accept logic
     ├── it should execute activate logic
@@ -202,9 +243,60 @@ Agreement_acceptAndActivate
 Agreement_getHatStatus
 ├── given hat has been explicitly deactivated via DEACTIVATE action
 │   └── it should return false (even while ACTIVE + deadline OK)
+├── given state is ACCEPTED
+│   └── it should return true
 ├── given state is not ACTIVE
 │   └── it should return false
 ├── given state is ACTIVE and deadline has passed
 │   └── it should return false
 └── given state is ACTIVE and deadline has not passed
     └── it should return true
+
+Agreement_getters
+├── docHash
+│   └── it should return the stored terms hash
+├── termsUri
+│   └── it should return the stored terms URI
+├── mechanisms
+│   └── it should revert with InvalidMechanismIndex when index is out of bounds
+├── getWearerStatus
+│   └── it should return (true, true) in the default eligibility path
+└── onUninstall
+    └── it should be a no-op
+
+Agreement_zoneBehavior
+├── given a zone is ACTIVE and the caller wears its zone hat
+│   ├── it should allow TrustZone.execute()
+│   └── it should validate signatures via ERC-1271
+├── given a configured CONSTRAINT hook forbids the action
+│   └── it should block TrustZone.execute()
+├── given a configured CONSTRAINT hook allows the action
+│   └── it should allow TrustZone.execute()
+├── given the zone hat has been explicitly deactivated
+│   ├── it should reject TrustZone.execute()
+│   └── it should fail ERC-1271 validation
+└── given the agreement is CLOSED
+    ├── it should reject TrustZone.execute()
+    └── it should fail ERC-1271 validation
+
+Agreement_invariants
+├── terminal agreements reject all further inputs
+├── state transitions follow the allowed state graph
+├── outcome remains unset until close and immutable afterward
+├── activation artifacts are immutable after activation
+├── mechanism registry is frozen after activation
+├── claimCount is monotonic
+├── adjudicated claims are always a subset of filed claims
+├── reverted adjudications do not consume claims
+├── completion and exit signals are monotonic
+├── closed agreements always have inactive zone hats
+├── explicitly deactivated hats never become active again
+├── each zone validator tracks its zone hat id
+├── inactive zones cannot authorize execution or signatures
+├── only authorized callers can execute through a zone
+├── close preserves zone addresses but removes authority
+├── activation-minted resource tokens are created by the agreement
+├── registered mechanism zone indexes are always valid
+├── zero agent ids never receive reputation writes
+├── close feedback routing matches the outcome-specific rules
+└── reverted composite actions leave no partial state

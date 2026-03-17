@@ -77,6 +77,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
   struct RegisteredMechanism {
     TZTypes.TZParamType paramType;
+    TZTypes.TZModuleKind moduleKind;
     address module;
     uint256 zoneIndex;
     bytes context;
@@ -282,12 +283,18 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   function mechanisms(uint256 index)
     external
     view
-    returns (TZTypes.TZParamType paramType, address module, uint256 zoneIndex, bytes memory context)
+    returns (
+      TZTypes.TZParamType paramType,
+      TZTypes.TZModuleKind moduleKind,
+      address module,
+      uint256 zoneIndex,
+      bytes memory context
+    )
   {
     AgreementStorage storage $ = _getAgreementStorage();
     if (index >= $._mechanisms.length) revert InvalidMechanismIndex(index);
     RegisteredMechanism storage m = $._mechanisms[index];
-    return (m.paramType, m.module, m.zoneIndex, m.context);
+    return (m.paramType, m.moduleKind, m.module, m.zoneIndex, m.context);
   }
 
   /// @inheritdoc IAgreement
@@ -484,10 +491,12 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     if (zone.party != $._parties[zoneIndex]) revert NotAParty(zone.party);
     _verifyAgentId(zone);
     uint256 zoneHatId = _createZoneHat($, zone, zoneIndex);
+    address[] memory deployedAddresses = _deployStandaloneHatsModules(zone.mechanisms, zoneHatId, zoneIndex);
     address[] memory constraintHooks = _collectConstraintHooks(zone.mechanisms);
     address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex, constraintHooks);
     _initializeConstraintHooks(trustZoneAddr, zone.mechanisms);
-    _registerMechanisms($, zone.mechanisms, zoneIndex);
+    _initializeExternalModules(zone.mechanisms);
+    _registerMechanisms($, zone.mechanisms, zoneIndex, deployedAddresses);
     _mintResourceTokens(trustZoneAddr, zone.resources);
 
     // Store zone data
@@ -514,8 +523,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     // Predict the zone hat ID so we can deploy eligibility modules with the correct hatId
     zoneHatId = HATS.getNextId($._agreementHatId);
 
-    // Deploy eligibility modules (or use address(this) if none)
-    address eligibility = _deployEligibility(zone.mechanisms, zoneHatId, zoneIndex);
+    // Deploy hat-wired modules (Eligibility + Penalty) or use address(this) if none
+    address eligibility = _deployHatWiredModules(zone.mechanisms, zoneHatId, zoneIndex);
 
     HATS.createHat(
       $._agreementHatId,
@@ -555,19 +564,32 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
   /// @dev Register all mechanisms from a zone config into the mechanism registry.
   ///      All types are registered (full zone definition). Claimability is enforced at claim time.
-  function _registerMechanisms(AgreementStorage storage $, TZTypes.TZMechanism[] memory mechs, uint256 zoneIndex)
-    internal
-  {
+  ///      For HatsModule mechanisms, `deployedAddresses[j]` holds the deployed clone address (non-zero).
+  function _registerMechanisms(
+    AgreementStorage storage $,
+    TZTypes.TZMechanism[] memory mechs,
+    uint256 zoneIndex,
+    address[] memory deployedAddresses
+  ) internal {
     for (uint256 j = 0; j < mechs.length; j++) {
       TZTypes.TZMechanism memory mech = mechs[j];
+      // For HatsModule mechanisms, use the deployed clone address
+      address registeredModule = (mech.moduleKind == TZTypes.TZModuleKind.HatsModule
+          && deployedAddresses[j] != address(0))
+        ? deployedAddresses[j]
+        : mech.module;
       uint256 mechIndex = $._mechanisms.length;
       $._mechanisms
         .push(
           RegisteredMechanism({
-            paramType: mech.paramType, module: mech.module, zoneIndex: zoneIndex, context: mech.initData
+            paramType: mech.paramType,
+            moduleKind: mech.moduleKind,
+            module: registeredModule,
+            zoneIndex: zoneIndex,
+            context: mech.data
           })
         );
-      emit MechanismRegistered(mechIndex, uint8(mech.paramType), mech.module, zoneIndex);
+      emit MechanismRegistered(mechIndex, uint8(mech.paramType), registeredModule, zoneIndex);
     }
   }
 
@@ -580,27 +602,27 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     }
   }
 
-  /// @dev Collect CONSTRAINT mechanism addresses from a zone's mechanisms.
+  /// @dev Collect ERC7579Hook mechanism addresses from a zone's mechanisms.
   function _collectConstraintHooks(TZTypes.TZMechanism[] memory mechs) internal pure returns (address[] memory hooks) {
     uint256 count;
     for (uint256 i = 0; i < mechs.length; i++) {
-      if (mechs[i].paramType == TZTypes.TZParamType.Constraint) count++;
+      if (mechs[i].moduleKind == TZTypes.TZModuleKind.ERC7579Hook) count++;
     }
     hooks = new address[](count);
     uint256 idx;
     for (uint256 i = 0; i < mechs.length; i++) {
-      if (mechs[i].paramType == TZTypes.TZParamType.Constraint) {
+      if (mechs[i].moduleKind == TZTypes.TZModuleKind.ERC7579Hook) {
         hooks[idx++] = mechs[i].module;
       }
     }
   }
 
-  /// @dev Initialize each CONSTRAINT sub-hook with its initData via executeFromExecutor.
+  /// @dev Initialize each ERC7579Hook sub-hook with its data via executeFromExecutor.
   ///      HookMultiPlexer stores hook addresses but does not call onInstall on sub-hooks.
   function _initializeConstraintHooks(address trustZoneAddr, TZTypes.TZMechanism[] memory mechs) internal {
     for (uint256 i = 0; i < mechs.length; i++) {
-      if (mechs[i].paramType == TZTypes.TZParamType.Constraint && mechs[i].initData.length > 0) {
-        bytes memory call_ = abi.encodeCall(IERC7579Module.onInstall, (mechs[i].initData));
+      if (mechs[i].moduleKind == TZTypes.TZModuleKind.ERC7579Hook && mechs[i].data.length > 0) {
+        bytes memory call_ = abi.encodeCall(IERC7579Module.onInstall, (mechs[i].data));
         bytes memory execCalldata = abi.encodePacked(mechs[i].module, uint256(0), call_);
         IERC7579Execution(trustZoneAddr).executeFromExecutor(bytes32(0), execCalldata);
       }
@@ -622,39 +644,85 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return arr;
   }
 
-  /// @dev Deploy eligibility modules for a zone hat. Returns address(this) if no eligibility modules.
-  function _deployEligibility(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
+  /// @dev Deploy hat-wired HatsModule mechanisms (Eligibility + Penalty) for a zone hat.
+  ///      Returns the eligibility address (address(this) if no eligibility modules).
+  function _deployHatWiredModules(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
     internal
     returns (address)
   {
-    // Count eligibility mechanisms
-    uint256 count;
+    // Count hat-wired mechanisms: HatsModule with paramType Eligibility or Penalty
+    uint256 eligCount;
     for (uint256 i = 0; i < mechs.length; i++) {
-      if (mechs[i].paramType == TZTypes.TZParamType.Eligibility) count++;
+      if (
+        mechs[i].moduleKind == TZTypes.TZModuleKind.HatsModule
+          && (mechs[i].paramType == TZTypes.TZParamType.Eligibility
+            || mechs[i].paramType == TZTypes.TZParamType.Penalty)
+      ) {
+        eligCount++;
+      }
     }
 
-    if (count == 0) return address(this); // no eligibility modules — always eligible
+    if (eligCount == 0) return address(this); // no hat-wired modules — always eligible
 
-    // Deploy each eligibility module via HatsModuleFactory
-    address[] memory modules = new address[](count);
+    // Deploy each hat-wired module via HatsModuleFactory
+    address[] memory modules = new address[](eligCount);
     uint256 idx;
     for (uint256 i = 0; i < mechs.length; i++) {
-      if (mechs[i].paramType == TZTypes.TZParamType.Eligibility) {
+      if (
+        mechs[i].moduleKind == TZTypes.TZModuleKind.HatsModule
+          && (mechs[i].paramType == TZTypes.TZParamType.Eligibility
+            || mechs[i].paramType == TZTypes.TZParamType.Penalty)
+      ) {
         modules[idx] = HATS_MODULE_FACTORY.createHatsModule(
           mechs[i].module, // implementation
           hatId, // zone hat ID
           "", // otherImmutableArgs
-          mechs[i].initData, // initData
+          mechs[i].data, // initData
           zoneIndex * 100 + idx // saltNonce — unique per module within zone
         );
         idx++;
       }
     }
 
-    if (count == 1) return modules[0]; // single module — use directly
+    if (eligCount == 1) return modules[0]; // single module — use directly
 
     // Multiple modules — deploy EligibilitiesChain wrapping them (AND-all)
     return _deployEligibilitiesChain(modules, hatId, zoneIndex);
+  }
+
+  /// @dev Deploy standalone HatsModule mechanisms (moduleKind == HatsModule && paramType not in {Eligibility,
+  /// Penalty}). Returns an array parallel to mechs where deployed clone addresses are set for standalone HatsModules.
+  function _deployStandaloneHatsModules(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
+    internal
+    returns (address[] memory deployedAddresses)
+  {
+    deployedAddresses = new address[](mechs.length);
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].moduleKind == TZTypes.TZModuleKind.HatsModule) {
+        if (mechs[i].paramType != TZTypes.TZParamType.Eligibility && mechs[i].paramType != TZTypes.TZParamType.Penalty)
+        {
+          // Standalone HatsModule — deploy via factory but don't wire to hat
+          deployedAddresses[i] = HATS_MODULE_FACTORY.createHatsModule(
+            mechs[i].module, // implementation
+            hatId, // zone hat ID
+            "", // otherImmutableArgs
+            mechs[i].data, // initData
+            zoneIndex * 200 + i // saltNonce — distinct from hat-wired deployments
+          );
+        }
+        // Hat-wired HatsModules are deployed by _deployHatWiredModules, not tracked here
+      }
+    }
+  }
+
+  /// @dev Initialize External modules: call module.call(data) for External mechanisms with non-empty data.
+  function _initializeExternalModules(TZTypes.TZMechanism[] memory mechs) internal {
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].moduleKind == TZTypes.TZModuleKind.External && mechs[i].data.length > 0) {
+        (bool success,) = mechs[i].module.call(mechs[i].data);
+        if (!success) revert InvalidInput(bytes32("EXTERNAL_INIT"));
+      }
+    }
   }
 
   /// @dev Deploy a HatsEligibilitiesChain that ANDs all the given eligibility modules.

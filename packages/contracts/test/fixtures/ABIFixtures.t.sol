@@ -103,8 +103,12 @@ contract ABIFixtures is Test {
     zones[0].hatMaxSupply = 1;
     zones[0].hatDetails = "Test Zone Hat";
     zones[0].mechanisms = new TZTypes.TZMechanism[](1);
-    zones[0].mechanisms[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: address(0xdead), initData: hex"1234" });
+    zones[0].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Penalty,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: address(0xdead),
+      data: hex"1234"
+    });
     zones[0].resources = new TZTypes.TZResourceTokenConfig[](1);
     zones[0].resources[0] =
       TZTypes.TZResourceTokenConfig({ tokenType: TZTypes.TZParamType.Permission, metadata: hex"abcd" });
@@ -115,8 +119,12 @@ contract ABIFixtures is Test {
     zones[1].hatMaxSupply = 1;
     zones[1].hatDetails = "Test Zone Hat";
     zones[1].mechanisms = new TZTypes.TZMechanism[](1);
-    zones[1].mechanisms[0] =
-      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Reward, module: address(0xbeef), initData: hex"5678" });
+    zones[1].mechanisms[0] = TZTypes.TZMechanism({
+      paramType: TZTypes.TZParamType.Reward,
+      moduleKind: TZTypes.TZModuleKind.External,
+      module: address(0xbeef),
+      data: hex"5678"
+    });
     zones[1].resources = new TZTypes.TZResourceTokenConfig[](1);
     zones[1].resources[0] =
       TZTypes.TZResourceTokenConfig({ tokenType: TZTypes.TZParamType.Responsibility, metadata: hex"ef01" });

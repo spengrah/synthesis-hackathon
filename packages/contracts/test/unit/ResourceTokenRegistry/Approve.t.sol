@@ -28,4 +28,12 @@ contract Approve_Test is ResourceTokenRegistryBase {
     vm.expectRevert(IResourceTokenRegistryErrors.ApprovalsDisabled.selector);
     registry.setOperator(operator, approved);
   }
+
+  function test_Allowance_AlwaysReturnsZero() public view {
+    assertEq(registry.allowance(alice, bob, 1), 0);
+  }
+
+  function test_IsOperator_AlwaysReturnsFalse() public view {
+    assertFalse(registry.isOperator(alice, bob));
+  }
 }
