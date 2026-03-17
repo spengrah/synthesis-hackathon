@@ -28,7 +28,7 @@ On `createAgreement`:
 - `address public resourceTokenRegistry` — ResourceTokenRegistry address
 - `address public agreementImplementation` — Agreement implementation address for cloning
 
-Note: `identityRegistry`, `reputationRegistry`, `trustZoneImpl`, `hookMultiplexer`, and `hatValidator` are immutables on the Agreement implementation, not on the registry.
+Note: `identityRegistry`, `reputationRegistry`, `trustZoneImpl`, `hookMultiplexer`, `hatValidator`, `hatsModuleFactory`, and `eligibilitiesChainImpl` are immutables on the Agreement implementation, not on the registry.
 
 ---
 
@@ -210,7 +210,7 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
    e. Install HatValidator + agreement executor + HookMultiPlexer on TZ Account
    f. Collect CONSTRAINT mechanisms (deduplicated) and pass as globalHooks to HookMultiPlexer init
    f2. Initialize each CONSTRAINT sub-hook's `onInstall(initData)` via `executeFromExecutor` (for hooks with non-empty initData)
-   g. Register claimable mechanisms (Penalty, Reward, etc.) in the mechanism registry — Constraint and Eligibility types are excluded
+   g. Register all mechanisms in the mechanism registry (full zone definition; Constraints rejected at claim time, not at registration)
    h. Mint resource tokens to TZ account
 2. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
 
@@ -294,7 +294,7 @@ No settlement needed. No zones were deployed.
 
 ## Mechanism registry
 
-During activation, the agreement builds a registry of claimable mechanisms from the `TZConfig.mechanisms[]` arrays:
+During activation, the agreement registers ALL mechanisms from `TZConfig.mechanisms[]` arrays into a registry that serves as the complete zone definition:
 
 ```solidity
 struct ClaimableMechanism {
@@ -307,7 +307,7 @@ struct ClaimableMechanism {
 ClaimableMechanism[] public mechanisms;
 ```
 
-Constraint and Eligibility mechanism types are excluded from this registry — they are self-enforcing (via ERC-7579 hooks and Hats eligibility modules respectively) and not subject to claim/adjudication.
+All mechanism types are registered (Constraint, Eligibility, Reward, Penalty, etc.) so the full zone configuration is visible onchain and indexable. However, **Constraint mechanisms are self-enforcing** (via ERC-7579 hooks) and cannot be claimed against — `CLAIM` reverts with `InvalidMechanismIndex` if the referenced mechanism is a Constraint.
 
 CLAIM and ADJUDICATE inputs reference mechanisms by index in this array.
 
@@ -358,8 +358,8 @@ bytes32[2] internal _exitFeedbackHash;
 uint256 public claimCount;
 // Claim details stored in events (not in storage) for gas efficiency
 
-// Note: infrastructure addresses (hats, registries, trustZoneImpl, hookMultiplexer, hatValidator)
-// are immutables on the Agreement implementation, not per-instance storage.
+// Note: infrastructure addresses (hats, registries, trustZoneImpl, hookMultiplexer, hatValidator,
+// hatsModuleFactory, eligibilitiesChainImpl) are immutables on the implementation, not per-instance storage.
 ```
 
 ---
