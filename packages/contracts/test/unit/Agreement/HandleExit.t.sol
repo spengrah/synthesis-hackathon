@@ -1,70 +1,73 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { AgreementBase } from "../../Base.t.sol";
+import { AgreementHarnessBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
-import { Agreement } from "../../../src/Agreement.sol";
+import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 
-contract Agreement_handleExit is AgreementBase {
+contract Agreement_handleExit is AgreementHarnessBase {
   function setUp() public override {
     super.setUp();
-    _advanceToActive(agreement);
+    _advanceToActive();
   }
 
   function test_RevertIf_StateIsNotActive() public {
     bytes memory proposalPayload = _defaultProposalPayload();
-    (Agreement newAgreement,) = _createAgreementClone(proposalPayload);
+    (AgreementHarness newHarness,) = _createHarnessCloneWithPayload(proposalPayload);
     vm.expectRevert(
       abi.encodeWithSelector(IAgreementErrors.InvalidState.selector, AgreementTypes.PROPOSED, AgreementTypes.ACTIVE)
     );
-    vm.prank(partyA);
-    newAgreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    newHarness.exposed_handleExit(partyA, abi.encode("ipfs://exit", bytes32(uint256(1))));
   }
 
   function test_RevertIf_CallerIsNotAParty() public {
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.NotAParty.selector, observer));
-    vm.prank(observer);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    harness.exposed_handleExit(observer, abi.encode("ipfs://exit", bytes32(uint256(1))));
   }
 
   function test_RevertIf_CallerHasAlreadySignaled() public {
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exit", bytes32(uint256(1))));
 
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.AlreadySignaled.selector, partyA));
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit2", bytes32(uint256(2))));
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exit2", bytes32(uint256(2))));
   }
 
   function test_StoresExitSignalForParty() public {
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
-    assertTrue(agreement.exitSignaled(0));
-    assertFalse(agreement.exitSignaled(1));
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    assertTrue(harness.exitSignaled(0));
+    assertFalse(harness.exitSignaled(1));
   }
 
   function test_EmitsExitSignaled() public {
     vm.expectEmit(true, false, false, true);
     emit IAgreementEvents.ExitSignaled(partyA, "ipfs://exit", bytes32(uint256(1)));
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exit", bytes32(uint256(1))));
   }
 
   function test_RemainsInActive_GivenOtherPartyHasNotSignaled() public {
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exit", bytes32(uint256(1))));
-    assertEq(agreement.currentState(), AgreementTypes.ACTIVE);
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exit", bytes32(uint256(1))));
+    assertEq(harness.currentState(), AgreementTypes.ACTIVE);
   }
 
   function test_ClosesWithExited_GivenBothPartiesHaveSignaled() public {
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exitA", bytes32(uint256(1))));
+    harness.exposed_handleExit(partyA, abi.encode("ipfs://exitA", bytes32(uint256(1))));
 
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.EXIT, abi.encode("ipfs://exitB", bytes32(uint256(2))));
+    harness.exposed_handleExit(partyB, abi.encode("ipfs://exitB", bytes32(uint256(2))));
 
-    assertEq(agreement.currentState(), AgreementTypes.CLOSED);
-    assertEq(agreement.outcome(), keccak256("EXITED"));
+    assertEq(harness.currentState(), AgreementTypes.CLOSED);
+    assertEq(harness.outcome(), keccak256("EXITED"));
+  }
+
+  // ---- Local advance helpers ----
+
+  function _advanceToAccepted() internal {
+    bytes memory payload = _defaultProposalPayload();
+    harness.exposed_handleAccept(partyB, payload);
+  }
+
+  function _advanceToActive() internal {
+    _advanceToAccepted();
+    harness.exposed_handleActivate(partyA);
   }
 }

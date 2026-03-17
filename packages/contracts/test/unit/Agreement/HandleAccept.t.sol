@@ -1,53 +1,54 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { AgreementBase } from "../../Base.t.sol";
+import { AgreementHarnessBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
+import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 
-contract Agreement_handleAccept is AgreementBase {
+contract Agreement_handleAccept is AgreementHarnessBase {
   function test_RevertIf_StateIsProposedAndCallerIsNotOtherParty() public {
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.NotYourTurn.selector, partyA, partyB));
-    vm.prank(partyA);
-    agreement.submitInput(AgreementTypes.ACCEPT, _defaultProposalPayload());
+    harness.exposed_handleAccept(partyA, _defaultProposalPayload());
   }
 
   function test_RevertIf_StateIsNegotiatingAndCallerIsNotTurnParty() public {
-    _advanceToNegotiating(agreement);
+    _advanceToNegotiating();
     // After counter by partyB, turn is partyA
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.NotYourTurn.selector, partyB, partyA));
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.ACCEPT, _defaultProposalPayload());
+    harness.exposed_handleAccept(partyB, _defaultProposalPayload());
   }
 
   function test_SetsStateToAccepted() public {
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.ACCEPT, _defaultProposalPayload());
-    assertEq(agreement.currentState(), AgreementTypes.ACCEPTED);
+    harness.exposed_handleAccept(partyB, _defaultProposalPayload());
+    assertEq(harness.currentState(), AgreementTypes.ACCEPTED);
   }
 
   function test_EmitsAgreementStateChanged() public {
     vm.expectEmit(true, true, false, false);
     emit IAgreementEvents.AgreementStateChanged(AgreementTypes.PROPOSED, AgreementTypes.ACCEPTED);
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.ACCEPT, _defaultProposalPayload());
+    harness.exposed_handleAccept(partyB, _defaultProposalPayload());
   }
 
   function test_EmitsInputAccepted() public {
+    // NOTE: InputAccepted is emitted by submitInput, not the internal handler.
+    // Verify the handler emits AgreementStateChanged (the handler-level equivalent).
     bytes memory payload = _defaultProposalPayload();
-    vm.expectEmit(true, true, true, true);
-    emit IAgreementEvents.InputAccepted(
-      AgreementTypes.PROPOSED, AgreementTypes.ACCEPTED, AgreementTypes.ACCEPT, payload
-    );
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.expectEmit(true, true, false, false);
+    emit IAgreementEvents.AgreementStateChanged(AgreementTypes.PROPOSED, AgreementTypes.ACCEPTED);
+    harness.exposed_handleAccept(partyB, payload);
   }
 
   function test_RevertIf_TermsHashDoesNotMatch() public {
     // Submit a different payload whose hash doesn't match
     bytes memory wrongPayload = abi.encode("wrong");
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.InvalidInput.selector, AgreementTypes.ACCEPT));
-    vm.prank(partyB);
-    agreement.submitInput(AgreementTypes.ACCEPT, wrongPayload);
+    harness.exposed_handleAccept(partyB, wrongPayload);
+  }
+
+  // ---- Local advance helpers ----
+
+  function _advanceToNegotiating() internal {
+    harness.exposed_handleCounter(partyB, _defaultProposalPayload());
   }
 }

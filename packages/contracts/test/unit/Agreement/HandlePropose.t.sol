@@ -1,35 +1,36 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { AgreementBase } from "../../Base.t.sol";
+import { AgreementHarnessBase } from "../../Base.t.sol";
 import { Agreement } from "../../../src/Agreement.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
+import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 /// @notice Tests for Agreement_handlePropose (tested via initialize -- propose happens at init).
-contract Agreement_handlePropose is AgreementBase {
+contract Agreement_handlePropose is AgreementHarnessBase {
   function test_StoresTermsHashFromProposalData() public view {
     bytes memory payload = _defaultProposalPayload();
-    assertEq(agreement.termsHash(), keccak256(payload));
+    assertEq(harness.termsHash(), keccak256(payload));
   }
 
   function test_StoresTermsUriFromProposalData() public view {
-    assertEq(agreement.docUri(), "");
+    assertEq(harness.docUri(), "");
   }
 
   function test_SetsTurnToTheOtherParty() public view {
-    assertEq(agreement.turn(), partyB);
+    assertEq(harness.turn(), partyB);
   }
 
   function test_SetsStateToProposed() public view {
-    assertEq(agreement.currentState(), AgreementTypes.PROPOSED);
+    assertEq(harness.currentState(), AgreementTypes.PROPOSED);
   }
 
   function test_EmitsProposalSubmitted() public {
     bytes memory proposalPayload = _defaultProposalPayload();
     vm.recordLogs();
-    _createAgreementClone(proposalPayload);
+    _createHarnessCloneWithPayload(proposalPayload);
 
     Vm.Log[] memory logs = vm.getRecordedLogs();
     bool found = false;
@@ -48,7 +49,7 @@ contract Agreement_handlePropose is AgreementBase {
   function test_EmitsAgreementStateChanged() public {
     bytes memory proposalPayload = _defaultProposalPayload();
     vm.recordLogs();
-    _createAgreementClone(proposalPayload);
+    _createHarnessCloneWithPayload(proposalPayload);
 
     Vm.Log[] memory logs = vm.getRecordedLogs();
     bool found = false;

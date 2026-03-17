@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { AgreementBase } from "../../Base.t.sol";
+import { AgreementHarnessBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
 import { TZTypes } from "../../../src/lib/TZTypes.sol";
 import { IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
-import { Agreement } from "../../../src/Agreement.sol";
+import { AgreementHarness } from "../../harness/AgreementHarness.sol";
 import { Defaults } from "../../helpers/Defaults.sol";
 import { Constants } from "../../helpers/Constants.sol";
 
-contract Agreement_getHatStatus is AgreementBase {
+contract Agreement_getHatStatus is AgreementHarnessBase {
   function test_ReturnsFalse_GivenHatExplicitlyDeactivated() public {
-    // Create an active agreement with a claim
+    // Create an active harness with a claim
     TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
     zones[0] = Defaults.tzConfig(partyA, 0);
     zones[1] = Defaults.tzConfig(partyB, 0);
@@ -24,22 +24,18 @@ contract Agreement_getHatStatus is AgreementBase {
       Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);
     bytes memory payload = abi.encode(data);
 
-    (Agreement agr,) = _createAgreementClone(payload);
-    vm.prank(partyB);
-    agr.submitInput(AgreementTypes.ACCEPT, payload);
-    vm.prank(partyA);
-    agr.submitInput(AgreementTypes.ACTIVATE, "");
+    (AgreementHarness agr,) = _createHarnessCloneWithPayload(payload);
+    agr.exposed_handleAccept(partyB, payload);
+    agr.exposed_handleActivate(partyA);
 
     // File a claim and adjudicate with DEACTIVATE on zone 0
-    vm.prank(partyA);
-    agr.submitInput(AgreementTypes.CLAIM, abi.encode(uint256(0), bytes("evidence")));
+    agr.exposed_handleClaim(partyA, abi.encode(uint256(0), bytes("evidence")));
 
     AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](1);
     actions[0] = AgreementTypes.AdjudicationAction({
       mechanismIndex: 0, targetIndex: 0, actionType: AgreementTypes.DEACTIVATE, params: ""
     });
-    vm.prank(adjudicator);
-    agr.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(0), true, actions));
+    agr.exposed_handleAdjudicate(adjudicator, abi.encode(uint256(0), true, actions));
 
     // Zone 0 hat should be deactivated even though agreement is still ACTIVE
     uint256 zoneHat0 = agr.zoneHatIds(0);
@@ -52,24 +48,36 @@ contract Agreement_getHatStatus is AgreementBase {
 
   function test_ReturnsFalse_GivenStateIsNotActive() public view {
     // State is PROPOSED
-    assertFalse(agreement.getHatStatus(0));
+    assertFalse(harness.getHatStatus(0));
   }
 
   function test_ReturnsFalse_GivenStateIsActiveAndDeadlineHasPassed() public {
-    _advanceToActive(agreement);
-    vm.warp(agreement.deadline() + 1);
-    assertFalse(agreement.getHatStatus(0));
+    _advanceToActive();
+    vm.warp(harness.deadline() + 1);
+    assertFalse(harness.getHatStatus(0));
   }
 
   function test_ReturnsTrue_GivenStateIsActiveAndDeadlineHasNotPassed() public {
-    _advanceToActive(agreement);
-    assertTrue(agreement.getHatStatus(0));
+    _advanceToActive();
+    assertTrue(harness.getHatStatus(0));
   }
 
   function test_ReturnsFalse_GivenStateIsClosed() public {
-    _advanceToActive(agreement);
-    vm.warp(agreement.deadline() + 1);
-    agreement.submitInput(AgreementTypes.FINALIZE, "");
-    assertFalse(agreement.getHatStatus(0));
+    _advanceToActive();
+    vm.warp(harness.deadline() + 1);
+    harness.exposed_handleFinalize();
+    assertFalse(harness.getHatStatus(0));
+  }
+
+  // ---- Local advance helpers ----
+
+  function _advanceToAccepted() internal {
+    bytes memory payload = _defaultProposalPayload();
+    harness.exposed_handleAccept(partyB, payload);
+  }
+
+  function _advanceToActive() internal {
+    _advanceToAccepted();
+    harness.exposed_handleActivate(partyA);
   }
 }
