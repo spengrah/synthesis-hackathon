@@ -13,6 +13,7 @@ library AgreementTypes {
   bytes32 internal constant PROPOSED = keccak256("PROPOSED");
   bytes32 internal constant NEGOTIATING = keccak256("NEGOTIATING");
   bytes32 internal constant ACCEPTED = keccak256("ACCEPTED");
+  bytes32 internal constant READY = keccak256("READY");
   bytes32 internal constant ACTIVE = keccak256("ACTIVE");
   bytes32 internal constant CLOSED = keccak256("CLOSED");
   bytes32 internal constant REJECTED = keccak256("REJECTED");
@@ -25,6 +26,7 @@ library AgreementTypes {
   bytes32 internal constant COUNTER = keccak256("COUNTER");
   bytes32 internal constant ACCEPT = keccak256("ACCEPT");
   bytes32 internal constant REJECT = keccak256("REJECT");
+  bytes32 internal constant SET_UP = keccak256("SET_UP");
   bytes32 internal constant ACTIVATE = keccak256("ACTIVATE");
   bytes32 internal constant CLAIM = keccak256("CLAIM");
   bytes32 internal constant ADJUDICATE = keccak256("ADJUDICATE");

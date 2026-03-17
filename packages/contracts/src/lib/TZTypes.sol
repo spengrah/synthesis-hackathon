@@ -4,6 +4,9 @@ pragma solidity >=0.8.28;
 /// @title TZTypes
 /// @notice Trust Zone protocol-level types. Defines the full parameter surface of a trust zone.
 library TZTypes {
+  /// @notice Sentinel value for hat IDs unknown at compile time.
+  /// @dev Replaced with the actual agreement hat ID during setup.
+  uint256 internal constant HAT_ID_SENTINEL = type(uint256).max;
   /// @notice The parameter dimensions of a trust zone boundary and domain.
   /// @dev Not all types are implemented as onchain mechanisms. Some are expressed as resource tokens,
   ///      some are expressed through eligibility requirements, and some are post-hackathon.

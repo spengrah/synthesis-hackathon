@@ -159,6 +159,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       toState = _handleReject($, msg.sender);
     } else if (inputId == AgreementTypes.WITHDRAW) {
       toState = _handleWithdraw($, msg.sender);
+    } else if (inputId == AgreementTypes.SET_UP) {
+      toState = _handleSetUp($, msg.sender);
     } else if (inputId == AgreementTypes.ACTIVATE) {
       toState = _handleActivate($, msg.sender);
     } else if (inputId == AgreementTypes.CLAIM) {
@@ -193,24 +195,6 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return _getAgreementStorage()._termsHash;
   }
 
-  // ---- Atomic shortcut ----
-
-  /// @inheritdoc IAgreement
-  function acceptAndActivate(bytes calldata proposalData) external {
-    AgreementStorage storage $ = _getAgreementStorage();
-    _requireNegotiating($);
-
-    bytes32 fromState = $._currentState;
-
-    // Accept
-    bytes32 acceptedState = _handleAccept($, msg.sender, proposalData);
-    emit InputAccepted(fromState, acceptedState, AgreementTypes.ACCEPT, proposalData);
-
-    // Activate
-    bytes32 activeState = _handleActivate($, msg.sender);
-    emit InputAccepted(acceptedState, activeState, AgreementTypes.ACTIVATE, "");
-  }
-
   // ---- IHatsToggle ----
 
   /// @inheritdoc IAgreement
@@ -221,9 +205,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     bytes32 state = $._currentState;
     // Active: hat is live and deadline has not passed
     if (state == AgreementTypes.ACTIVE) return block.timestamp < $._deadline;
-    // During activation (ACCEPTED state): hats need to be active to mint
-    if (state == AgreementTypes.ACCEPTED) return true;
-    // All other states (CLOSED, REJECTED, etc.): inactive
+    // Ready: hats exist but are not yet worn — active for eligibility checks and minting
+    if (state == AgreementTypes.READY) return true;
+    // All other states (CLOSED, REJECTED, PROPOSED, NEGOTIATING, ACCEPTED): inactive
     return false;
   }
 
@@ -461,9 +445,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.REJECTED;
   }
 
-  // ---- Activation (broken into sub-functions for testability) ----
+  // ---- Setup + Activation (broken into sub-functions for testability) ----
 
-  function _handleActivate(AgreementStorage storage $, address caller) internal returns (bytes32) {
+  function _handleSetUp(AgreementStorage storage $, address caller) internal returns (bytes32) {
     bytes32 state = $._currentState;
     _requireState($, AgreementTypes.ACCEPTED);
     _requireParty($, caller);
@@ -476,7 +460,24 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     $._deadline = data.deadline;
 
     for (uint256 i = 0; i < 2; i++) {
-      _deployZone($, data.zones[i], i);
+      _setUpZone($, data.zones[i], i);
+    }
+
+    $._currentState = AgreementTypes.READY;
+    emit AgreementSetUp(address(this), $._trustZones, $._zoneHatIds);
+    emit AgreementStateChanged(state, AgreementTypes.READY);
+
+    return AgreementTypes.READY;
+  }
+
+  function _handleActivate(AgreementStorage storage $, address caller) internal returns (bytes32) {
+    bytes32 state = $._currentState;
+    _requireState($, AgreementTypes.READY);
+    _requireParty($, caller);
+
+    // Mint zone hats — Hats Protocol enforces eligibility at mintHat() time
+    for (uint256 i = 0; i < 2; i++) {
+      HATS.mintHat($._zoneHatIds[i], $._parties[i]);
     }
 
     $._currentState = AgreementTypes.ACTIVE;
@@ -486,12 +487,14 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.ACTIVE;
   }
 
-  /// @dev Deploy a single trust zone: create hat, verify agentId, deploy clone, register mechanisms, mint tokens.
-  function _deployZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
+  /// @dev Set up a single trust zone: create hat, verify agentId, deploy clone, register mechanisms, mint tokens.
+  ///      Does NOT mint the zone hat — that happens in _handleActivate.
+  function _setUpZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
     if (zone.party != $._parties[zoneIndex]) revert NotAParty(zone.party);
     _verifyAgentId(zone);
     uint256 zoneHatId = _createZoneHat($, zone, zoneIndex);
-    address[] memory deployedAddresses = _deployStandaloneHatsModules(zone.mechanisms, zoneHatId, zoneIndex);
+    address[] memory deployedAddresses =
+      _deployStandaloneHatsModules(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId);
     address[] memory constraintHooks = _collectConstraintHooks(zone.mechanisms);
     address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex, constraintHooks);
     _initializeConstraintHooks(trustZoneAddr, zone.mechanisms);
@@ -515,7 +518,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     }
   }
 
-  /// @dev Create a zone hat as child of the agreement hat, mint to party.
+  /// @dev Create a zone hat as child of the agreement hat. Does NOT mint — minting happens in _handleActivate.
   function _createZoneHat(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex)
     internal
     returns (uint256 zoneHatId)
@@ -524,7 +527,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     zoneHatId = HATS.getNextId($._agreementHatId);
 
     // Deploy hat-wired modules (Eligibility + Penalty) or use address(this) if none
-    address eligibility = _deployHatWiredModules(zone.mechanisms, zoneHatId, zoneIndex);
+    address eligibility = _deployHatWiredModules(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId);
 
     HATS.createHat(
       $._agreementHatId,
@@ -535,7 +538,6 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       true,
       ""
     );
-    HATS.mintHat(zoneHatId, zone.party);
   }
 
   /// @dev Deploy and initialize a TrustZone clone.
@@ -646,10 +648,13 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
   /// @dev Deploy hat-wired HatsModule mechanisms (Eligibility + Penalty) for a zone hat.
   ///      Returns the eligibility address (address(this) if no eligibility modules).
-  function _deployHatWiredModules(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
-    internal
-    returns (address)
-  {
+  ///      Splits packed data and replaces sentinel hat IDs before passing to factory.
+  function _deployHatWiredModules(
+    TZTypes.TZMechanism[] memory mechs,
+    uint256 hatId,
+    uint256 zoneIndex,
+    uint256 agreementHatId
+  ) internal returns (address) {
     // Count hat-wired mechanisms: HatsModule with paramType Eligibility or Penalty
     uint256 eligCount;
     for (uint256 i = 0; i < mechs.length; i++) {
@@ -673,12 +678,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
           && (mechs[i].paramType == TZTypes.TZParamType.Eligibility
             || mechs[i].paramType == TZTypes.TZParamType.Penalty)
       ) {
-        modules[idx] = HATS_MODULE_FACTORY.createHatsModule(
-          mechs[i].module, // implementation
-          hatId, // zone hat ID
-          "", // otherImmutableArgs
-          mechs[i].data, // initData
-          zoneIndex * 100 + idx // saltNonce — unique per module within zone
+        modules[idx] = _deployHatsModuleWithPackedData(
+          mechs[i].module, hatId, mechs[i].data, agreementHatId, zoneIndex * 100 + idx
         );
         idx++;
       }
@@ -692,22 +693,21 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
   /// @dev Deploy standalone HatsModule mechanisms (moduleKind == HatsModule && paramType not in {Eligibility,
   /// Penalty}). Returns an array parallel to mechs where deployed clone addresses are set for standalone HatsModules.
-  function _deployStandaloneHatsModules(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
-    internal
-    returns (address[] memory deployedAddresses)
-  {
+  ///      Splits packed data and replaces sentinel hat IDs before passing to factory.
+  function _deployStandaloneHatsModules(
+    TZTypes.TZMechanism[] memory mechs,
+    uint256 hatId,
+    uint256 zoneIndex,
+    uint256 agreementHatId
+  ) internal returns (address[] memory deployedAddresses) {
     deployedAddresses = new address[](mechs.length);
     for (uint256 i = 0; i < mechs.length; i++) {
       if (mechs[i].moduleKind == TZTypes.TZModuleKind.HatsModule) {
         if (mechs[i].paramType != TZTypes.TZParamType.Eligibility && mechs[i].paramType != TZTypes.TZParamType.Penalty)
         {
           // Standalone HatsModule — deploy via factory but don't wire to hat
-          deployedAddresses[i] = HATS_MODULE_FACTORY.createHatsModule(
-            mechs[i].module, // implementation
-            hatId, // zone hat ID
-            "", // otherImmutableArgs
-            mechs[i].data, // initData
-            zoneIndex * 200 + i // saltNonce — distinct from hat-wired deployments
+          deployedAddresses[i] = _deployHatsModuleWithPackedData(
+            mechs[i].module, hatId, mechs[i].data, agreementHatId, zoneIndex * 200 + i
           );
         }
         // Hat-wired HatsModules are deployed by _deployHatWiredModules, not tracked here
@@ -741,6 +741,38 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     uint256 chainSaltNonce = zoneIndex + 1000;
 
     return HATS_MODULE_FACTORY.createHatsModule(ELIGIBILITIES_CHAIN_IMPL, hatId, otherImmutableArgs, "", chainSaltNonce);
+  }
+
+  /// @dev Deploy a HatsModule from packed data: split (otherImmutableArgs, initData), patch sentinels, deploy.
+  function _deployHatsModuleWithPackedData(
+    address implementation,
+    uint256 hatId,
+    bytes memory packedData,
+    uint256 agreementHatId,
+    uint256 saltNonce
+  ) internal returns (address) {
+    (bytes memory immArgs, bytes memory initData_) = abi.decode(packedData, (bytes, bytes));
+    bytes memory patchedInitData = _replaceSentinelHatIds(initData_, agreementHatId);
+    return HATS_MODULE_FACTORY.createHatsModule(implementation, hatId, immArgs, patchedInitData, saltNonce);
+  }
+
+  /// @dev Replace sentinel hat IDs (type(uint256).max) in ABI-encoded initData with the actual agreement hat ID.
+  ///      Scans in 32-byte aligned chunks since ABI-encoded uint256 values are always aligned.
+  function _replaceSentinelHatIds(bytes memory initData, uint256 agreementHatId) internal pure returns (bytes memory) {
+    bytes32 sentinel = bytes32(type(uint256).max);
+    bytes32 replacement = bytes32(agreementHatId);
+    for (uint256 i = 0; i + 32 <= initData.length; i += 32) {
+      bytes32 chunk;
+      assembly {
+        chunk := mload(add(initData, add(32, i)))
+      }
+      if (chunk == sentinel) {
+        assembly {
+          mstore(add(initData, add(32, i)), replacement)
+        }
+      }
+    }
+    return initData;
   }
 
   // ---- Active state handlers ----

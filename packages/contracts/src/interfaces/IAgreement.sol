@@ -35,8 +35,9 @@ interface IAgreementEvents {
 
   event ProposalSubmitted(address indexed proposer, bytes32 termsHash, bytes proposalData);
 
-  // ---- Activation ----
+  // ---- Setup + Activation ----
 
+  event AgreementSetUp(address indexed agreement, address[2] trustZones, uint256[2] zoneHatIds);
   event AgreementActivated(address indexed agreement, address[2] trustZones, uint256[2] zoneHatIds);
   event ZoneDeployed(
     address indexed agreement, address indexed trustZone, uint256 indexed zoneHatId, address party, uint256 agentId
@@ -78,19 +79,11 @@ interface IAgreement is IAgreementErrors, IAgreementEvents {
   /// @notice Hash of the terms document (optional, set on accept). Shodai-compatible alias for termsHash.
   function docHash() external view returns (bytes32);
 
-  // ---- Atomic shortcut ----
-
-  /// @notice Accept and activate in one transaction. Convenience for demo.
-  /// @dev Caller must be the party whose turn it is. State must be PROPOSED or NEGOTIATING.
-  ///      Equivalent to submitInput(ACCEPT) + submitInput(ACTIVATE).
-  /// @param proposalData ABI-encoded ProposalData (used for activation, terms already locked by accept).
-  function acceptAndActivate(bytes calldata proposalData) external;
-
   // ---- IHatsToggle ----
 
   /// @notice Check if a zone hat should be active. Used by Hats Protocol for auto-deactivation.
-  /// @dev Returns true only when state is ACTIVE and deadline has not passed.
-  ///      Ensures zones go inert after deadline even before FINALIZE is called.
+  /// @dev Returns true when state is READY (hats created but no wearer) or ACTIVE (before deadline).
+  ///      Returns false for explicitly deactivated hats, after deadline, or in terminal states.
   /// @param hatId The zone hat to check.
   /// @return Whether the hat is active.
   function getHatStatus(uint256 hatId) external view returns (bool);
