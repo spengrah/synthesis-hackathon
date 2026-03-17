@@ -208,8 +208,9 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
    c. Mint zone hat to party
    d. Deploy TZ Account clone via `Clones.cloneDeterministic`
    e. Install HatValidator + agreement executor + HookMultiPlexer on TZ Account
-   f. Collect CONSTRAINT mechanisms and pass as globalHooks to HookMultiPlexer init
-   g. Register claimable mechanisms (Penalty, Reward, etc.) in the mechanism registry
+   f. Collect CONSTRAINT mechanisms (deduplicated) and pass as globalHooks to HookMultiPlexer init
+   f2. Initialize each CONSTRAINT sub-hook's `onInstall(initData)` via `executeFromExecutor` (for hooks with non-empty initData)
+   g. Register claimable mechanisms (Penalty, Reward, etc.) in the mechanism registry — Constraint and Eligibility types are excluded
    h. Mint resource tokens to TZ account
 2. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
 
@@ -242,7 +243,7 @@ struct AdjudicationAction {
 - Agreement executes each action against the referenced mechanism:
   - `PENALIZE` → calls staking module's slash function (or other penalty mechanism)
   - `REWARD` → calls reward mechanism (e.g. token distribution)
-  - `FEEDBACK` → calls `reputationRegistry.giveFeedback()` on the mechanism's associated agentId
+  - `FEEDBACK` → `targetIndex` selects the party; `agentId` is looked up from `$._agentIds[targetIndex]`. Calls `reputationRegistry.giveFeedback()` on that agentId.
   - `DEACTIVATE` → calls `HATS.setHatStatus(hatId, false)` for the zone
   - `CLOSE` → transitions agreement to CLOSED
 - If any action is CLOSE, agreement transitions to CLOSED with outcome `ADJUDICATED`.
@@ -305,6 +306,8 @@ struct ClaimableMechanism {
 
 ClaimableMechanism[] public mechanisms;
 ```
+
+Constraint and Eligibility mechanism types are excluded from this registry — they are self-enforcing (via ERC-7579 hooks and Hats eligibility modules respectively) and not subject to claim/adjudication.
 
 CLAIM and ADJUDICATE inputs reference mechanisms by index in this array.
 

@@ -5,7 +5,11 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import { IERC7579Module, MODULE_TYPE_EXECUTOR } from "@openzeppelin/contracts/interfaces/draft-IERC7579.sol";
+import {
+  IERC7579Module,
+  IERC7579Execution,
+  MODULE_TYPE_EXECUTOR
+} from "@openzeppelin/contracts/interfaces/draft-IERC7579.sol";
 import { IHats } from "hats-protocol/Interfaces/IHats.sol";
 
 import { IAgreement, IAgreementErrors, IAgreementEvents } from "./interfaces/IAgreement.sol";
@@ -482,6 +486,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     uint256 zoneHatId = _createZoneHat($, zone, zoneIndex);
     address[] memory constraintHooks = _collectConstraintHooks(zone.mechanisms);
     address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex, constraintHooks);
+    _initializeConstraintHooks(trustZoneAddr, zone.mechanisms);
     _registerMechanisms($, zone.mechanisms, zoneIndex);
     _mintResourceTokens(trustZoneAddr, zone.resources);
 
@@ -532,8 +537,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     bytes32 salt = keccak256(abi.encode(address(this), zoneIndex));
     trustZoneAddr = Clones.cloneDeterministic(TRUST_ZONE_IMPL, salt);
 
-    // Sort constraint hooks (HookMultiPlexer requires sorted, unique arrays)
+    // Sort and deduplicate constraint hooks (HookMultiPlexer requires sorted, unique arrays)
     LibSort.sort(constraintHooks);
+    constraintHooks = _dedupSorted(constraintHooks);
 
     bytes memory hookInitData = abi.encode(
       constraintHooks, // globalHooks — constraint mechanisms
@@ -553,6 +559,11 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   {
     for (uint256 j = 0; j < mechs.length; j++) {
       TZTypes.TZMechanism memory mech = mechs[j];
+
+      // Skip self-enforcing mechanism types — not claimable/adjudicatable
+      if (mech.paramType == TZTypes.TZParamType.Constraint) continue;
+      if (mech.paramType == TZTypes.TZParamType.Eligibility) continue;
+
       uint256 mechIndex = $._mechanisms.length;
       $._mechanisms
         .push(
@@ -588,6 +599,33 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     }
   }
 
+  /// @dev Initialize each CONSTRAINT sub-hook with its initData via executeFromExecutor.
+  ///      HookMultiPlexer stores hook addresses but does not call onInstall on sub-hooks.
+  function _initializeConstraintHooks(address trustZoneAddr, TZTypes.TZMechanism[] memory mechs) internal {
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].paramType == TZTypes.TZParamType.Constraint && mechs[i].initData.length > 0) {
+        bytes memory call_ = abi.encodeCall(IERC7579Module.onInstall, (mechs[i].initData));
+        bytes memory execCalldata = abi.encodePacked(mechs[i].module, uint256(0), call_);
+        IERC7579Execution(trustZoneAddr).executeFromExecutor(bytes32(0), execCalldata);
+      }
+    }
+  }
+
+  /// @dev Deduplicate a sorted address array in-place. Returns the same array with length adjusted.
+  function _dedupSorted(address[] memory arr) internal pure returns (address[] memory) {
+    if (arr.length < 2) return arr;
+    uint256 j = 0;
+    for (uint256 i = 1; i < arr.length; i++) {
+      if (arr[i] != arr[j]) {
+        arr[++j] = arr[i];
+      }
+    }
+    assembly {
+      mstore(arr, add(j, 1))
+    }
+    return arr;
+  }
+
   /// @dev Deploy eligibility modules for a zone hat. Returns address(this) if no eligibility modules.
   function _deployEligibility(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
     internal
@@ -606,13 +644,14 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     uint256 idx;
     for (uint256 i = 0; i < mechs.length; i++) {
       if (mechs[i].paramType == TZTypes.TZParamType.Eligibility) {
-        modules[idx++] = HATS_MODULE_FACTORY.createHatsModule(
+        modules[idx] = HATS_MODULE_FACTORY.createHatsModule(
           mechs[i].module, // implementation
           hatId, // zone hat ID
           "", // otherImmutableArgs
           mechs[i].initData, // initData
-          zoneIndex // saltNonce — unique per zone
+          zoneIndex * 100 + idx // saltNonce — unique per module within zone
         );
+        idx++;
       }
     }
 
