@@ -61,18 +61,17 @@ contract ResourceTokenRegistry is IResourceTokenRegistry {
   // ──────────────────────────────────────────
 
   function transfer(address receiver, uint256 id, uint256 amount) external returns (bool) {
-    _checkIsCreator(id);
-    _checkIsHeld(msg.sender, id);
-    _checkNotHeld(receiver, id);
-
-    _held[msg.sender][id] = false;
-    _held[receiver][id] = true;
-
-    emit Transfer(msg.sender, msg.sender, receiver, id, amount);
-    return true;
+    return _transfer(msg.sender, msg.sender, receiver, id, amount);
   }
 
   function transferFrom(address sender, address receiver, uint256 id, uint256 amount) external returns (bool) {
+    return _transfer(msg.sender, sender, receiver, id, amount);
+  }
+
+  function _transfer(address caller, address sender, address receiver, uint256 id, uint256 amount)
+    internal
+    returns (bool)
+  {
     _checkIsCreator(id);
     _checkIsHeld(sender, id);
     _checkNotHeld(receiver, id);
@@ -80,7 +79,7 @@ contract ResourceTokenRegistry is IResourceTokenRegistry {
     _held[sender][id] = false;
     _held[receiver][id] = true;
 
-    emit Transfer(msg.sender, sender, receiver, id, amount);
+    emit Transfer(caller, sender, receiver, id, amount);
     return true;
   }
 

@@ -73,6 +73,18 @@ contract Agreement_handleAdjudicate is AgreementBase {
     activeAgreement.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(999), true, actions));
   }
 
+  function test_RevertIf_ClaimAlreadyAdjudicated() public {
+    AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](0);
+    // First adjudication succeeds
+    vm.prank(adjudicator);
+    activeAgreement.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(0), true, actions));
+
+    // Second adjudication of same claim reverts
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.ClaimAlreadyAdjudicated.selector, uint256(0)));
+    vm.prank(adjudicator);
+    activeAgreement.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(0), true, actions));
+  }
+
   function test_EmitsAdjudicationDelivered() public {
     AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](0);
     bytes32[] memory actionTypes = new bytes32[](0);

@@ -60,6 +60,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     bytes32[2] _exitFeedbackHash;
     // Claims
     uint256 _claimCount;
+    mapping(uint256 => bool) _claimAdjudicated;
+    // Hat deactivation tracking (for DEACTIVATE action)
+    mapping(uint256 => bool) _hatDeactivated;
     // Stored proposal data (set on accept, used on activate)
     bytes _storedProposalData;
   }
@@ -198,8 +201,10 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   // ---- IHatsToggle ----
 
   /// @inheritdoc IAgreement
-  function getHatStatus(uint256) external view returns (bool) {
+  function getHatStatus(uint256 _hatId) external view returns (bool) {
     AgreementStorage storage $ = _getAgreementStorage();
+    // Respect explicit per-hat deactivation (from DEACTIVATE adjudication action)
+    if ($._hatDeactivated[_hatId]) return false;
     bytes32 state = $._currentState;
     // Active: hat is live and deadline has not passed
     if (state == AgreementTypes.ACTIVE) return block.timestamp < $._deadline;
@@ -566,6 +571,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       abi.decode(payload, (uint256, bool, AgreementTypes.AdjudicationAction[]));
 
     if (claimId >= $._claimCount) revert InvalidClaimId(claimId);
+    if ($._claimAdjudicated[claimId]) revert ClaimAlreadyAdjudicated(claimId);
+    $._claimAdjudicated[claimId] = true;
 
     bytes32[] memory actionTypes = new bytes32[](actions.length);
     bool shouldClose = false;
@@ -594,6 +601,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         );
       } else if (action.actionType == AgreementTypes.DEACTIVATE) {
         if (action.targetIndex >= 2) revert InvalidMechanismIndex(action.targetIndex);
+        $._hatDeactivated[$._zoneHatIds[action.targetIndex]] = true;
         HATS.setHatStatus($._zoneHatIds[action.targetIndex], false);
       } else if (action.actionType == AgreementTypes.CLOSE) {
         shouldClose = true;

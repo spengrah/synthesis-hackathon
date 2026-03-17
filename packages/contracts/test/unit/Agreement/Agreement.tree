@@ -107,7 +107,10 @@ Agreement_handleAdjudicate
 │   └── it should revert with NotAdjudicator
 ├── when claimId is invalid
 │   └── it should revert with InvalidClaimId
+├── when claimId is already adjudicated
+│   └── it should revert with ClaimAlreadyAdjudicated
 └── when inputs are valid
+    ├── it should mark the claim as adjudicated
     ├── for each AdjudicationAction
     │   ├── given actionType is PENALIZE
     │   │   └── it should call the mechanism module with penalize params
@@ -116,6 +119,7 @@ Agreement_handleAdjudicate
     │   ├── given actionType is FEEDBACK
     │   │   └── it should call reputationRegistry.giveFeedback
     │   ├── given actionType is DEACTIVATE
+    │   │   ├── it should set _hatDeactivated[zoneHatId] to true
     │   │   └── it should call HATS.setHatStatus(zoneHatIds[action.targetIndex], false)
     │   └── given actionType is CLOSE
     │       └── it should trigger close with outcome ADJUDICATED
@@ -190,6 +194,8 @@ Agreement_acceptAndActivate
     └── it should transition directly to ACTIVE
 
 Agreement_getHatStatus
+├── given hat has been explicitly deactivated via DEACTIVATE action
+│   └── it should return false (even while ACTIVE + deadline OK)
 ├── given state is not ACTIVE
 │   └── it should return false
 ├── given state is ACTIVE and deadline has passed

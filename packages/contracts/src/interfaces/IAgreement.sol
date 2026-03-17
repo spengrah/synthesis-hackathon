@@ -19,6 +19,7 @@ interface IAgreementErrors {
   error InvalidZoneCount();
   error AlreadySignaled(address caller);
   error InvalidClaimId(uint256 claimId);
+  error ClaimAlreadyAdjudicated(uint256 claimId);
 }
 
 /// @title IAgreementEvents
