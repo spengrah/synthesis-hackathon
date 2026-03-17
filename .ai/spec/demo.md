@@ -73,26 +73,33 @@ Agent B counters with modified terms. Agent A accepts.
 Both agents access each other's data:
 - Agent B calls A's API as TZ Account 1 (ERC-8128 offchain "act as")
 - Agent A calls B's API as TZ Account 2 (same)
-- Action receipts logged: Tier 1 (onchain events) + Tier 2 (ERC-8128 signed requests)
+- Data APIs validate ERC-8128 signatures via `isValidSignature()` on TZ accounts
+- Data APIs check permission token holdings in ResourceTokenRegistry
+- Data APIs enforce directive rate limits locally
+- Action receipts logged to Bonfires context graph as episodes (Tier 2)
 
 ### 4. CONSTRAINT FIRES
 Agent B tries to access /raw-export on A's API (not in permission tokens).
-→ A's API checks: does TZ Account 1 hold a permission token for /raw-export? No.
-→ Request denied. "Deterministic enforcement."
+→ A's data API checks: does TZ Account 1 hold a permission token for /raw-export? No.
+→ Request denied. Receipt logged to Bonfires (attempted access, denied).
+→ "Deterministic enforcement."
 
 ### 5. DIRECTIVE VIOLATION + CLAIM
-Agent A reviews B's access receipts from Tier 2.
-- B queried /market-data 47 times in 2 hours (directive token: rateLimit=10/hr)
-- B's derived outputs lack attribution (directive token: attribution=required)
+Agent A queries Bonfires context graph (`/delve`) for B's action receipts on Zone 1.
+- Finds 47 /market-data requests in 2 hours (directive token: rateLimit=10/hr)
+- Finds B's derived outputs lack attribution (directive token: attribution=required)
+- Logs belief about violation to agent-local Bonfires stack (Tier 3)
+- Discloses evidence to shared Bonfires bonfire (Tier 3 → Tier 2)
 
 Agent A files: `submitInput(CLAIM, abi.encode(mechanismIndex, evidence))`
 - References the INCENTIVE mechanism (bond slash) for Zone 1
 - State stays ACTIVE — claim is logged, adjudicator is notified
 
 ### 6. ADJUDICATION
-Adjudicator (GenLayer or stub) evaluates:
-- Reads directive tokens + metadata (the rules)
-- Reads action receipts (what happened)
+Adjudicator (registered as Bonfires agent) queries the context graph:
+- `/delve` for directive tokens + metadata (the rules)
+- `/delve` for action receipts in the relevant time window (what happened)
+- `/knowledge_graph/expand/entity` for agreement structure and zone config
 - Evaluates: rate limit violation (moderate), attribution violation (minor)
 
 Adjudicator delivers: `submitInput(ADJUDICATE, abi.encode(claimId, verdict, actions))`

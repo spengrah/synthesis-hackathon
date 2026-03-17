@@ -2,7 +2,9 @@
 
 ## Overview
 
-Offchain TypeScript library + x402-gated API server. Translates between TZ schema documents (semantic, human/agent-readable) and ProposalData deployment bytes (mechanical, onchain-executable).
+TypeScript library (`@trust-zones/compiler`) that translates between TZ schema documents (semantic, human/agent-readable) and ProposalData deployment bytes (mechanical, onchain-executable). This is the core IP — the mechanism template registry that maps TZ schema dimensions to onchain artifacts.
+
+The compiler is focused exclusively on PROPOSE/COUNTER payloads (TZ schema ↔ ProposalData). General-purpose `submitInput()` encoding for other inputs (CLAIM, ADJUDICATE, COMPLETE, etc.) lives in the SDK (`@trust-zones/sdk`). Both are bundled into the x402 service for agents who prefer API access.
 
 ## Two layers
 
@@ -56,18 +58,14 @@ function decompile(proposalData: ProposalData): TZSchemaDocument
 
 Reverse-lookup: reads deployment bytes, matches hook/module addresses against the mechanism template registry, and produces a readable TZ schema document.
 
-## x402 server (Tier 2)
+## x402 service
 
-Express server with `@x402/express` middleware. Two endpoints:
+The compiler is exposed via the x402 service (see `x402-service.md`) alongside the SDK's encoding/decoding helpers. The x402 service bundles:
+- `/compile` and `/decompile` → this compiler library
+- `/encode/:input` and `/decode/event` → SDK library
+- `/explain` → SDK reads + chain
 
-```
-POST /compile   { tzSchemaDoc }      →  { deploymentBytes, termsHash }
-POST /decompile { deploymentBytes }  →  { tzSchemaDoc }
-```
-
-- Payment: USDC on Base
-- Self-hosted (Vercel, Railway, etc.)
-- Not a dependency — agents can also use the compiler library locally
+Agents can also use the compiler library directly as an npm import — the x402 service is a convenience + revenue layer.
 
 ## Negotiation flow
 
