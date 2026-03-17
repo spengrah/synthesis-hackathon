@@ -123,6 +123,7 @@ struct ProposalData {
 bytes32 constant PROPOSED    = keccak256("PROPOSED");
 bytes32 constant NEGOTIATING = keccak256("NEGOTIATING");
 bytes32 constant ACCEPTED    = keccak256("ACCEPTED");
+bytes32 constant READY       = keccak256("READY");
 bytes32 constant ACTIVE      = keccak256("ACTIVE");
 bytes32 constant CLOSED      = keccak256("CLOSED");
 bytes32 constant REJECTED    = keccak256("REJECTED");
@@ -135,6 +136,7 @@ bytes32 constant PROPOSE  = keccak256("PROPOSE");
 bytes32 constant COUNTER  = keccak256("COUNTER");
 bytes32 constant ACCEPT   = keccak256("ACCEPT");
 bytes32 constant REJECT   = keccak256("REJECT");
+bytes32 constant SET_UP   = keccak256("SET_UP");
 bytes32 constant ACTIVATE = keccak256("ACTIVATE");
 bytes32 constant CLAIM    = keccak256("CLAIM");
 bytes32 constant ADJUDICATE = keccak256("ADJUDICATE");
@@ -158,7 +160,9 @@ NEGOTIATING ─[COUNTER]──→ NEGOTIATING  (flips turn)
 NEGOTIATING ─[ACCEPT]───→ ACCEPTED
 NEGOTIATING ─[REJECT]───→ REJECTED
 
-ACCEPTED    ─[ACTIVATE]─→ ACTIVE
+ACCEPTED    ─[SET_UP]───→ READY
+
+READY       ─[ACTIVATE]─→ ACTIVE
 
 ACTIVE      ─[CLAIM]────→ ACTIVE       (logs claim, no state change)
 ACTIVE      ─[ADJUDICATE]→ ACTIVE or CLOSED (catastrophic → CLOSED)
@@ -166,8 +170,6 @@ ACTIVE      ─[COMPLETE]──→ ACTIVE or CLOSED (two-step: second signal →
 ACTIVE      ─[EXIT]──────→ ACTIVE or CLOSED (two-step: second signal → CLOSED)
 ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 ```
-
-`acceptAndActivate()` — atomic shortcut: PROPOSED/NEGOTIATING → ACCEPTED → ACTIVE.
 
 ### Auth per state
 
@@ -177,7 +179,8 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 | PROPOSED | WITHDRAW | Proposer only (parties[0]) |
 | NEGOTIATING | COUNTER, ACCEPT | Party whose turn it is |
 | NEGOTIATING | REJECT | Either party |
-| ACCEPTED | ACTIVATE | Either party |
+| ACCEPTED | SET_UP | Either party |
+| READY | ACTIVATE | Either party |
 | ACTIVE | CLAIM | TBD — parties, registered observers, etc. |
 | ACTIVE | ADJUDICATE | Adjudicator only (`msg.sender == adjudicator`) |
 | ACTIVE | COMPLETE, EXIT | Either party (two-step mutual agreement) |
@@ -202,36 +205,87 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 
 ### ACCEPTED
 - Terms locked. No more negotiation.
-- ACTIVATE deploys zones, installs mechanisms, mints hats and resource tokens.
+- SET_UP deploys zones, installs mechanisms, mints resource tokens — but does NOT mint zone hats.
 
-### Activation logic (ACCEPTED → ACTIVE)
+### Setup logic (ACCEPTED → READY)
 
-1. For each zone (`TZConfig`):
-   a. **Create zone hat** (child of agreement hat) via Hats Protocol
-      - Predict zone hat ID via `HATS.getNextId(agreementHatId)`
-      - Collect mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Eligibility, Penalty}` — these are hat-wired
-      - Deploy each via `HatsModuleFactory.createHatsModule(module, hatId, "", data, salt)`
-      - If multiple, wrap in `HatsEligibilitiesChain` (AND-all)
-      - If none, use `address(this)` (always eligible)
-      - Toggle is always `address(this)` (the agreement contract as `IHatsToggle`)
-   b. **Deploy non-hat-wired HatsModules** — mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Reward, ...}`. Deployed via factory but NOT wired to the zone hat.
-   c. **Verify `agentId`**: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
-   d. **Mint zone hat** to party
-   e. **Deploy TZ Account clone** via `Clones.cloneDeterministic`
-   f. **Install 7579 modules** on TZ Account: HatValidator + agreement executor + HookMultiPlexer
-   g. **Wire CONSTRAINT hooks**: collect `moduleKind == ERC7579Hook` mechanisms (sorted, deduplicated), pass as globalHooks to HookMultiPlexer init
-   h. **Initialize module configs** per `moduleKind`:
-      - `ERC7579Hook`: call `onInstall(data)` on each hook via `executeFromExecutor` (for hooks with non-empty data)
-      - `External`: call `module.call(data)` if data is non-empty (raw calldata including selector)
-   i. **Register all mechanisms** in the mechanism registry (full zone definition; Constraints rejected at claim time)
-   j. **Mint resource tokens** to TZ account
-2. Emit `AgreementActivated`, `ZoneDeployed`, `MechanismRegistered`, `ResourceTokenAssigned`
+`SET_UP` deploys all runtime infrastructure. After setup, the agreement is in `READY` state: all artifacts exist but zone hats are not yet worn.
+
+For each zone (`TZConfig`):
+1. **Verify zone party** matches `parties[zoneIndex]`
+2. **Verify `agentId`**: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
+3. **Create zone hat** (child of agreement hat) via Hats Protocol
+   - Predict zone hat ID via `HATS.getNextId(agreementHatId)`
+   - Collect mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Eligibility, Penalty}` — these are hat-wired
+   - Deploy each via `HatsModuleFactory.createHatsModule(module, hatId, immArgs, patchedInitData, salt)` (see data packing below)
+   - If multiple, wrap in `HatsEligibilitiesChain` (AND-all)
+   - If none, use `address(this)` (always eligible)
+   - Toggle is always `address(this)` (the agreement contract as `IHatsToggle`)
+   - **Do NOT mint the zone hat** — minting happens during ACTIVATE
+4. **Deploy non-hat-wired HatsModules** — mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Reward, ...}`. Deployed via factory but NOT wired to the zone hat.
+5. **Deploy TZ Account clone** via `Clones.cloneDeterministic`
+6. **Install 7579 modules** on TZ Account: HatValidator + agreement executor + HookMultiPlexer
+7. **Wire CONSTRAINT hooks**: collect `moduleKind == ERC7579Hook` mechanisms (sorted, deduplicated), pass as globalHooks to HookMultiPlexer init
+8. **Initialize module configs** per `moduleKind`:
+   - `ERC7579Hook`: call `onInstall(data)` on each hook via `executeFromExecutor` (for hooks with non-empty data)
+   - `External`: call `module.call(data)` if data is non-empty (raw calldata including selector)
+9. **Register all mechanisms** in the mechanism registry (full zone definition; Constraints rejected at claim time)
+10. **Mint resource tokens** to TZ account
+
+Emit `AgreementSetUp`, `ZoneDeployed`, `MechanismRegistered`, `ResourceTokenAssigned`.
+
+### READY
+- All runtime infrastructure exists (TZ accounts, eligibility modules, hooks, resource tokens).
+- Zone hats are created but NOT yet worn by any party.
+- Prospective wearers may satisfy eligibility requirements against the deployed modules (e.g. staking into a StakingEligibility module).
+- No claims, adjudication, or zone operations are possible.
+- `getHatStatus` returns `true` so that Hats Protocol recognizes the hats as active for eligibility checks and future minting.
+
+### Activation logic (READY → ACTIVE)
+
+`ACTIVATE` mints zone hats and makes the agreement live. This is intentionally minimal.
+
+1. For each zone: `HATS.mintHat(zoneHatId, party)`
+   - Hats Protocol enforces eligibility at `mintHat()` time
+   - If the party does not satisfy the deployed eligibility modules, Hats reverts with `NotEligible()`
+2. Both mints must succeed atomically — if either fails, the entire transaction reverts and the agreement stays in `READY`
+3. Set state to `ACTIVE`
+4. Emit `AgreementActivated`, `AgreementStateChanged(READY, ACTIVE)`
+
+### HatsModule data packing convention
+
+For all mechanisms with `moduleKind == HatsModule`, the `TZMechanism.data` field uses a packed format:
+
+```solidity
+data = abi.encode(bytes otherImmutableArgs, bytes initData)
+```
+
+During setup, the agreement splits them:
+
+```solidity
+(bytes memory immArgs, bytes memory initData_) = abi.decode(mechs[i].data, (bytes, bytes));
+```
+
+And passes `immArgs` as `otherImmutableArgs` and `initData_` as `initData` to `HatsModuleFactory.createHatsModule()`.
+
+### Sentinel hat ID replacement
+
+```solidity
+uint256 constant HAT_ID_SENTINEL = type(uint256).max;
+```
+
+The compiler encodes `HAT_ID_SENTINEL` wherever a hat ID is required but unknown at compile time. During setup, the agreement scans `initData` for sentinel values and replaces them with the actual agreement hat ID before passing to the factory.
+
+| Module | Field | Replacement |
+|---|---|---|
+| StakingEligibility | judgeHat, recipientHat | Agreement hat ID |
+| AllowlistEligibility | ownerHat, arbitratorHat | Agreement hat ID |
 
 ### Mechanism deployment per `moduleKind`
 
-| `moduleKind` | `module` field is | Deployed during activation? | Initialization | Wired to zone hat? |
+| `moduleKind` | `module` field is | Deployed during setup? | Initialization | Wired to zone hat? |
 |---|---|---|---|---|
-| `HatsModule` | Implementation address | Yes — factory deploys clone | Factory calls `setUp(data)` | If Eligibility/Penalty: yes. If Reward: no |
+| `HatsModule` | Implementation address | Yes — factory deploys clone | Factory calls `setUp(initData)` | If Eligibility/Penalty: yes. If Reward: no |
 | `ERC7579Hook` | Deployed singleton address | No | `onInstall(data)` via executeFromExecutor on TZ account | No (registered on HookMultiPlexer) |
 | `External` | Deployed contract address | No | `module.call(data)` if data non-empty | No |
 
@@ -360,7 +414,7 @@ bytes internal _storedProposalData;
 address[2] public parties;
 address public turn;                 // whose turn during negotiation
 
-// Activation (set on ACTIVATE)
+// Activation (set on SET_UP, hats minted on ACTIVATE)
 address[2] public tzAccounts;
 uint256[2] public zoneHatIds;
 uint256[2] public agentIds;          // from TZConfig, 0 = no 8004
@@ -404,10 +458,14 @@ Agreement implements:
 Agreement contract implements `IHatsToggle` for deadline-based auto-deactivation:
 
 ```solidity
-function getHatStatus(uint256 hatId) external view returns (bool active, bool) {
-    // active = (currentState == ACTIVE) && (block.timestamp < deadline)
-    // Hats Protocol checks this on any hat interaction — zones go inert
-    // after deadline even before FINALIZE is called (no lame duck period).
+function getHatStatus(uint256 hatId) external view returns (bool) {
+    // Returns true when:
+    //   - state is READY (hats created but not yet worn — active for eligibility checks)
+    //   - state is ACTIVE and deadline has not passed
+    // Returns false when:
+    //   - hat has been explicitly deactivated (DEACTIVATE adjudication action)
+    //   - state is CLOSED, REJECTED, PROPOSED, NEGOTIATING, ACCEPTED
+    //   - deadline has passed
 }
 ```
 

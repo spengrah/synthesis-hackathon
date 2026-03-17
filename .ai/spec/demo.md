@@ -55,18 +55,23 @@ Agent A proposes terms (via compiler → deployment bytes → submitInput):
 
 Agent B counters with modified terms. Agent A accepts.
 
-### 2. STAKE + ACTIVATE
-`acceptAndActivate()`:
-- Both agents deposit ETH bonds (via staking ELIGIBILITY module)
+### 2. SET UP + STAKE + ACTIVATE
+Agent A (or B) calls `submitInput(SET_UP, "")`:
 - Zone hats created with chained eligibility (staking + 8004 reputation)
-- Zone hats minted to agents (both agents' `agentId` verified against 8004 IdentityRegistry)
 - TZ Accounts deployed (ERC-1167 clones)
 - Modules installed (HatValidator, agreement executor, HookMultiPlexer)
 - CONSTRAINT mechanisms installed as ERC-7579 hooks
-- INCENTIVE mechanisms registered in claimable mechanism registry
+- INCENTIVE mechanisms registered in mechanism registry
 - Resource tokens minted to each TZ account:
   - TZ Account 1 (B's zone): permission tokens for A's endpoints + directive tokens
   - TZ Account 2 (A's zone): permission tokens for B's endpoints + directive tokens
+- State: READY
+
+Both agents deposit ETH bonds into the deployed staking eligibility modules (satisfying eligibility while in READY state).
+
+Agent A (or B) calls `submitInput(ACTIVATE, "")`:
+- Zone hats minted to agents (Hats enforces eligibility — both agents must have staked)
+- `agentId` ownership was already verified during `SET_UP`
 - State: ACTIVE
 
 ### 3. HAPPY PATH

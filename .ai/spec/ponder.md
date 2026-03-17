@@ -45,7 +45,8 @@ AgreementStateChanged(bytes32 indexed fromState, bytes32 indexed toState)
 // Negotiation
 ProposalSubmitted(address indexed proposer, bytes32 termsHash, bytes proposalData)
 
-// Activation
+// Setup + Activation
+AgreementSetUp(address indexed agreement, address[2] trustZones, uint256[2] zoneHatIds)
 AgreementActivated(address indexed agreement, address[2] trustZones, uint256[2] zoneHatIds)
 ZoneDeployed(address indexed agreement, address indexed tzAccount, uint256 indexed zoneHatId, address party, uint256 agentId)
 ResourceTokenAssigned(address indexed tzAccount, uint256 indexed tokenId, uint8 tokenType)
@@ -93,7 +94,8 @@ Agreement {
   partyAExited: boolean
   partyBExited: boolean
   createdAt: bigint              // block.timestamp
-  activatedAt: bigint?
+  setUpAt: bigint?               // block.timestamp when SET_UP transitions to READY
+  activatedAt: bigint?           // block.timestamp when ACTIVATE transitions to ACTIVE
   closedAt: bigint?
 
   // Relations
@@ -470,6 +472,7 @@ Agreement states and input IDs are `keccak256` hashes. The indexer maintains a l
 keccak256("PROPOSED")    → "PROPOSED"
 keccak256("NEGOTIATING") → "NEGOTIATING"
 keccak256("ACCEPTED")    → "ACCEPTED"
+keccak256("READY")       → "READY"
 keccak256("ACTIVE")      → "ACTIVE"
 keccak256("CLOSED")      → "CLOSED"
 keccak256("REJECTED")    → "REJECTED"

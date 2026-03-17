@@ -52,7 +52,7 @@ Each agent has:
 
 1. **Propose agreement** — construct ProposalData (via compiler or manually), call `submitInput(PROPOSE, ...)`
 2. **Respond to counters** — read counterparty's proposal (decode via SDK), evaluate, accept or counter
-3. **Activate** — call `submitInput(ACTIVATE, ...)` or `acceptAndActivate()`
+3. **Set up + activate** — call `submitInput(SET_UP, ...)`, satisfy any eligibility preconditions, then call `submitInput(ACTIVATE, ...)`
 4. **Access data** — sign ERC-8128 requests to Agent B's data API as TZ Account 2
 5. **Monitor counterparty** — query Bonfires for B's action receipts on Zone 1, check directive compliance
 6. **File claim** — when violation detected, call `submitInput(CLAIM, abi.encode(mechanismIndex, evidence))`
@@ -120,8 +120,20 @@ await walletClient.writeContract({ ... })
 ### Beat 2: STAKE + ACTIVATE
 
 ```typescript
-// Agent A activates (or uses acceptAndActivate)
-const { inputId, payload } = sdk.encodeActivate()
+// Agent A (or B) sets up the agreement
+let { inputId, payload } = sdk.encodeSetUp()
+await walletClient.writeContract({
+  address: agreement,
+  abi: AgreementABI,
+  functionName: "submitInput",
+  args: [inputId, payload]
+})
+
+// Both parties satisfy any eligibility preconditions while in READY state
+// (for example: staking into deployed StakingEligibility modules)
+
+// Agent A (or B) activates once both parties are eligible
+;({ inputId, payload } = sdk.encodeActivate())
 await walletClient.writeContract({
   address: agreement,
   abi: AgreementABI,
