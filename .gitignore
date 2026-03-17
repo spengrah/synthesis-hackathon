@@ -4,6 +4,7 @@ node_modules/
 # Foundry
 packages/contracts/out/
 packages/contracts/cache/
+packages/contracts/.anvil.pid
 
 # Env
 .env

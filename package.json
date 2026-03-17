@@ -1,4 +1,22 @@
 {
   "name": "synthesis-hackathon",
-  "private": true
+  "private": true,
+  "scripts": {
+    "test": "pnpm test:contracts && pnpm test:sdk && pnpm test:compiler && pnpm test:ponder",
+    "test:contracts": "./scripts/anvil-fork.sh ensure && cd packages/contracts && forge test",
+    "test:contracts:unit": "./scripts/anvil-fork.sh ensure && cd packages/contracts && forge test --match-path 'test/unit/**'",
+    "test:contracts:invariant": "./scripts/anvil-fork.sh ensure && cd packages/contracts && forge test --match-path 'test/invariant/**'",
+    "test:contracts:fast": "./scripts/anvil-fork.sh ensure && cd packages/contracts && FOUNDRY_PROFILE=lite forge test",
+    "test:contracts:ci": "./scripts/anvil-fork.sh ensure && cd packages/contracts && FOUNDRY_PROFILE=ci forge test",
+    "test:sdk": "pnpm --filter @trust-zones/sdk test",
+    "test:compiler": "pnpm --filter @trust-zones/compiler test",
+    "test:ponder": "pnpm --filter @synthesis/ponder test",
+    "build:compiler": "pnpm --filter @trust-zones/compiler build",
+    "build:sdk": "pnpm --filter @trust-zones/sdk build",
+    "codegen:sdk": "pnpm --filter @trust-zones/sdk generate-abis",
+    "codegen:ponder": "pnpm --filter @synthesis/ponder codegen",
+    "fork:start": "./scripts/anvil-fork.sh start",
+    "fork:stop": "./scripts/anvil-fork.sh stop",
+    "fork:status": "./scripts/anvil-fork.sh status"
+  }
 }
