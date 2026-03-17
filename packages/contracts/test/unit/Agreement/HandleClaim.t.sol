@@ -42,7 +42,8 @@ contract Agreement_handleClaim is AgreementHarnessBase {
     // Accept with the same payload (hash must match)
     agr.exposed_handleAccept(partyB, payload);
 
-    // Activate
+    // SetUp + Activate
+    agr.exposed_handleSetUp(partyA);
     agr.exposed_handleActivate(partyA);
 
     return agr;

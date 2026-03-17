@@ -84,11 +84,16 @@ contract AgreementHarness is Agreement {
     return _handleFinalize($);
   }
 
-  // ---- Activation internals ----
+  // ---- Setup + Activation internals ----
 
-  function exposed_deployZone(TZTypes.TZConfig memory zone, uint256 zoneIndex) external {
+  function exposed_handleSetUp(address caller) external returns (bytes32) {
     AgreementStorage storage $ = _getAgreementStorage();
-    _deployZone($, zone, zoneIndex);
+    return _handleSetUp($, caller);
+  }
+
+  function exposed_setUpZone(TZTypes.TZConfig memory zone, uint256 zoneIndex) external {
+    AgreementStorage storage $ = _getAgreementStorage();
+    _setUpZone($, zone, zoneIndex);
   }
 
   function exposed_verifyAgentId(TZTypes.TZConfig memory zone) external view {

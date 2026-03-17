@@ -10,7 +10,6 @@ import { Constants } from "../../helpers/Constants.sol";
 
 contract Agreement_getHatStatus is AgreementHarnessBase {
   function test_ReturnsFalse_GivenHatExplicitlyDeactivated() public {
-    // Create an active harness with a claim
     TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
     zones[0] = Defaults.tzConfig(partyA, 0);
     zones[1] = Defaults.tzConfig(partyB, 0);
@@ -30,6 +29,7 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
 
     (AgreementHarness agr,) = _createHarnessCloneWithPayload(payload);
     agr.exposed_handleAccept(partyB, payload);
+    agr.exposed_handleSetUp(partyA);
     agr.exposed_handleActivate(partyA);
 
     // File a claim and adjudicate with DEACTIVATE on zone 0
@@ -50,9 +50,18 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
     assertTrue(agr.getHatStatus(zoneHat1));
   }
 
-  function test_ReturnsFalse_GivenStateIsNotActive() public view {
-    // State is PROPOSED
+  function test_ReturnsFalse_GivenStateIsProposed() public view {
     assertFalse(harness.getHatStatus(0));
+  }
+
+  function test_ReturnsFalse_GivenStateIsAccepted() public {
+    _advanceToAccepted();
+    assertFalse(harness.getHatStatus(0));
+  }
+
+  function test_ReturnsTrue_GivenStateIsReady() public {
+    _advanceToReady();
+    assertTrue(harness.getHatStatus(0));
   }
 
   function test_ReturnsFalse_GivenStateIsActiveAndDeadlineHasPassed() public {
@@ -73,11 +82,6 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
     assertFalse(harness.getHatStatus(0));
   }
 
-  function test_ReturnsTrue_GivenStateIsAccepted() public {
-    _advanceToAccepted();
-    assertTrue(harness.getHatStatus(0));
-  }
-
   // ---- Local advance helpers ----
 
   function _advanceToAccepted() internal {
@@ -85,8 +89,13 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
     harness.exposed_handleAccept(partyB, payload);
   }
 
-  function _advanceToActive() internal {
+  function _advanceToReady() internal {
     _advanceToAccepted();
+    harness.exposed_handleSetUp(partyA);
+  }
+
+  function _advanceToActive() internal {
+    _advanceToReady();
     harness.exposed_handleActivate(partyA);
   }
 }

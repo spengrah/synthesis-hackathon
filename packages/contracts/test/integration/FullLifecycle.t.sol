@@ -92,7 +92,11 @@ abstract contract IntegrationBase is ForkTestBase {
   function _advanceToActiveViaRegistry(Agreement agr, bytes memory proposalPayload) internal {
     _advanceToAcceptedViaRegistry(agr, proposalPayload);
 
-    // Either party can activate
+    // Set up deploys zones and mechanisms
+    vm.prank(partyA);
+    agr.submitInput(AgreementTypes.SET_UP, "");
+
+    // Activate mints zone hats
     vm.prank(partyA);
     agr.submitInput(AgreementTypes.ACTIVATE, "");
   }
@@ -123,7 +127,12 @@ contract FullLifecycle_Adjudication is IntegrationBase {
     agr.submitInput(AgreementTypes.ACCEPT, payload);
     assertEq(agr.currentState(), AgreementTypes.ACCEPTED, "should be ACCEPTED");
 
-    // --- 4. Activate ---
+    // --- 4. Set up ---
+    vm.prank(partyA);
+    agr.submitInput(AgreementTypes.SET_UP, "");
+    assertEq(agr.currentState(), AgreementTypes.READY, "should be READY");
+
+    // --- 5. Activate ---
     vm.prank(partyA);
     agr.submitInput(AgreementTypes.ACTIVATE, "");
     assertEq(agr.currentState(), AgreementTypes.ACTIVE, "should be ACTIVE");

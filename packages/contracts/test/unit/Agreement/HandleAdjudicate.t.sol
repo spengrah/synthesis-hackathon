@@ -41,7 +41,8 @@ contract Agreement_handleAdjudicate is AgreementHarnessBase {
     // Accept with the correct payload
     agr.exposed_handleAccept(partyB, payload);
 
-    // Activate
+    // SetUp + Activate
+    agr.exposed_handleSetUp(partyA);
     agr.exposed_handleActivate(partyA);
 
     // File a claim

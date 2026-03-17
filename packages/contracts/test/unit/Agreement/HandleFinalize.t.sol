@@ -59,6 +59,7 @@ contract Agreement_handleFinalize is AgreementHarnessBase {
 
   function _advanceToActive() internal {
     _advanceToAccepted();
+    harness.exposed_handleSetUp(partyA);
     harness.exposed_handleActivate(partyA);
   }
 }

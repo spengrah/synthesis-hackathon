@@ -260,9 +260,16 @@ abstract contract ForkTestBase is Test {
     agreement.submitInput(AgreementTypes.ACCEPT, payload);
   }
 
-  /// @dev Advance an agreement to ACTIVE (accept + activate).
-  function _advanceToActive(IAgreement agreement) internal {
+  /// @dev Advance an agreement to READY (accept + set up).
+  function _advanceToReady(IAgreement agreement) internal {
     _advanceToAccepted(agreement);
+    vm.prank(partyA);
+    agreement.submitInput(AgreementTypes.SET_UP, "");
+  }
+
+  /// @dev Advance an agreement to ACTIVE (accept + set up + activate).
+  function _advanceToActive(IAgreement agreement) internal {
+    _advanceToReady(agreement);
     vm.prank(partyA);
     agreement.submitInput(AgreementTypes.ACTIVATE, "");
   }

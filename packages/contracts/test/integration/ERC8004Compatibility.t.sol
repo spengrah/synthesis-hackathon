@@ -73,6 +73,9 @@ contract Agreement_ERC8004Compatibility is ForkTestBase {
     agr.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    agr.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     agr.submitInput(AgreementTypes.ACTIVATE, "");
   }
 

@@ -42,6 +42,8 @@ contract Agreement_submitInput is AgreementHarnessBase {
   function _advanceToActive() internal {
     _advanceToAccepted();
     vm.prank(partyA);
+    harness.submitInput(AgreementTypes.SET_UP, "");
+    vm.prank(partyA);
     harness.submitInput(AgreementTypes.ACTIVATE, "");
   }
 }

@@ -67,7 +67,7 @@ Agreement_handleWithdraw
     ├── it should emit AgreementStateChanged
     └── it should emit InputAccepted
 
-Agreement_handleActivate
+Agreement_handleSetUp
 ├── when state is not ACCEPTED
 │   └── it should revert with InvalidState
 ├── when caller is not a party
@@ -81,24 +81,27 @@ Agreement_handleActivate
     │   └── it should revert with NotAParty
     ├── given deadline is in the past or zero
     │   └── it should revert with DeadlineReached
+    ├── given SET_UP called from READY
+    │   └── it should revert with InvalidState
     └── given all validations pass
         ├── for each zone
         │   ├── it should create a zone hat via Hats Protocol
-        │   ├── it should mint the zone hat to the party
+        │   ├── it should NOT mint the zone hat to the party
         │   ├── it should deploy a TrustZone clone via Clones.cloneDeterministic
         │   ├── it should initialize the TrustZone clone
         │   ├── given moduleKind is HatsModule and paramType is Eligibility or Penalty
-        │   │   └── it should deploy via HatsModuleFactory and wire to zone hat
+        │   │   └── it should deploy via HatsModuleFactory with packed data and wire to zone hat
         │   ├── given moduleKind is HatsModule and paramType is not Eligibility or Penalty
-        │   │   └── it should deploy via HatsModuleFactory but not wire to hat (standalone)
+        │   │   └── it should deploy via HatsModuleFactory with packed data but not wire to hat (standalone)
         │   ├── given moduleKind is ERC7579Hook
         │   │   ├── it should install as ERC-7579 hooks via HookMultiPlexer
         │   │   └── it should initialize sub-hooks with their data via executeFromExecutor
         │   ├── given moduleKind is External and data is non-empty
-        │   │   └── it should call module.call(data) during activation
+        │   │   └── it should call module.call(data) during setup
         │   ├── it should register all mechanisms in the mechanism registry (with moduleKind)
         │   ├── it should preserve mechanism data as stored mechanism context
         │   ├── it should store deployed clone address for HatsModule mechanisms in registry
+        │   ├── it should replace sentinel hat IDs in initData with agreement hat ID
         │   ├── it should mint resource tokens to the TrustZone
         │   ├── it should emit ZoneDeployed
         │   ├── it should emit MechanismRegistered for each mechanism
@@ -111,9 +114,23 @@ Agreement_handleActivate
         ├── it should store trustZones addresses
         ├── it should store zoneHatIds
         ├── it should store agentIds
-        ├── it should set state to ACTIVE
-        ├── it should emit AgreementActivated
+        ├── it should set state to READY
+        ├── it should emit AgreementSetUp
         └── it should emit AgreementStateChanged
+
+Agreement_handleActivate
+├── when state is not READY
+│   └── it should revert with InvalidState
+├── when state is ACCEPTED
+│   └── it should revert with InvalidState (must SET_UP first)
+├── when caller is not a party
+│   └── it should revert with NotAParty
+└── when caller is a party and state is READY
+    ├── it should mint zone hats to parties via Hats Protocol
+    ├── it should not redeploy zones or mechanisms
+    ├── it should set state to ACTIVE
+    ├── it should emit AgreementActivated
+    └── it should emit AgreementStateChanged
 
 Agreement_handleClaim
 ├── when state is not ACTIVE
@@ -226,31 +243,21 @@ Agreement_close
 ├── it should emit AgreementClosed
 └── it should emit AgreementStateChanged
 
-Agreement_acceptAndActivate
-├── when state is not PROPOSED or NEGOTIATING
-│   └── it should revert with InvalidState
-├── when caller is not authorized to accept
-│   └── it should revert with NotYourTurn
-├── when the activate step reverts
-│   ├── it should roll back atomically from PROPOSED
-│   ├── it should roll back atomically from NEGOTIATING
-│   └── it should not leave partial trust zones, resources, or mechanisms behind
-└── when caller is authorized
-    ├── it should execute accept logic
-    ├── it should execute activate logic
-    └── it should transition directly to ACTIVE
-
 Agreement_getHatStatus
 ├── given hat has been explicitly deactivated via DEACTIVATE action
 │   └── it should return false (even while ACTIVE + deadline OK)
-├── given state is ACCEPTED
-│   └── it should return true
-├── given state is not ACTIVE
+├── given state is PROPOSED
 │   └── it should return false
+├── given state is ACCEPTED
+│   └── it should return false
+├── given state is READY
+│   └── it should return true (hats exist but not yet worn)
 ├── given state is ACTIVE and deadline has passed
 │   └── it should return false
-└── given state is ACTIVE and deadline has not passed
-    └── it should return true
+├── given state is ACTIVE and deadline has not passed
+│   └── it should return true
+└── given state is CLOSED
+    └── it should return false
 
 Agreement_getters
 ├── docHash

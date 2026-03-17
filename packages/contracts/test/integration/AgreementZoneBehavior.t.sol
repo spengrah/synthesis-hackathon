@@ -98,6 +98,9 @@ contract Agreement_ZoneBehavior is ForkTestBase {
     agr.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    agr.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     agr.submitInput(AgreementTypes.ACTIVATE, "");
   }
 

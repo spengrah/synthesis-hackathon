@@ -49,6 +49,8 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
   }
 
@@ -90,6 +92,8 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
   }
 
@@ -113,6 +117,8 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
   }
@@ -143,6 +149,8 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     (clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
   }

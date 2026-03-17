@@ -134,9 +134,11 @@ contract ResourceTokenRegistryInvariantHandler is Test {
     uint256 trackedIndex = trackedIndexSeed % _trackedIds.length;
     uint256 id = _trackedIds[trackedIndex];
     address receiver = _actorFromSeed(receiverSeed);
-    address unauthorized = _actors[_actors.length - 1];
+    address attacker = _nonCreatorActorFor(trackedIndex);
 
-    vm.prank(unauthorized);
+    if (attacker == address(0)) return;
+
+    vm.prank(attacker);
     try registry.transfer(receiver, id, 1) {
       _sawUnauthorizedMutationSuccess = true;
     } catch { }
@@ -150,9 +152,11 @@ contract ResourceTokenRegistryInvariantHandler is Test {
     uint256 trackedIndex = trackedIndexSeed % _trackedIds.length;
     uint256 id = _trackedIds[trackedIndex];
     address holder = _trackedHolders[trackedIndex];
-    address unauthorized = _actors[_actors.length - 1];
+    address attacker = _nonCreatorActorFor(trackedIndex);
 
-    vm.prank(unauthorized);
+    if (attacker == address(0) || holder == address(0)) return;
+
+    vm.prank(attacker);
     try registry.burn(holder, id) {
       _sawUnauthorizedMutationSuccess = true;
     } catch { }
@@ -235,6 +239,18 @@ contract ResourceTokenRegistryInvariantHandler is Test {
 
   function _actorFromSeed(uint8 seed) internal view returns (address) {
     return _actors[seed % _actors.length];
+  }
+
+  function _nonCreatorActorFor(uint256 trackedIndex) internal view returns (address) {
+    address creator = _trackedCreators[trackedIndex];
+
+    for (uint256 i = 0; i < _actors.length; i++) {
+      if (_actors[i] != creator) {
+        return _actors[i];
+      }
+    }
+
+    return address(0);
   }
 
   function _captureLastIds() internal {

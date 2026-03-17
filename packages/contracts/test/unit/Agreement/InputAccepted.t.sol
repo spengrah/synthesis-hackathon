@@ -54,14 +54,28 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
     harness.submitInput(AgreementTypes.WITHDRAW, "");
   }
 
-  function test_InputAccepted_Activate() public {
+  function test_InputAccepted_SetUp() public {
     // Advance to ACCEPTED
     bytes memory payload = _defaultProposalPayload();
     vm.prank(partyB);
     harness.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.expectEmit(true, true, true, false);
-    emit IAgreementEvents.InputAccepted(AgreementTypes.ACCEPTED, AgreementTypes.ACTIVE, AgreementTypes.ACTIVATE, "");
+    emit IAgreementEvents.InputAccepted(AgreementTypes.ACCEPTED, AgreementTypes.READY, AgreementTypes.SET_UP, "");
+    vm.prank(partyA);
+    harness.submitInput(AgreementTypes.SET_UP, "");
+  }
+
+  function test_InputAccepted_Activate() public {
+    // Advance to READY
+    bytes memory payload = _defaultProposalPayload();
+    vm.prank(partyB);
+    harness.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    harness.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.expectEmit(true, true, true, false);
+    emit IAgreementEvents.InputAccepted(AgreementTypes.READY, AgreementTypes.ACTIVE, AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);
     harness.submitInput(AgreementTypes.ACTIVATE, "");
   }
@@ -144,27 +158,14 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
     claimHarness.submitInput(AgreementTypes.ADJUDICATE, payload);
   }
 
-  function test_InputAccepted_AcceptAndActivate() public {
-    bytes memory payload = _defaultProposalPayload();
-
-    // acceptAndActivate emits TWO InputAccepted events
-    vm.expectEmit(true, true, true, false);
-    emit IAgreementEvents.InputAccepted(
-      AgreementTypes.PROPOSED, AgreementTypes.ACCEPTED, AgreementTypes.ACCEPT, payload
-    );
-    vm.expectEmit(true, true, true, false);
-    emit IAgreementEvents.InputAccepted(AgreementTypes.ACCEPTED, AgreementTypes.ACTIVE, AgreementTypes.ACTIVATE, "");
-
-    vm.prank(partyB);
-    harness.acceptAndActivate(payload);
-  }
-
   // ---- Helpers ----
 
   function _activateViaSubmitInput() internal {
     bytes memory payload = _defaultProposalPayload();
     vm.prank(partyB);
     harness.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    harness.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     harness.submitInput(AgreementTypes.ACTIVATE, "");
   }
@@ -190,6 +191,8 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
     (AgreementHarness h,) = _createHarnessCloneWithPayload(payload);
     vm.prank(partyB);
     h.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    h.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     h.submitInput(AgreementTypes.ACTIVATE, "");
     return h;

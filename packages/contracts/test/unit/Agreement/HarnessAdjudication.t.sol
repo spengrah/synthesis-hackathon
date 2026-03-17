@@ -65,6 +65,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     // File a claim
@@ -110,6 +112,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
     (clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);
@@ -160,6 +164,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);
@@ -219,6 +225,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);
@@ -284,6 +292,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);
@@ -406,6 +416,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
     (AgreementHarness clone,) = _createHarnessCloneWithPayload(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
@@ -590,6 +602,8 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
     (AgreementHarness clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
     vm.prank(partyA);

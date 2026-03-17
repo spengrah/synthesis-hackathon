@@ -29,10 +29,10 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
-    // Activate should revert
+    // SET_UP should revert (validation happens here)
     vm.expectRevert(IAgreementErrors.InvalidZoneCount.selector);
     vm.prank(partyA);
-    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    clone.submitInput(AgreementTypes.SET_UP, "");
   }
 
   // ---- test_RevertIf_InvalidZoneCount (3 zones) ----
@@ -52,9 +52,10 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
+    // SET_UP should revert (validation happens here)
     vm.expectRevert(IAgreementErrors.InvalidZoneCount.selector);
     vm.prank(partyA);
-    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    clone.submitInput(AgreementTypes.SET_UP, "");
   }
 
   // ---- test_RevertIf_AgentIdVerificationFailed ----
@@ -82,9 +83,10 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
+    // SET_UP should revert (agentId verification happens here)
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.AgentIdVerificationFailed.selector, fakeAgentId, partyA));
     vm.prank(partyA);
-    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    clone.submitInput(AgreementTypes.SET_UP, "");
   }
 
   // ---- test_AgentIdVerification_Succeeds ----
@@ -113,6 +115,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -165,6 +170,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     // 3 mechanisms total (all types registered, Constraint included)
@@ -215,6 +223,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -297,6 +308,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     // Activation should succeed — the TrustZone was initialized with constraint hooks
@@ -314,12 +328,13 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[0] = Defaults.tzConfig(partyA, 0);
     zones[1] = Defaults.tzConfig(partyB, 0);
 
+    bytes memory packedEmpty = abi.encode(bytes(""), bytes(""));
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](1);
     mechs[0] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Eligibility,
       moduleKind: TZTypes.TZModuleKind.HatsModule,
       module: address(mockEligImpl),
-      data: ""
+      data: packedEmpty
     });
     zones[0].mechanisms = mechs;
 
@@ -331,6 +346,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -356,18 +374,19 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[0] = Defaults.tzConfig(partyA, 0);
     zones[1] = Defaults.tzConfig(partyB, 0);
 
+    bytes memory packedEmpty = abi.encode(bytes(""), bytes(""));
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
     mechs[0] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Eligibility,
       moduleKind: TZTypes.TZModuleKind.HatsModule,
       module: address(mockEligImpl1),
-      data: ""
+      data: packedEmpty
     });
     mechs[1] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Eligibility,
       moduleKind: TZTypes.TZModuleKind.HatsModule,
       module: address(mockEligImpl2),
-      data: ""
+      data: packedEmpty
     });
     zones[0].mechanisms = mechs;
 
@@ -379,6 +398,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -424,6 +446,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     assertEq(clone.currentState(), AgreementTypes.ACTIVE);
@@ -457,6 +482,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -500,6 +528,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     assertEq(clone.currentState(), AgreementTypes.ACTIVE);
@@ -541,6 +572,7 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
+    // MechanismRegistered events are emitted during SET_UP
     vm.expectEmit(true, false, false, true);
     emit IAgreementEvents.MechanismRegistered(0, uint8(TZTypes.TZParamType.Reward), makeAddr("rewardModule"), 0);
     vm.expectEmit(true, false, false, true);
@@ -549,7 +581,7 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     emit IAgreementEvents.MechanismRegistered(2, uint8(TZTypes.TZParamType.Constraint), mechs1[0].module, 1);
 
     vm.prank(partyA);
-    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    clone.submitInput(AgreementTypes.SET_UP, "");
   }
 
   function test_EmitsResourceTokenAssigned_ForEachMintedResource() public {
@@ -576,9 +608,10 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
       address(trustZoneImpl), keccak256(abi.encode(address(clone), uint256(1))), address(clone)
     );
 
+    // ResourceTokenAssigned events are emitted during SET_UP
     vm.recordLogs();
     vm.prank(partyA);
-    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     Vm.Log[] memory logs = vm.getRecordedLogs();
     bytes32 eventSig = IAgreementEvents.ResourceTokenAssigned.selector;
@@ -629,6 +662,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     (,,,, bytes memory context0) = clone.mechanisms(0);
@@ -648,6 +684,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     (AgreementHarness clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
@@ -684,6 +723,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     (AgreementHarness clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
@@ -725,6 +767,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
     vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
     assertTrue(hook1.onInstallCalled());
@@ -755,7 +800,7 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
       paramType: TZTypes.TZParamType.Eligibility,
       moduleKind: TZTypes.TZModuleKind.HatsModule,
       module: address(mockEligImpl),
-      data: ""
+      data: abi.encode(bytes(""), bytes(""))
     });
     mechs[2] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Penalty,
@@ -773,6 +818,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
 
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
@@ -820,6 +868,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     (AgreementHarness clone,) = _createHarnessClone(payload);
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.SET_UP, "");
+
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 

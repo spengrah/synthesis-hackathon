@@ -82,6 +82,7 @@ contract Agreement_handleCounter is AgreementHarnessBase {
 
   function _advanceToActive() internal {
     _advanceToAccepted();
+    harness.exposed_handleSetUp(partyA);
     harness.exposed_handleActivate(partyA);
   }
 }
