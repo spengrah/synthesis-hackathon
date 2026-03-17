@@ -112,3 +112,26 @@ test/
 ## Standalone vs fork tests
 
 Contracts with no external dependencies (e.g., ResourceTokenRegistry) use standalone test bases that inherit `Test` directly — no fork needed, faster execution. Contracts that interact with Hats Protocol or ERC-8004 use `ForkTestBase`.
+
+## ERC-7201 storage hash verification
+
+Subagents frequently generate incorrect ERC-7201 storage location hashes. Always recompute and verify:
+
+```
+keccak256(abi.encode(uint256(keccak256("namespace.string")) - 1)) & ~bytes32(uint256(0xff))
+```
+
+Check this against the constant in the contract before accepting subagent output.
+
+## Clone ownership bootstrapping
+
+When contract A (e.g., AgreementRegistry) deploys contract B (e.g., ResourceTokenRegistry) and B must have A as its owner, use `vm.computeCreateAddress` in tests to predict A's address before deployment, then deploy B with that predicted address as owner.
+
+## Subagent review checklist
+
+Before committing subagent output:
+1. Verify ERC-7201 storage location hashes
+2. Check error names match the interface (subagents sometimes invent their own)
+3. Check event signatures match the interface
+4. Review Base.t.sol for conflicts with other subagents' changes
+5. Run `forge test` to confirm ALL tests pass (not just the new ones)
