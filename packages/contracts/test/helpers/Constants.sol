@@ -30,6 +30,12 @@ library Constants {
   uint8 internal constant DIRECTIVE_PREFIX = 0x03;
 
   // --------------------
+  // Hats Module Factory (deployed on Base mainnet)
+  // --------------------
+
+  address internal constant HATS_MODULE_FACTORY = 0x0a3f85fa597B6a967271286aA0724811acDF5CD9;
+
+  // --------------------
   // Test values
   // --------------------
 

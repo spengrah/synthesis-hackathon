@@ -15,6 +15,8 @@ import { ResourceTokenRegistry } from "./ResourceTokenRegistry.sol";
 import { TZTypes } from "./lib/TZTypes.sol";
 import { AgreementTypes } from "./lib/AgreementTypes.sol";
 import { SigHookInit } from "core-modules/HookMultiPlexer/DataTypes.sol";
+import { HatsModuleFactory } from "hats-module/HatsModuleFactory.sol";
+import { LibSort } from "solady/utils/LibSort.sol";
 
 /// @title Agreement
 /// @notice State machine, zone manager, and mechanism router.
@@ -31,6 +33,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   address public immutable TRUST_ZONE_IMPL;
   address public immutable HOOK_MULTIPLEXER;
   address public immutable HAT_VALIDATOR;
+  HatsModuleFactory public immutable HATS_MODULE_FACTORY;
+  address public immutable ELIGIBILITIES_CHAIN_IMPL;
 
   // ---- ERC-7201 namespaced storage ----
 
@@ -78,7 +82,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   bytes32 private constant AGREEMENT_STORAGE_LOCATION =
     0x35099ba0645760c2ebdf7249e75393d3ff233e4a967e209c19bb914b50439a00;
 
-  function _getAgreementStorage() private pure returns (AgreementStorage storage $) {
+  function _getAgreementStorage() internal pure returns (AgreementStorage storage $) {
     assembly {
       $.slot := AGREEMENT_STORAGE_LOCATION
     }
@@ -93,7 +97,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     address _reputationRegistry,
     address _trustZoneImpl,
     address _hookMultiplexer,
-    address _hatValidator
+    address _hatValidator,
+    address _hatsModuleFactory,
+    address _eligibilitiesChainImpl
   ) {
     HATS = IHats(_hats);
     RESOURCE_TOKEN_REGISTRY = ResourceTokenRegistry(_resourceTokenRegistry);
@@ -102,6 +108,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     TRUST_ZONE_IMPL = _trustZoneImpl;
     HOOK_MULTIPLEXER = _hookMultiplexer;
     HAT_VALIDATOR = _hatValidator;
+    HATS_MODULE_FACTORY = HatsModuleFactory(_hatsModuleFactory);
+    ELIGIBILITIES_CHAIN_IMPL = _eligibilitiesChainImpl;
     _disableInitializers();
   }
 
@@ -471,8 +479,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   function _deployZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
     if (zone.party != $._parties[zoneIndex]) revert NotAParty(zone.party);
     _verifyAgentId(zone);
-    uint256 zoneHatId = _createZoneHat($, zone);
-    address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex);
+    uint256 zoneHatId = _createZoneHat($, zone, zoneIndex);
+    address[] memory constraintHooks = _collectConstraintHooks(zone.mechanisms);
+    address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex, constraintHooks);
     _registerMechanisms($, zone.mechanisms, zoneIndex);
     _mintResourceTokens(trustZoneAddr, zone.resources);
 
@@ -493,16 +502,22 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   /// @dev Create a zone hat as child of the agreement hat, mint to party.
-  function _createZoneHat(AgreementStorage storage $, TZTypes.TZConfig memory zone)
+  function _createZoneHat(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex)
     internal
     returns (uint256 zoneHatId)
   {
-    zoneHatId = HATS.createHat(
+    // Predict the zone hat ID so we can deploy eligibility modules with the correct hatId
+    zoneHatId = HATS.getNextId($._agreementHatId);
+
+    // Deploy eligibility modules (or use address(this) if none)
+    address eligibility = _deployEligibility(zone.mechanisms, zoneHatId, zoneIndex);
+
+    HATS.createHat(
       $._agreementHatId,
       zone.hatDetails,
       zone.hatMaxSupply,
-      address(this), // eligibility: this agreement for hackathon
-      address(this), // toggle: this agreement
+      eligibility, // deployed eligibility module (or address(this) if none)
+      address(this), // toggle: always this agreement
       true,
       ""
     );
@@ -510,12 +525,23 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   /// @dev Deploy and initialize a TrustZone clone.
-  function _deployTrustZoneClone(uint256 zoneHatId, uint256 zoneIndex) internal returns (address trustZoneAddr) {
+  function _deployTrustZoneClone(uint256 zoneHatId, uint256 zoneIndex, address[] memory constraintHooks)
+    internal
+    returns (address trustZoneAddr)
+  {
     bytes32 salt = keccak256(abi.encode(address(this), zoneIndex));
     trustZoneAddr = Clones.cloneDeterministic(TRUST_ZONE_IMPL, salt);
 
-    bytes memory hookInitData =
-      abi.encode(new address[](0), new address[](0), new address[](0), new SigHookInit[](0), new SigHookInit[](0));
+    // Sort constraint hooks (HookMultiPlexer requires sorted, unique arrays)
+    LibSort.sort(constraintHooks);
+
+    bytes memory hookInitData = abi.encode(
+      constraintHooks, // globalHooks — constraint mechanisms
+      new address[](0), // valueHooks
+      new address[](0), // delegatecallHooks
+      new SigHookInit[](0), // sigHooks
+      new SigHookInit[](0) // targetSigHooks
+    );
 
     ITrustZone(trustZoneAddr)
       .initialize(HAT_VALIDATOR, abi.encode(zoneHatId), address(this), "", HOOK_MULTIPLEXER, hookInitData);
@@ -545,6 +571,73 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       uint256 tokenId = RESOURCE_TOKEN_REGISTRY.mint(trustZoneAddr, uint8(res.tokenType), res.metadata);
       emit ResourceTokenAssigned(trustZoneAddr, tokenId, uint8(res.tokenType));
     }
+  }
+
+  /// @dev Collect CONSTRAINT mechanism addresses from a zone's mechanisms.
+  function _collectConstraintHooks(TZTypes.TZMechanism[] memory mechs) internal pure returns (address[] memory hooks) {
+    uint256 count;
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].paramType == TZTypes.TZParamType.Constraint) count++;
+    }
+    hooks = new address[](count);
+    uint256 idx;
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].paramType == TZTypes.TZParamType.Constraint) {
+        hooks[idx++] = mechs[i].module;
+      }
+    }
+  }
+
+  /// @dev Deploy eligibility modules for a zone hat. Returns address(this) if no eligibility modules.
+  function _deployEligibility(TZTypes.TZMechanism[] memory mechs, uint256 hatId, uint256 zoneIndex)
+    internal
+    returns (address)
+  {
+    // Count eligibility mechanisms
+    uint256 count;
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].paramType == TZTypes.TZParamType.Eligibility) count++;
+    }
+
+    if (count == 0) return address(this); // no eligibility modules — always eligible
+
+    // Deploy each eligibility module via HatsModuleFactory
+    address[] memory modules = new address[](count);
+    uint256 idx;
+    for (uint256 i = 0; i < mechs.length; i++) {
+      if (mechs[i].paramType == TZTypes.TZParamType.Eligibility) {
+        modules[idx++] = HATS_MODULE_FACTORY.createHatsModule(
+          mechs[i].module, // implementation
+          hatId, // zone hat ID
+          "", // otherImmutableArgs
+          mechs[i].initData, // initData
+          zoneIndex // saltNonce — unique per zone
+        );
+      }
+    }
+
+    if (count == 1) return modules[0]; // single module — use directly
+
+    // Multiple modules — deploy EligibilitiesChain wrapping them (AND-all)
+    return _deployEligibilitiesChain(modules, hatId, zoneIndex);
+  }
+
+  /// @dev Deploy a HatsEligibilitiesChain that ANDs all the given eligibility modules.
+  function _deployEligibilitiesChain(address[] memory modules, uint256 hatId, uint256 zoneIndex)
+    internal
+    returns (address)
+  {
+    // Build otherImmutableArgs for AND-all: 1 conjunction clause containing all modules
+    bytes memory packed;
+    for (uint256 i = 0; i < modules.length; i++) {
+      packed = abi.encodePacked(packed, modules[i]);
+    }
+    bytes memory otherImmutableArgs = abi.encodePacked(uint256(1), uint256(modules.length), packed);
+
+    // Use a distinct saltNonce to avoid collision with individual module deployments
+    uint256 chainSaltNonce = zoneIndex + 1000;
+
+    return HATS_MODULE_FACTORY.createHatsModule(ELIGIBILITIES_CHAIN_IMPL, hatId, otherImmutableArgs, "", chainSaltNonce);
   }
 
   // ---- Active state handlers ----
@@ -589,8 +682,10 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         (bool success,) = mech.module.call(action.params);
         if (!success) revert InvalidInput(action.actionType);
       } else if (action.actionType == AgreementTypes.FEEDBACK) {
-        (uint256 agentId, string memory feedbackURI, bytes32 feedbackHash) =
-          abi.decode(action.params, (uint256, string, bytes32));
+        if (action.targetIndex >= 2) revert InvalidMechanismIndex(action.targetIndex);
+        uint256 agentId = $._agentIds[action.targetIndex];
+        if (agentId == 0) revert InvalidInput(action.actionType);
+        (string memory feedbackURI, bytes32 feedbackHash) = abi.decode(action.params, (string, bytes32));
         REPUTATION_REGISTRY.giveFeedback(
           agentId,
           0,
@@ -723,6 +818,10 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         } else if (_outcome == keccak256("EXITED")) {
           feedbackURI = $._exitFeedbackURI[otherIdx];
           feedbackHash = $._exitFeedbackHash[otherIdx];
+        } else {
+          // EXPIRED / ADJUDICATED — no peer feedback, use agreement reference
+          feedbackURI = endpoint;
+          feedbackHash = keccak256(abi.encodePacked(endpoint));
         }
 
         REPUTATION_REGISTRY.giveFeedback(

@@ -41,9 +41,10 @@ Example mechanisms:
    - Threshold/criteria are negotiated terms encoded in `Mechanism.params`
    - For hackathon: simple check against 8004 feedback count/tags
 
-### Toggle module (from TZConfig.hatToggle)
+### Toggle module
 
-- `address(0)` = agreement contract as toggle (default)
+The agreement contract is always the toggle. Not configurable per zone.
+
 - Agreement implements `IHatsToggle.getHatStatus(hatId)`:
   - Returns `active = true` when agreement is ACTIVE and `block.timestamp < deadline`
   - Returns `active = false` after deadline or when agreement is CLOSED
@@ -62,9 +63,11 @@ When the agreement transitions to CLOSED, it interacts with mechanisms based on 
 3. **8004 reputation** — agreement writes `giveFeedback()` for each party with an `agentId` (see agreement.md)
 4. **Resource tokens** — resource tokens remain in TZ accounts but are inoperative — zone hats are deactivated so no agent can operate the TZ account. Resource providers should verify hat status in addition to token balance.
 
-## Hackathon eligibility note
+## Eligibility module deployment
 
-For the hackathon, eligibility is hardcoded open — `Agreement.getWearerStatus()` always returns `(true, true)`. The chained eligibility modules (StakingEligibility + 8004ReputationEligibility) are available as dependencies but not yet wired into the activation flow.
+During activation, ELIGIBILITY mechanisms from `TZConfig.mechanisms[]` are deployed as Hats eligibility modules via `HatsModuleFactory.createHatsModule()`. If multiple eligibility modules exist for a zone, they are wrapped in a `HatsEligibilitiesChain` (AND-all logic). The resulting eligibility address is set on the zone hat at creation time.
+
+If no ELIGIBILITY mechanisms are specified, `Agreement.getWearerStatus()` is used as the eligibility module and always returns `(true, true)` (open eligibility).
 
 ## Hats Protocol addresses
 

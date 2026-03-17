@@ -26,10 +26,20 @@ contract DeployAgreement is Script {
     address reputationRegistry,
     address trustZoneImpl,
     address hookMultiplexer,
-    address hatValidator
+    address hatValidator,
+    address hatsModuleFactory,
+    address eligibilitiesChainImpl
   ) public returns (Agreement) {
     agreementImpl = new Agreement(
-      hats, resourceTokenRegistry, identityRegistry, reputationRegistry, trustZoneImpl, hookMultiplexer, hatValidator
+      hats,
+      resourceTokenRegistry,
+      identityRegistry,
+      reputationRegistry,
+      trustZoneImpl,
+      hookMultiplexer,
+      hatValidator,
+      hatsModuleFactory,
+      eligibilitiesChainImpl
     );
     return agreementImpl;
   }

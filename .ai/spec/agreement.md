@@ -199,13 +199,16 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 ### Activation logic (ACCEPTED → ACTIVE)
 1. For each zone (`TZConfig`):
    a. Create zone hat (child of agreement hat) via Hats Protocol
-      - Eligibility mechanisms configure hat eligibility modules (chained)
-      - Toggle from `TZConfig.hatToggle` (default: agreement contract as `IHatsToggle`)
+      - Predict zone hat ID via `HATS.getNextId(agreementHatId)`
+      - Deploy ELIGIBILITY mechanisms via `HatsModuleFactory.createHatsModule()` (if any)
+      - If multiple eligibility modules, wrap in `HatsEligibilitiesChain` (AND-all)
+      - If no eligibility modules, use `address(this)` (always eligible)
+      - Toggle is always `address(this)` (the agreement contract as `IHatsToggle`)
    b. Verify `agentId`: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
    c. Mint zone hat to party
    d. Deploy TZ Account clone via `Clones.cloneDeterministic`
    e. Install HatValidator + agreement executor + HookMultiPlexer on TZ Account
-   f. Install Constraint mechanisms as ERC-7579 hooks on TZ Account
+   f. Collect CONSTRAINT mechanisms and pass as globalHooks to HookMultiPlexer init
    g. Register claimable mechanisms (Penalty, Reward, etc.) in the mechanism registry
    h. Mint resource tokens to TZ account
 2. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
@@ -361,7 +364,7 @@ uint256 public claimCount;
 ## Implemented interfaces
 
 Agreement implements:
-- **`IHatsEligibility`** — `getWearerStatus()` always returns `(true, true)` for hackathon. Real eligibility modules are available as dependencies but not wired into the activation flow.
+- **`IHatsEligibility`** — `getWearerStatus()` always returns `(true, true)`. Used as the default eligibility module when no ELIGIBILITY mechanisms are specified in `TZConfig`. When ELIGIBILITY mechanisms are present, they are deployed via `HatsModuleFactory` and wired to the zone hat during activation.
 - **`IERC7579Module`** — executor module interface, so Agreement can be installed as executor on TrustZone accounts.
 - **`IHatsToggle`** — see below.
 

@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 import { TZTypes } from "../lib/TZTypes.sol";
 import { AgreementTypes } from "../lib/AgreementTypes.sol";
+import { HatsModuleFactory } from "hats-module/HatsModuleFactory.sol";
 
 /// @title IAgreementErrors
 /// @notice Errors for Agreement.
@@ -144,4 +145,10 @@ interface IAgreement is IAgreementErrors, IAgreementEvents {
 
   /// @notice Number of claims filed.
   function claimCount() external view returns (uint256);
+
+  /// @notice The HatsModuleFactory used to deploy eligibility modules.
+  function HATS_MODULE_FACTORY() external view returns (HatsModuleFactory);
+
+  /// @notice The HatsEligibilitiesChain implementation used for chaining multiple eligibility modules.
+  function ELIGIBILITIES_CHAIN_IMPL() external view returns (address);
 }
