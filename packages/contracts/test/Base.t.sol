@@ -21,6 +21,8 @@ import { DeployResourceTokenRegistry } from "../script/DeployResourceTokenRegist
 import { DeployHatValidator } from "../script/DeployHatValidator.s.sol";
 import { DeployTrustZone } from "../script/DeployTrustZone.s.sol";
 import { DeployAgreement } from "../script/DeployAgreement.s.sol";
+import { DeployAgreementRegistry } from "../script/DeployAgreementRegistry.s.sol";
+import { AgreementRegistry } from "../src/AgreementRegistry.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 import { HookMultiPlexer } from "core-modules/HookMultiPlexer/HookMultiPlexer.sol";
@@ -45,7 +47,7 @@ abstract contract ForkTestBase is Test {
   TrustZone internal trustZoneImpl;
   Agreement internal agreementImpl;
   HookMultiPlexer internal hookMultiplexer;
-  // AgreementRegistry internal agreementRegistry;
+  AgreementRegistry internal agreementRegistry;
 
   // ---- Hat tree (set by _createHatTree) ----
   uint256 internal topHatId;
@@ -131,19 +133,8 @@ abstract contract ForkTestBase is Test {
     vm.stopPrank();
   }
 
-  /// @dev Deploy AgreementRegistry and wire it to the other contracts.
-  ///      Requires registry, hatValidator, and trustZoneImpl to be deployed first.
-  function _deployAgreementRegistry() internal {
-    vm.startPrank(deployer);
-    // agreementRegistry = new AgreementRegistry(
-    //   address(hats),
-    //   address(registry),
-    //   identityRegistry,
-    //   address(reputationRegistry),
-    //   address(trustZoneImpl)
-    // );
-    vm.stopPrank();
-  }
+  /// @dev Deploy AgreementRegistry — no-op in base. Override in AgreementRegistryBase.
+  function _deployAgreementRegistry() internal virtual { }
 
   /// @dev Deploy all contracts and wire them together.
   function _deployAll() internal {
@@ -407,10 +398,35 @@ abstract contract AgreementHarnessBase is AgreementBase {
 abstract contract AgreementRegistryBase is ForkTestBase {
   function setUp() public virtual override {
     super.setUp();
-    _deployResourceTokenRegistry();
     _deployHatValidator();
     _deployTrustZoneImpl();
-    _deployAgreementRegistry();
+    _deployHookMultiplexer();
+    _deployAgreementImpl();
+    _deployAgreementRegistryWithRtr();
+  }
+
+  /// @dev Deploy AgreementRegistry using the deploy script, along with a fresh
+  ///      ResourceTokenRegistry owned by the AgreementRegistry so it can call registerMinter.
+  function _deployAgreementRegistryWithRtr() internal {
+    // Predict the AgreementRegistry address so we can deploy RTR with it as owner.
+    address testContract = address(this);
+    uint256 testNonce = vm.getNonce(testContract);
+
+    // testNonce+0 = new DeployResourceTokenRegistry
+    // testNonce+1 = new DeployAgreementRegistry
+    address deployScriptAddr = vm.computeCreateAddress(testContract, testNonce + 1);
+    // AgreementRegistry is created inside execute() at deploy script's nonce 1 (EIP-161)
+    address predictedAgreementRegistry = vm.computeCreateAddress(deployScriptAddr, 1);
+
+    // Deploy RTR with predicted AgreementRegistry as owner
+    DeployResourceTokenRegistry rtrScript = new DeployResourceTokenRegistry();
+    registry = rtrScript.execute(predictedAgreementRegistry);
+
+    // Deploy AgreementRegistry
+    DeployAgreementRegistry deployScript = new DeployAgreementRegistry();
+    agreementRegistry = deployScript.execute(address(hats), address(registry), address(agreementImpl));
+
+    require(address(agreementRegistry) == predictedAgreementRegistry, "AgreementRegistry address mismatch");
   }
 }
 

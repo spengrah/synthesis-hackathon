@@ -180,13 +180,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   /// @inheritdoc IAgreement
   function acceptAndActivate(bytes calldata proposalData) external {
     AgreementStorage storage $ = _getAgreementStorage();
-    bytes32 state = $._currentState;
+    _requireNegotiating($);
 
-    if (state != AgreementTypes.PROPOSED && state != AgreementTypes.NEGOTIATING) {
-      revert InvalidState(state, AgreementTypes.PROPOSED);
-    }
-
-    bytes32 fromState = state;
+    bytes32 fromState = $._currentState;
 
     // Accept
     bytes32 acceptedState = _handleAccept($, msg.sender, proposalData);
@@ -313,20 +309,54 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return moduleTypeId == MODULE_TYPE_EXECUTOR;
   }
 
+  // ---- Internal checks (factored out for DRY) ----
+
+  function _requireState(AgreementStorage storage $, bytes32 expected) internal view {
+    bytes32 state = $._currentState;
+    if (state != expected) revert InvalidState(state, expected);
+  }
+
+  function _requireNegotiating(AgreementStorage storage $) internal view {
+    bytes32 state = $._currentState;
+    if (state != AgreementTypes.PROPOSED && state != AgreementTypes.NEGOTIATING) {
+      revert InvalidState(state, AgreementTypes.PROPOSED);
+    }
+  }
+
+  function _requireTurn(AgreementStorage storage $, address caller) internal view {
+    if (caller != $._turn) revert NotYourTurn(caller, $._turn);
+  }
+
+  function _requireParty(AgreementStorage storage $, address caller) internal view {
+    if (caller != $._parties[0] && caller != $._parties[1]) revert NotAParty(caller);
+  }
+
+  function _updateTerms(AgreementStorage storage $, bytes calldata payload)
+    internal
+    returns (AgreementTypes.ProposalData memory data)
+  {
+    data = abi.decode(payload, (AgreementTypes.ProposalData));
+    $._termsHash = keccak256(payload);
+    $._termsUri = data.termsDocUri;
+  }
+
+  function _partyIndex(AgreementStorage storage $, address caller) internal view returns (uint256) {
+    if (caller == $._parties[0]) return 0;
+    if (caller == $._parties[1]) return 1;
+    revert NotAParty(caller);
+  }
+
+  function _flipTurn(AgreementStorage storage $, address caller) internal {
+    $._turn = caller == $._parties[0] ? $._parties[1] : $._parties[0];
+  }
+
   // ---- Internal handlers ----
 
   function _handlePropose(AgreementStorage storage $, address proposer, bytes calldata payload) internal {
     bytes32 fromState = $._currentState; // bytes32(0)
 
-    // Store terms hash and URI from proposal
-    AgreementTypes.ProposalData memory data = abi.decode(payload, (AgreementTypes.ProposalData));
-    $._termsHash = keccak256(payload);
-    $._termsUri = data.termsDocUri;
-
-    // Set turn to the other party (parties[1])
+    _updateTerms($, payload);
     $._turn = $._parties[1];
-
-    // Set state
     $._currentState = AgreementTypes.PROPOSED;
 
     emit ProposalSubmitted(proposer, $._termsHash, payload);
@@ -338,20 +368,11 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     returns (bytes32 toState)
   {
     bytes32 state = $._currentState;
-    if (state != AgreementTypes.PROPOSED && state != AgreementTypes.NEGOTIATING) {
-      revert InvalidState(state, AgreementTypes.PROPOSED);
-    }
+    _requireNegotiating($);
+    _requireTurn($, caller);
 
-    // Auth: must be the party whose turn it is
-    if (caller != $._turn) revert NotYourTurn(caller, $._turn);
-
-    // Overwrite terms
-    AgreementTypes.ProposalData memory data = abi.decode(payload, (AgreementTypes.ProposalData));
-    $._termsHash = keccak256(payload);
-    $._termsUri = data.termsDocUri;
-
-    // Flip turn
-    $._turn = caller == $._parties[0] ? $._parties[1] : $._parties[0];
+    _updateTerms($, payload);
+    _flipTurn($, caller);
 
     // State transition
     if (state == AgreementTypes.PROPOSED) {
@@ -360,7 +381,6 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       emit AgreementStateChanged(state, toState);
     } else {
       toState = AgreementTypes.NEGOTIATING;
-      // No state change event — already in NEGOTIATING
     }
 
     emit ProposalSubmitted(caller, $._termsHash, payload);
@@ -370,13 +390,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     internal
     returns (bytes32)
   {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.PROPOSED && state != AgreementTypes.NEGOTIATING) {
-      revert InvalidState(state, AgreementTypes.PROPOSED);
-    }
-
-    // Auth: must be the party whose turn it is
-    if (caller != $._turn) revert NotYourTurn(caller, $._turn);
+    _requireNegotiating($);
+    _requireTurn($, caller);
 
     // Verify terms hash matches
     if (keccak256(payload) != $._termsHash) revert InvalidInput(AgreementTypes.ACCEPT);
@@ -384,24 +399,22 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     // Store the full proposal data for activation
     $._storedProposalData = payload;
 
-    // Transition to ACCEPTED
+    bytes32 fromState = $._currentState;
     $._currentState = AgreementTypes.ACCEPTED;
-    emit AgreementStateChanged(state, AgreementTypes.ACCEPTED);
+    emit AgreementStateChanged(fromState, AgreementTypes.ACCEPTED);
 
     return AgreementTypes.ACCEPTED;
   }
 
   function _handleReject(AgreementStorage storage $, address caller) internal returns (bytes32) {
     bytes32 state = $._currentState;
-    if (state != AgreementTypes.PROPOSED && state != AgreementTypes.NEGOTIATING) {
-      revert InvalidState(state, AgreementTypes.PROPOSED);
-    }
+    _requireNegotiating($);
 
     // Auth: in PROPOSED, only the other party; in NEGOTIATING, either party
     if (state == AgreementTypes.PROPOSED) {
       if (caller != $._parties[1]) revert NotYourTurn(caller, $._parties[1]);
     } else {
-      if (caller != $._parties[0] && caller != $._parties[1]) revert NotAParty(caller);
+      _requireParty($, caller);
     }
 
     $._currentState = AgreementTypes.REJECTED;
@@ -410,93 +423,23 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.REJECTED;
   }
 
+  // ---- Activation (broken into sub-functions for testability) ----
+
   function _handleActivate(AgreementStorage storage $, address caller) internal returns (bytes32) {
     bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACCEPTED) revert InvalidState(state, AgreementTypes.ACCEPTED);
+    _requireState($, AgreementTypes.ACCEPTED);
+    _requireParty($, caller);
 
-    // Auth: either party
-    if (caller != $._parties[0] && caller != $._parties[1]) revert NotAParty(caller);
-
-    // Decode stored proposal data
     AgreementTypes.ProposalData memory data = abi.decode($._storedProposalData, (AgreementTypes.ProposalData));
-
     if (data.zones.length != 2) revert InvalidZoneCount();
 
-    // Store config
     $._adjudicator = data.adjudicator;
     $._deadline = data.deadline;
 
-    // Build empty hook init data
-    bytes memory hookInitData =
-      abi.encode(new address[](0), new address[](0), new address[](0), new SigHookInit[](0), new SigHookInit[](0));
-
-    // Deploy zones
     for (uint256 i = 0; i < 2; i++) {
-      TZTypes.TZConfig memory zone = data.zones[i];
-
-      // Verify agentId if set
-      if (zone.agentId != 0) {
-        address owner = IERC721(IDENTITY_REGISTRY).ownerOf(zone.agentId);
-        if (owner != zone.party) revert AgentIdVerificationFailed(zone.agentId, zone.party);
-      }
-
-      // Create zone hat (child of agreement hat)
-      // Hats Protocol requires non-zero eligibility and toggle addresses
-      uint256 zoneHatId = HATS.createHat(
-        $._agreementHatId,
-        zone.hatDetails,
-        zone.hatMaxSupply,
-        address(this), // eligibility: this agreement for hackathon
-        address(this), // toggle: this agreement
-        true, // mutable
-        "" // imageURI
-      );
-
-      // Mint zone hat to party
-      HATS.mintHat(zoneHatId, zone.party);
-
-      // Deploy TrustZone clone
-      bytes32 salt = keccak256(abi.encode(address(this), i));
-      address trustZoneAddr = Clones.cloneDeterministic(TRUST_ZONE_IMPL, salt);
-
-      // Initialize TrustZone
-      ITrustZone(trustZoneAddr)
-        .initialize(
-          HAT_VALIDATOR,
-          abi.encode(zoneHatId),
-          address(this), // agreement as executor
-          "", // executor init data
-          HOOK_MULTIPLEXER,
-          hookInitData
-        );
-
-      // Register mechanisms
-      for (uint256 j = 0; j < zone.mechanisms.length; j++) {
-        TZTypes.TZMechanism memory mech = zone.mechanisms[j];
-        uint256 mechIndex = $._mechanisms.length;
-        $._mechanisms
-          .push(
-            ClaimableMechanism({ paramType: mech.paramType, module: mech.module, zoneIndex: i, context: mech.initData })
-          );
-        emit MechanismRegistered(mechIndex, uint8(mech.paramType), mech.module, i);
-      }
-
-      // Mint resource tokens
-      for (uint256 j = 0; j < zone.resources.length; j++) {
-        TZTypes.TZResourceTokenConfig memory res = zone.resources[j];
-        uint256 tokenId = RESOURCE_TOKEN_REGISTRY.mint(trustZoneAddr, uint8(res.tokenType), res.metadata);
-        emit ResourceTokenAssigned(trustZoneAddr, tokenId, uint8(res.tokenType));
-      }
-
-      // Store zone data
-      $._trustZones[i] = trustZoneAddr;
-      $._zoneHatIds[i] = zoneHatId;
-      $._agentIds[i] = zone.agentId;
-
-      emit ZoneDeployed(address(this), trustZoneAddr, zoneHatId, zone.party, zone.agentId);
+      _deployZone($, data.zones[i], i);
     }
 
-    // Transition to ACTIVE
     $._currentState = AgreementTypes.ACTIVE;
     emit AgreementActivated(address(this), $._trustZones, $._zoneHatIds);
     emit AgreementStateChanged(state, AgreementTypes.ACTIVE);
@@ -504,12 +447,90 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.ACTIVE;
   }
 
-  function _handleClaim(AgreementStorage storage $, address caller, bytes calldata payload) internal returns (bytes32) {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACTIVE) revert InvalidState(state, AgreementTypes.ACTIVE);
+  /// @dev Deploy a single trust zone: create hat, verify agentId, deploy clone, register mechanisms, mint tokens.
+  function _deployZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
+    _verifyAgentId(zone);
+    uint256 zoneHatId = _createZoneHat($, zone);
+    address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex);
+    _registerMechanisms($, zone.mechanisms, zoneIndex);
+    _mintResourceTokens(trustZoneAddr, zone.resources);
 
-    // Auth: either party (hackathon simplification)
-    if (caller != $._parties[0] && caller != $._parties[1]) revert NotAParty(caller);
+    // Store zone data
+    $._trustZones[zoneIndex] = trustZoneAddr;
+    $._zoneHatIds[zoneIndex] = zoneHatId;
+    $._agentIds[zoneIndex] = zone.agentId;
+
+    emit ZoneDeployed(address(this), trustZoneAddr, zoneHatId, zone.party, zone.agentId);
+  }
+
+  /// @dev Verify agentId ownership if set.
+  function _verifyAgentId(TZTypes.TZConfig memory zone) internal view {
+    if (zone.agentId != 0) {
+      address idOwner = IERC721(IDENTITY_REGISTRY).ownerOf(zone.agentId);
+      if (idOwner != zone.party) revert AgentIdVerificationFailed(zone.agentId, zone.party);
+    }
+  }
+
+  /// @dev Create a zone hat as child of the agreement hat, mint to party.
+  function _createZoneHat(AgreementStorage storage $, TZTypes.TZConfig memory zone)
+    internal
+    returns (uint256 zoneHatId)
+  {
+    zoneHatId = HATS.createHat(
+      $._agreementHatId,
+      zone.hatDetails,
+      zone.hatMaxSupply,
+      address(this), // eligibility: this agreement for hackathon
+      address(this), // toggle: this agreement
+      true,
+      ""
+    );
+    HATS.mintHat(zoneHatId, zone.party);
+  }
+
+  /// @dev Deploy and initialize a TrustZone clone.
+  function _deployTrustZoneClone(uint256 zoneHatId, uint256 zoneIndex) internal returns (address trustZoneAddr) {
+    bytes32 salt = keccak256(abi.encode(address(this), zoneIndex));
+    trustZoneAddr = Clones.cloneDeterministic(TRUST_ZONE_IMPL, salt);
+
+    bytes memory hookInitData =
+      abi.encode(new address[](0), new address[](0), new address[](0), new SigHookInit[](0), new SigHookInit[](0));
+
+    ITrustZone(trustZoneAddr)
+      .initialize(HAT_VALIDATOR, abi.encode(zoneHatId), address(this), "", HOOK_MULTIPLEXER, hookInitData);
+  }
+
+  /// @dev Register mechanisms from a zone config into the claimable mechanism registry.
+  function _registerMechanisms(AgreementStorage storage $, TZTypes.TZMechanism[] memory mechs, uint256 zoneIndex)
+    internal
+  {
+    for (uint256 j = 0; j < mechs.length; j++) {
+      TZTypes.TZMechanism memory mech = mechs[j];
+      uint256 mechIndex = $._mechanisms.length;
+      $._mechanisms
+        .push(
+          ClaimableMechanism({
+            paramType: mech.paramType, module: mech.module, zoneIndex: zoneIndex, context: mech.initData
+          })
+        );
+      emit MechanismRegistered(mechIndex, uint8(mech.paramType), mech.module, zoneIndex);
+    }
+  }
+
+  /// @dev Mint resource tokens to a TrustZone address.
+  function _mintResourceTokens(address trustZoneAddr, TZTypes.TZResourceTokenConfig[] memory resources) internal {
+    for (uint256 j = 0; j < resources.length; j++) {
+      TZTypes.TZResourceTokenConfig memory res = resources[j];
+      uint256 tokenId = RESOURCE_TOKEN_REGISTRY.mint(trustZoneAddr, uint8(res.tokenType), res.metadata);
+      emit ResourceTokenAssigned(trustZoneAddr, tokenId, uint8(res.tokenType));
+    }
+  }
+
+  // ---- Active state handlers ----
+
+  function _handleClaim(AgreementStorage storage $, address caller, bytes calldata payload) internal returns (bytes32) {
+    _requireState($, AgreementTypes.ACTIVE);
+    _requireParty($, caller);
 
     (uint256 mechanismIndex, bytes memory evidence) = abi.decode(payload, (uint256, bytes));
     if (mechanismIndex >= $._mechanisms.length) revert InvalidMechanismIndex(mechanismIndex);
@@ -524,9 +545,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     internal
     returns (bytes32)
   {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACTIVE) revert InvalidState(state, AgreementTypes.ACTIVE);
-
+    _requireState($, AgreementTypes.ACTIVE);
     if (caller != $._adjudicator) revert NotAdjudicator(caller);
 
     (uint256 claimId, bool verdict, AgreementTypes.AdjudicationAction[] memory actions) =
@@ -544,11 +563,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       if (action.actionType == AgreementTypes.PENALIZE || action.actionType == AgreementTypes.REWARD) {
         if (action.mechanismIndex >= $._mechanisms.length) revert InvalidMechanismIndex(action.mechanismIndex);
         ClaimableMechanism storage mech = $._mechanisms[action.mechanismIndex];
-        // Raw calldata forwarding to the mechanism module
         (bool success,) = mech.module.call(action.params);
         if (!success) revert InvalidInput(action.actionType);
       } else if (action.actionType == AgreementTypes.FEEDBACK) {
-        // Decode params and call reputation registry
         (uint256 agentId, string memory feedbackURI, bytes32 feedbackHash) =
           abi.decode(action.params, (uint256, string, bytes32));
         REPUTATION_REGISTRY.giveFeedback(
@@ -562,7 +579,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
           feedbackHash
         );
       } else if (action.actionType == AgreementTypes.DEACTIVATE) {
-        uint256 zoneIdx = action.mechanismIndex; // reusing mechanismIndex as zoneIndex for DEACTIVATE
+        uint256 zoneIdx = action.mechanismIndex;
         if (zoneIdx >= 2) revert InvalidMechanismIndex(zoneIdx);
         HATS.setHatStatus($._zoneHatIds[zoneIdx], false);
       } else if (action.actionType == AgreementTypes.CLOSE) {
@@ -584,11 +601,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     internal
     returns (bytes32)
   {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACTIVE) revert InvalidState(state, AgreementTypes.ACTIVE);
+    _requireState($, AgreementTypes.ACTIVE);
 
     uint256 partyIdx = _partyIndex($, caller);
-
     if ($._completionSignaled[partyIdx]) revert AlreadySignaled(caller);
 
     (string memory feedbackURI, bytes32 feedbackHash) = abi.decode(payload, (string, bytes32));
@@ -599,7 +614,6 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     emit CompletionSignaled(caller, feedbackURI, feedbackHash);
 
-    // Check if both parties have signaled
     uint256 otherIdx = partyIdx == 0 ? 1 : 0;
     if ($._completionSignaled[otherIdx]) {
       _close($, keccak256("COMPLETED"));
@@ -610,11 +624,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   function _handleExit(AgreementStorage storage $, address caller, bytes calldata payload) internal returns (bytes32) {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACTIVE) revert InvalidState(state, AgreementTypes.ACTIVE);
+    _requireState($, AgreementTypes.ACTIVE);
 
     uint256 partyIdx = _partyIndex($, caller);
-
     if ($._exitSignaled[partyIdx]) revert AlreadySignaled(caller);
 
     (string memory feedbackURI, bytes32 feedbackHash) = abi.decode(payload, (string, bytes32));
@@ -625,7 +637,6 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     emit ExitSignaled(caller, feedbackURI, feedbackHash);
 
-    // Check if both parties have signaled
     uint256 otherIdx = partyIdx == 0 ? 1 : 0;
     if ($._exitSignaled[otherIdx]) {
       _close($, keccak256("EXITED"));
@@ -636,9 +647,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   function _handleFinalize(AgreementStorage storage $) internal returns (bytes32) {
-    bytes32 state = $._currentState;
-    if (state != AgreementTypes.ACTIVE) revert InvalidState(state, AgreementTypes.ACTIVE);
-
+    _requireState($, AgreementTypes.ACTIVE);
     if (block.timestamp < $._deadline) revert DeadlineNotReached($._deadline, block.timestamp);
 
     _close($, keccak256("EXPIRED"));
@@ -653,14 +662,24 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     $._currentState = AgreementTypes.CLOSED;
     $._outcome = _outcome;
 
-    // Deactivate zone hats
+    _deactivateZoneHats($);
+    _writeReputationFeedback($, _outcome);
+
+    emit AgreementClosed(_outcome);
+    emit AgreementStateChanged(fromState, AgreementTypes.CLOSED);
+  }
+
+  /// @dev Deactivate all zone hats via HATS.setHatStatus.
+  function _deactivateZoneHats(AgreementStorage storage $) internal {
     for (uint256 i = 0; i < 2; i++) {
       if ($._zoneHatIds[i] != 0) {
         HATS.setHatStatus($._zoneHatIds[i], false);
       }
     }
+  }
 
-    // Determine outcome string for reputation feedback
+  /// @dev Write ERC-8004 reputation feedback for each party with an agentId.
+  function _writeReputationFeedback(AgreementStorage storage $, bytes32 _outcome) internal {
     string memory outcomeStr;
     if (_outcome == keccak256("COMPLETED")) outcomeStr = "COMPLETED";
     else if (_outcome == keccak256("EXITED")) outcomeStr = "EXITED";
@@ -669,14 +688,12 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     string memory endpoint = Strings.toHexString(uint160(address(this)), 20);
 
-    // Write 8004 reputation for each party with agentId != 0
     for (uint256 i = 0; i < 2; i++) {
       if ($._agentIds[i] != 0) {
         uint256 otherIdx = i == 0 ? 1 : 0;
         string memory feedbackURI;
         bytes32 feedbackHash;
 
-        // Use counterparty's feedback
         if (_outcome == keccak256("COMPLETED")) {
           feedbackURI = $._completionFeedbackURI[otherIdx];
           feedbackHash = $._completionFeedbackHash[otherIdx];
@@ -692,16 +709,5 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         emit ReputationFeedbackWritten($._agentIds[i], outcomeStr, feedbackURI, feedbackHash);
       }
     }
-
-    emit AgreementClosed(_outcome);
-    emit AgreementStateChanged(fromState, AgreementTypes.CLOSED);
-  }
-
-  // ---- Internal helpers ----
-
-  function _partyIndex(AgreementStorage storage $, address caller) internal view returns (uint256) {
-    if (caller == $._parties[0]) return 0;
-    if (caller == $._parties[1]) return 1;
-    revert NotAParty(caller);
   }
 }
