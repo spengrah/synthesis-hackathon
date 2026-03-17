@@ -54,13 +54,24 @@ Contracts deployed as ERC-1167 minimal proxy clones (Agreement, TrustZone):
 
 Deploy scripts live in `script/`. Tests use the same deploy scripts to ensure the deployment path is tested.
 
+## Mechanism model
+
+The mechanism registry records ALL mechanism types — it's the complete zone definition, not just claimable mechanisms. Constraints are self-enforcing (ERC-7579 hooks) and rejected at claim/adjudication time, not at registration time. This ensures the full zone is visible onchain and indexable by Ponder.
+
+Key patterns:
+- CONSTRAINT: installed as HookMultiPlexer global hooks + sub-hook `onInstall(initData)` via `executeFromExecutor`
+- ELIGIBILITY: deployed via `HatsModuleFactory.createHatsModule()`, chained via `HatsEligibilitiesChain` if multiple, wired to zone hat. Use `HATS.getNextId()` to predict hatId before creation.
+- All other types (Reward, Penalty, etc.): registered in the mechanism registry, referenced by CLAIM/ADJUDICATE
+
+The HookMultiPlexer requires sorted, unique address arrays. Use `LibSort.sort()` + custom `_dedupSorted()`. HatsModuleFactory salts must be unique per deployment — use `zoneIndex * 100 + subIndex` for multiple modules with the same implementation.
+
 ## Dependencies
 
 All dependencies are git submodules in `packages/contracts/lib/`:
 
 - OpenZeppelin contracts-upgradeable (AccountERC7579HookedUpgradeable)
 - OpenZeppelin contracts (Clones, ECDSA, draft-IERC7579, draft-IERC4337)
-- Hats Protocol + hats-module (eligibility chaining) + staking-eligibility
+- Hats Protocol + hats-module + staking-eligibility + chain-modules (EligibilitiesChain)
 - Rhinestone modulekit + core-modules (HookMultiPlexer) + experimental-modules (PermissionsHook, SpendingLimitHook)
 - forge-std
 
@@ -72,4 +83,9 @@ Rhinestone uses npm for its dependency tree. After `forge install`:
 
 ## Chain
 
-Base mainnet. Hats Protocol, ERC-8004 IdentityRegistry, and ReputationRegistry are already deployed — use existing instances, do not redeploy.
+Base mainnet. Hats Protocol, ERC-8004 IdentityRegistry, ReputationRegistry, and HatsModuleFactory are already deployed — use existing instances, do not redeploy.
+
+- Hats Protocol: `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137`
+- HatsModuleFactory: `0x0a3f85fa597B6a967271286aA0724811acDF5CD9`
+- ERC-8004 IdentityRegistry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
+- ERC-8004 ReputationRegistry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`

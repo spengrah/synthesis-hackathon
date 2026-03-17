@@ -75,13 +75,45 @@ When a function returns a value (e.g., auto-generated token ID from `mint`), tes
 
 ### Harness pattern
 
-For testing internal functions (e.g., Agreement's `_handlePropose`, `_close`), create a harness contract in `test/harness/` that exposes internals as public functions. Use `AgreementHarnessBase` which overrides the deployment to use the harness.
+For testing internal functions, create a harness contract in `test/harness/` that exposes internals as public. The harness calls `_getAgreementStorage()` (internal visibility) and forwards to internal handlers:
+
+```solidity
+function exposed_handleCounter(address caller, bytes calldata payload) external returns (bytes32) {
+    AgreementStorage storage $ = _getAgreementStorage();
+    return _handleCounter($, caller, payload);
+}
+```
+
+Use `AgreementHarnessBase` which deploys the harness as the implementation. All agreement handler tests should use the harness — call `exposed_*` functions directly instead of routing through `submitInput()`. This allows testing handlers in isolation without the state machine router.
+
+Keep a separate `InputAccepted.t.sol` that tests through `submitInput()` to verify the wrapper emits `InputAccepted` events correctly — the harness tests don't cover this since `InputAccepted` is emitted by the wrapper, not the handlers.
+
+### Cross-language ABI verification
+
+SDK and Ponder decode the same ABI-encoded data that Solidity produces. Use a Solidity fixture test (`test/fixtures/ABIFixtures.t.sol`) to generate encoded bytes, capture them in a shared JSON fixture file (`packages/sdk/test/fixtures/abi-fixtures.json`), and verify both sides decode identically. This proves ABI layout compatibility.
+
+### Mocking external dependencies
+
+For 8004 identity/reputation calls, use `vm.mockCall` and `vm.expectCall`:
+```solidity
+vm.mockCall(Constants.REPUTATION_REGISTRY, abi.encodeWithSelector(IReputationRegistry.giveFeedback.selector), abi.encode());
+vm.expectCall(Constants.REPUTATION_REGISTRY, abi.encodeCall(IReputationRegistry.giveFeedback, (agentId, 0, 0, ...)));
+```
+
+For mechanism modules, use simple mock contracts that record calls:
+```solidity
+contract MockMechanism {
+    bytes public lastCallData;
+    fallback() external payable { lastCallData = msg.data; }
+}
+```
 
 ## Fork testing
 
 Fork tests use Base mainnet at a pinned block (`Constants.FORK_BLOCK`). Real deployed dependencies:
 
 - Hats Protocol: `0x3bc1A0Ad72417f2d411118085256fC53CBdDd137`
+- HatsModuleFactory: `0x0a3f85fa597B6a967271286aA0724811acDF5CD9`
 - ERC-8004 IdentityRegistry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
 - ERC-8004 ReputationRegistry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
 
@@ -135,3 +167,7 @@ Before committing subagent output:
 3. Check event signatures match the interface
 4. Review Base.t.sol for conflicts with other subagents' changes
 5. Run `forge test` to confirm ALL tests pass (not just the new ones)
+6. Check that naming/docs match the current model (e.g., "RegisteredMechanism" not "ClaimableMechanism")
+7. If Agreement constructor changed, regenerate SDK ABIs (`pnpm run generate-abis` in packages/sdk)
+8. If events changed, check Ponder ABI and handler alignment
+9. Verify spec files are consistent with implementation — spec divergence is a recurring source of bugs
