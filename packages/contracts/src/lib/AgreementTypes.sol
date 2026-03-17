@@ -31,6 +31,7 @@ library AgreementTypes {
   bytes32 internal constant COMPLETE = keccak256("COMPLETE");
   bytes32 internal constant EXIT = keccak256("EXIT");
   bytes32 internal constant FINALIZE = keccak256("FINALIZE");
+  bytes32 internal constant WITHDRAW = keccak256("WITHDRAW");
 
   // --------------------
   // Adjudication action types
@@ -56,7 +57,8 @@ library AgreementTypes {
 
   /// @notice Action to execute as part of an adjudication verdict.
   struct AdjudicationAction {
-    uint256 mechanismIndex; // index in the agreement's mechanism registry
+    uint256 mechanismIndex; // index in mechanism registry (for PENALIZE/REWARD)
+    uint256 targetIndex; // zone index (for DEACTIVATE, 0 or 1)
     bytes32 actionType; // PENALIZE, REWARD, FEEDBACK, DEACTIVATE, CLOSE
     bytes params; // action-specific parameters
   }

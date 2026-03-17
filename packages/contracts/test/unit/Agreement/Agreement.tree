@@ -51,6 +51,16 @@ Agreement_handleReject
     ├── it should emit AgreementStateChanged
     └── it should emit InputAccepted
 
+Agreement_handleWithdraw
+├── when state is not PROPOSED
+│   └── it should revert with InvalidState
+├── when caller is not parties[0] (proposer)
+│   └── it should revert with NotYourTurn
+└── when caller is parties[0] and state is PROPOSED
+    ├── it should set state to REJECTED
+    ├── it should emit AgreementStateChanged
+    └── it should emit InputAccepted
+
 Agreement_handleActivate
 ├── when state is not ACCEPTED
 │   └── it should revert with InvalidState
@@ -106,7 +116,7 @@ Agreement_handleAdjudicate
     │   ├── given actionType is FEEDBACK
     │   │   └── it should call reputationRegistry.giveFeedback
     │   ├── given actionType is DEACTIVATE
-    │   │   └── it should call HATS.setHatStatus(hatId, false)
+    │   │   └── it should call HATS.setHatStatus(zoneHatIds[action.targetIndex], false)
     │   └── given actionType is CLOSE
     │       └── it should trigger close with outcome ADJUDICATED
     ├── it should emit AdjudicationDelivered

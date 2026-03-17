@@ -84,7 +84,9 @@ contract Agreement_handleAdjudicate is AgreementBase {
 
   function test_ClosesOnCloseAction() public {
     AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](1);
-    actions[0] = AgreementTypes.AdjudicationAction({ mechanismIndex: 0, actionType: AgreementTypes.CLOSE, params: "" });
+    actions[0] = AgreementTypes.AdjudicationAction({
+      mechanismIndex: 0, targetIndex: 0, actionType: AgreementTypes.CLOSE, params: ""
+    });
 
     vm.prank(adjudicator);
     activeAgreement.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(0), true, actions));

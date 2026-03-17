@@ -141,6 +141,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       toState = _handleAccept($, msg.sender, payload);
     } else if (inputId == AgreementTypes.REJECT) {
       toState = _handleReject($, msg.sender);
+    } else if (inputId == AgreementTypes.WITHDRAW) {
+      toState = _handleWithdraw($, msg.sender);
     } else if (inputId == AgreementTypes.ACTIVATE) {
       toState = _handleActivate($, msg.sender);
     } else if (inputId == AgreementTypes.CLAIM) {
@@ -423,6 +425,18 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.REJECTED;
   }
 
+  function _handleWithdraw(AgreementStorage storage $, address caller) internal returns (bytes32) {
+    _requireState($, AgreementTypes.PROPOSED);
+
+    // Only the proposer (parties[0]) can withdraw
+    if (caller != $._parties[0]) revert NotYourTurn(caller, $._parties[0]);
+
+    $._currentState = AgreementTypes.REJECTED;
+    emit AgreementStateChanged(AgreementTypes.PROPOSED, AgreementTypes.REJECTED);
+
+    return AgreementTypes.REJECTED;
+  }
+
   // ---- Activation (broken into sub-functions for testability) ----
 
   function _handleActivate(AgreementStorage storage $, address caller) internal returns (bytes32) {
@@ -579,9 +593,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
           feedbackHash
         );
       } else if (action.actionType == AgreementTypes.DEACTIVATE) {
-        uint256 zoneIdx = action.mechanismIndex;
-        if (zoneIdx >= 2) revert InvalidMechanismIndex(zoneIdx);
-        HATS.setHatStatus($._zoneHatIds[zoneIdx], false);
+        if (action.targetIndex >= 2) revert InvalidMechanismIndex(action.targetIndex);
+        HATS.setHatStatus($._zoneHatIds[action.targetIndex], false);
       } else if (action.actionType == AgreementTypes.CLOSE) {
         shouldClose = true;
       }
