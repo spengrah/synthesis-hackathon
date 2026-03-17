@@ -317,9 +317,8 @@ ResourceTokenHolding {
 ```
 Claim {
   id: string                     // `${agreement}:${claimId}`
-  agreement: Agreement
-  trustZone: TrustZone?          // resolved from mechanism's zoneIndex
-  mechanismIndex: bigint
+  agreement: Agreement           // claims are agreement-scoped (not zone-scoped)
+  mechanismIndex: bigint         // indirectly links to a zone via the mechanism's zoneIndex
   claimant: Actor
   evidence: hex                  // raw bytes
   verdict: boolean?              // null until adjudicated

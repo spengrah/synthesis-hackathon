@@ -166,7 +166,6 @@ export function createRpcBackend(
       responsibilities: [],
       directives: [],
       constraints: [],
-      claims: [],
     };
   }
 

@@ -63,7 +63,6 @@ query GetZoneDetails($id: String!) {
     responsibilities { items { resourceToken { id } obligation criteria deadline } }
     directives { items { resourceToken { id } rule severity params } }
     constraints { items { module } }
-    claims { items { id mechanismIndex claimant { address } verdict actionTypes timestamp adjudicatedAt } }
   }
 }`;
 
@@ -217,7 +216,6 @@ export function createPonderBackend(ponderUrl: string): ReadBackend {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (c: any) => ({ module: c.module as Address }),
       ),
-      claims: parseClaims(z.claims?.items ?? []),
     };
   }
 

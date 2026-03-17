@@ -176,7 +176,6 @@ export const resourceTokenHolding = onchainTable("resource_token_holding", (t) =
 export const claim = onchainTable("claim", (t) => ({
   id: t.text().primaryKey(), // `${agreement}:${claimId}`
   agreementId: t.hex().notNull(),
-  trustZoneId: t.hex(),
   mechanismIndex: t.bigint().notNull(),
   claimantId: t.text().notNull(),
   evidence: t.hex().notNull(),

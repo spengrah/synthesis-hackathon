@@ -1477,7 +1477,6 @@ input resourceTokenHoldingFilter {
 type claim {
   id: String!
   agreementId: String!
-  trustZoneId: String
   mechanismIndex: BigInt!
   claimantId: String!
   evidence: String!
@@ -1516,16 +1515,6 @@ input claimFilter {
   agreementId_ends_with: String
   agreementId_not_starts_with: String
   agreementId_not_ends_with: String
-  trustZoneId: String
-  trustZoneId_not: String
-  trustZoneId_in: [String]
-  trustZoneId_not_in: [String]
-  trustZoneId_contains: String
-  trustZoneId_not_contains: String
-  trustZoneId_starts_with: String
-  trustZoneId_ends_with: String
-  trustZoneId_not_starts_with: String
-  trustZoneId_not_ends_with: String
   mechanismIndex: BigInt
   mechanismIndex_not: BigInt
   mechanismIndex_in: [BigInt]

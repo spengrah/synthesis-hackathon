@@ -119,7 +119,6 @@ export interface ZoneDetails {
   responsibilities: ParsedResponsibility[];
   directives: ParsedDirective[];
   constraints: ParsedConstraint[];
-  claims: ClaimSummary[];
 }
 
 export interface ProposalSummary {
