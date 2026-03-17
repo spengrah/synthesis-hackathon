@@ -553,17 +553,13 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       .initialize(HAT_VALIDATOR, abi.encode(zoneHatId), address(this), "", HOOK_MULTIPLEXER, hookInitData);
   }
 
-  /// @dev Register mechanisms from a zone config into the claimable mechanism registry.
+  /// @dev Register all mechanisms from a zone config into the mechanism registry.
+  ///      All types are registered (full zone definition). Claimability is enforced at claim time.
   function _registerMechanisms(AgreementStorage storage $, TZTypes.TZMechanism[] memory mechs, uint256 zoneIndex)
     internal
   {
     for (uint256 j = 0; j < mechs.length; j++) {
       TZTypes.TZMechanism memory mech = mechs[j];
-
-      // Skip self-enforcing mechanism types — not claimable/adjudicatable
-      if (mech.paramType == TZTypes.TZParamType.Constraint) continue;
-      if (mech.paramType == TZTypes.TZParamType.Eligibility) continue;
-
       uint256 mechIndex = $._mechanisms.length;
       $._mechanisms
         .push(
@@ -687,6 +683,10 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     (uint256 mechanismIndex, bytes memory evidence) = abi.decode(payload, (uint256, bytes));
     if (mechanismIndex >= $._mechanisms.length) revert InvalidMechanismIndex(mechanismIndex);
+    // Constraints are self-enforcing — not claimable
+    if ($._mechanisms[mechanismIndex].paramType == TZTypes.TZParamType.Constraint) {
+      revert InvalidMechanismIndex(mechanismIndex);
+    }
 
     uint256 claimId = $._claimCount++;
     emit ClaimFiled(claimId, mechanismIndex, caller, evidence);

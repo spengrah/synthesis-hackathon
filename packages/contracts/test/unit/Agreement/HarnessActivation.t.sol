@@ -157,8 +157,8 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
-    // 2 mechanisms total (Constraint is excluded from the registry)
-    assertEq(clone.mechanismCount(), 2);
+    // 3 mechanisms total (all types registered, Constraint included)
+    assertEq(clone.mechanismCount(), 3);
 
     // Mechanism 0: Reward from zone 0
     (TZTypes.TZParamType pt0, address mod0, uint256 zi0,) = clone.mechanisms(0);
@@ -171,6 +171,12 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     assertEq(uint8(pt1), uint8(TZTypes.TZParamType.Penalty));
     assertEq(mod1, makeAddr("penaltyModule"));
     assertEq(zi1, 0);
+
+    // Mechanism 2: Constraint from zone 1
+    (TZTypes.TZParamType pt2, address mod2, uint256 zi2,) = clone.mechanisms(2);
+    assertEq(uint8(pt2), uint8(TZTypes.TZParamType.Constraint));
+    assertEq(mod2, makeAddr("constraintModule"));
+    assertEq(zi2, 1);
   }
 
   // ---- test_ResourceTokenAssignment ----
@@ -445,9 +451,9 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     assertEq(clone.currentState(), AgreementTypes.ACTIVE);
   }
 
-  // ---- test_MechanismRegistryExcludesConstraintAndEligibility ----
+  // ---- test_MechanismRegistryIncludesAllTypes ----
 
-  function test_MechanismRegistryExcludesConstraintAndEligibility() public {
+  function test_MechanismRegistryIncludesAllTypes() public {
     MockEligibilityModule mockEligImpl = new MockEligibilityModule("1.0.0");
     address mockHook = address(new MockHook());
 
@@ -455,7 +461,7 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     zones[0] = Defaults.tzConfig(partyA, 0);
     zones[1] = Defaults.tzConfig(partyB, 0);
 
-    // Zone 0: Constraint + Eligibility + Penalty — only Penalty should be registered
+    // Zone 0: Constraint + Eligibility + Penalty — all should be registered
     TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](3);
     mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
     mechs[1] =
@@ -477,11 +483,52 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.ACTIVATE, "");
 
-    // Only Penalty should be in the registry
-    assertEq(clone.mechanismCount(), 1);
-    (TZTypes.TZParamType pt0, address mod0,,) = clone.mechanisms(0);
-    assertEq(uint8(pt0), uint8(TZTypes.TZParamType.Penalty));
-    assertEq(mod0, makeAddr("penaltyModule"));
+    // All 3 mechanisms registered
+    assertEq(clone.mechanismCount(), 3);
+    (TZTypes.TZParamType pt0,,,) = clone.mechanisms(0);
+    (TZTypes.TZParamType pt1,,,) = clone.mechanisms(1);
+    (TZTypes.TZParamType pt2, address mod2,,) = clone.mechanisms(2);
+    assertEq(uint8(pt0), uint8(TZTypes.TZParamType.Constraint));
+    assertEq(uint8(pt1), uint8(TZTypes.TZParamType.Eligibility));
+    assertEq(uint8(pt2), uint8(TZTypes.TZParamType.Penalty));
+    assertEq(mod2, makeAddr("penaltyModule"));
+  }
+
+  // ---- test_ClaimRevertsForConstraintMechanism ----
+
+  function test_ClaimRevertsForConstraintMechanism() public {
+    address mockHook = address(new MockHook());
+
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+
+    // Zone 0: Constraint at index 0, Penalty at index 1
+    TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
+    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
+    mechs[1] =
+      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: makeAddr("penaltyModule"), initData: "" });
+    zones[0].mechanisms = mechs;
+
+    AgreementTypes.ProposalData memory data =
+      Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);
+    bytes memory payload = abi.encode(data);
+
+    (AgreementHarness clone,) = _createHarnessClone(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    // CLAIM against Constraint (index 0) should revert
+    bytes memory claimPayload = abi.encode(uint256(0), abi.encode("evidence"));
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.InvalidMechanismIndex.selector, uint256(0)));
+    clone.exposed_handleClaim(partyA, claimPayload);
+
+    // CLAIM against Penalty (index 1) should succeed
+    claimPayload = abi.encode(uint256(1), abi.encode("evidence"));
+    clone.exposed_handleClaim(partyA, claimPayload);
+    assertEq(clone.claimCount(), 1);
   }
 }
 
