@@ -24,10 +24,13 @@ import { DeployAgreement } from "../script/DeployAgreement.s.sol";
 import { DeployAgreementRegistry } from "../script/DeployAgreementRegistry.s.sol";
 import { AgreementRegistry } from "../src/AgreementRegistry.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { AgreementHarness } from "./harness/AgreementHarness.sol";
 
 import { HookMultiPlexer } from "core-modules/HookMultiPlexer/HookMultiPlexer.sol";
 import { MockRegistry } from "modulekit/module-bases/mocks/MockRegistry.sol";
 import { IERC7484 } from "modulekit/module-bases/interfaces/IERC7484.sol";
+import { HatsEligibilitiesChain } from "chain-modules/HatsEligibilitiesChain.sol";
+import { HatsModuleFactory } from "hats-module/HatsModuleFactory.sol";
 
 // ====================
 // ForkTestBase
@@ -48,6 +51,8 @@ abstract contract ForkTestBase is Test {
   Agreement internal agreementImpl;
   HookMultiPlexer internal hookMultiplexer;
   AgreementRegistry internal agreementRegistry;
+  HatsModuleFactory internal hatsModuleFactory;
+  HatsEligibilitiesChain internal eligibilitiesChainImpl;
 
   // ---- Hat tree (set by _createHatTree) ----
   uint256 internal topHatId;
@@ -116,9 +121,21 @@ abstract contract ForkTestBase is Test {
     vm.stopPrank();
   }
 
+  /// @dev Deploy HatsModuleFactory and EligibilitiesChain implementation.
+  function _deployHatsModuleFactoryAndEligibilityChain() internal {
+    vm.startPrank(deployer);
+    // Use the real deployed HatsModuleFactory on Base
+    hatsModuleFactory = HatsModuleFactory(Constants.HATS_MODULE_FACTORY);
+    // Deploy EligibilitiesChain implementation
+    eligibilitiesChainImpl = new HatsEligibilitiesChain("1.0.0");
+    vm.stopPrank();
+  }
+
   /// @dev Deploy Agreement implementation using the deploy script.
-  ///      Requires registry, hatValidator, trustZoneImpl, and hookMultiplexer to be deployed first.
+  ///      Requires registry, hatValidator, trustZoneImpl, hookMultiplexer, hatsModuleFactory,
+  ///      and eligibilitiesChainImpl to be deployed first.
   function _deployAgreementImpl() internal {
+    _deployHatsModuleFactoryAndEligibilityChain();
     vm.startPrank(deployer);
     DeployAgreement deployScript = new DeployAgreement();
     agreementImpl = deployScript.execute(
@@ -128,7 +145,9 @@ abstract contract ForkTestBase is Test {
       address(reputationRegistry),
       address(trustZoneImpl),
       address(hookMultiplexer),
-      address(hatValidator)
+      address(hatValidator),
+      address(hatsModuleFactory),
+      address(eligibilitiesChainImpl)
     );
     vm.stopPrank();
   }
@@ -386,11 +405,72 @@ abstract contract AgreementBase is ForkTestBase {
 }
 
 /// @notice Base for Agreement unit tests using a harness to expose internals.
-abstract contract AgreementHarnessBase is AgreementBase {
+///         Deploys AgreementHarness as the implementation so clones expose internal functions.
+abstract contract AgreementHarnessBase is ForkTestBase {
+  AgreementHarness internal harness;
+  AgreementHarness internal harnessImpl;
+  uint256 internal agrmtHatId;
+
+  uint256 private _harnessCloneNonce;
+
   function setUp() public virtual override {
     super.setUp();
-    // Harness not needed since internal functions use private storage accessor.
-    // Tests use public interface (submitInput, initialize, etc.)
+    _deployResourceTokenRegistry();
+    _deployHatValidator();
+    _deployTrustZoneImpl();
+    _deployHookMultiplexer();
+    _deployHatsModuleFactoryAndEligibilityChain();
+
+    // Deploy harness implementation (same immutables as Agreement)
+    vm.startPrank(deployer);
+    harnessImpl = new AgreementHarness(
+      address(hats),
+      address(registry),
+      identityRegistry,
+      address(reputationRegistry),
+      address(trustZoneImpl),
+      address(hookMultiplexer),
+      address(hatValidator),
+      address(hatsModuleFactory),
+      address(eligibilitiesChainImpl)
+    );
+    // Also set agreementImpl so _createAgreementClone works
+    agreementImpl = Agreement(address(harnessImpl));
+    vm.stopPrank();
+
+    // Create default harness clone
+    bytes memory proposalPayload = _defaultProposalPayload();
+    (harness, agrmtHatId) = _createHarnessClone(proposalPayload);
+  }
+
+  /// @dev Create a harness clone (same pattern as _createAgreementClone but returns AgreementHarness).
+  function _createHarnessClone(bytes memory proposalPayload)
+    internal
+    returns (AgreementHarness clone, uint256 _agreementHatId)
+  {
+    bytes32 salt = keccak256(abi.encode("harness-test", _harnessCloneNonce++));
+    address predicted = Clones.predictDeterministicAddress(address(harnessImpl), salt);
+
+    vm.startPrank(deployer);
+    topHatId = hats.mintTopHat(deployer, "Trust Zones", "");
+    _agreementHatId = hats.createHat(topHatId, "Agreement #1", 10, predicted, predicted, true, "");
+    hats.transferHat(topHatId, deployer, predicted);
+    vm.stopPrank();
+
+    clone = AgreementHarness(Clones.cloneDeterministic(address(harnessImpl), salt));
+
+    _registerMinter(address(clone));
+
+    address[2] memory partiesArr = [partyA, partyB];
+    clone.initialize(partiesArr, _agreementHatId, proposalPayload);
+  }
+
+  /// @dev Build a custom proposal payload and create a harness clone with it.
+  function _createHarnessCloneWithPayload(bytes memory payload)
+    internal
+    returns (AgreementHarness clone, uint256 _agreementHatId)
+  {
+    return _createHarnessClone(payload);
   }
 }
 
