@@ -22,8 +22,9 @@ import {
 
 const tzMechanismComponents = [
   { name: "paramType", type: "uint8" as const },
+  { name: "moduleKind", type: "uint8" as const },
   { name: "module", type: "address" as const },
-  { name: "initData", type: "bytes" as const },
+  { name: "data", type: "bytes" as const },
 ] as const;
 
 const tzResourceTokenConfigComponents = [
@@ -84,8 +85,9 @@ function encodeProposalPayload(data: ProposalData): Hex {
         hatDetails: z.hatDetails,
         mechanisms: z.mechanisms.map((m) => ({
           paramType: m.paramType,
+          moduleKind: m.moduleKind,
           module: m.module,
-          initData: m.initData,
+          data: m.data,
         })),
         resources: z.resources.map((r) => ({
           tokenType: r.tokenType,

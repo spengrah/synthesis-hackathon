@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Hex } from "viem";
 import type { ProposalData, AdjudicationAction } from "../src/types.js";
-import { TZParamType } from "../src/types.js";
+import { TZParamType, TZModuleKind } from "../src/types.js";
 import {
   encodePropose,
   encodeClaim,
@@ -55,8 +55,9 @@ const richProposal: ProposalData = {
       mechanisms: [
         {
           paramType: TZParamType.Penalty,
+          moduleKind: TZModuleKind.HatsModule,
           module: "0x000000000000000000000000000000000000dEaD",
-          initData: "0x1234",
+          data: "0x1234",
         },
       ],
       resources: [{ tokenType: TZParamType.Permission, metadata: "0xabcd" }],
@@ -69,8 +70,9 @@ const richProposal: ProposalData = {
       mechanisms: [
         {
           paramType: TZParamType.Reward,
+          moduleKind: TZModuleKind.HatsModule,
           module: "0x000000000000000000000000000000000000bEEF",
-          initData: "0x5678",
+          data: "0x5678",
         },
       ],
       resources: [
@@ -110,7 +112,7 @@ describe("roundtrip: ProposalData", () => {
     expect(decoded.zones[0].mechanisms[0].module.toLowerCase()).toBe(
       "0x000000000000000000000000000000000000dead",
     );
-    expect(decoded.zones[0].mechanisms[0].initData.toLowerCase()).toBe(
+    expect(decoded.zones[0].mechanisms[0].data.toLowerCase()).toBe(
       "0x1234",
     );
 

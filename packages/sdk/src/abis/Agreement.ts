@@ -435,6 +435,11 @@ export const AgreementABI = [
         "internalType": "enum TZTypes.TZParamType"
       },
       {
+        "name": "moduleKind",
+        "type": "uint8",
+        "internalType": "enum TZTypes.TZModuleKind"
+      },
+      {
         "name": "module",
         "type": "address",
         "internalType": "address"

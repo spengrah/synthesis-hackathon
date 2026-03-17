@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Hex } from "viem";
-import { TZParamType } from "../src/types.js";
+import { TZParamType, TZModuleKind } from "../src/types.js";
 import {
   decodeProposalData,
   decodeAdjudicationActions,
@@ -44,10 +44,11 @@ describe("decodeProposalData", () => {
     // Zone A mechanisms
     expect(data.zones[0].mechanisms).toHaveLength(1);
     expect(data.zones[0].mechanisms[0].paramType).toBe(TZParamType.Penalty);
+    expect(data.zones[0].mechanisms[0].moduleKind).toBe(TZModuleKind.HatsModule);
     expect(data.zones[0].mechanisms[0].module.toLowerCase()).toBe(
       "0x000000000000000000000000000000000000dead",
     );
-    expect(data.zones[0].mechanisms[0].initData.toLowerCase()).toBe("0x1234");
+    expect(data.zones[0].mechanisms[0].data.toLowerCase()).toBe("0x1234");
 
     // Zone A resources
     expect(data.zones[0].resources).toHaveLength(1);

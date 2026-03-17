@@ -13,6 +13,7 @@ import {
   parseDirectiveMetadata,
   PARAM_TYPE,
   TOKEN_TYPE,
+  MODULE_KIND_LABELS,
 } from "../src/utils.js";
 
 // ─── decodeBytes32 ──────────────────────────────────────────────
@@ -71,6 +72,16 @@ describe("PARAM_TYPE", () => {
   });
 });
 
+// ─── MODULE_KIND_LABELS ────────────────────────────────────────
+
+describe("MODULE_KIND_LABELS", () => {
+  it("has correct values", () => {
+    expect(MODULE_KIND_LABELS[0]).toBe("HatsModule");
+    expect(MODULE_KIND_LABELS[1]).toBe("ERC7579Hook");
+    expect(MODULE_KIND_LABELS[2]).toBe("External");
+  });
+});
+
 // ─── TOKEN_TYPE ─────────────────────────────────────────────────
 
 describe("TOKEN_TYPE", () => {
@@ -101,8 +112,9 @@ const proposalDataAbi = [
             type: "tuple[]" as const,
             components: [
               { name: "paramType", type: "uint8" as const },
+              { name: "moduleKind", type: "uint8" as const },
               { name: "module", type: "address" as const },
-              { name: "initData", type: "bytes" as const },
+              { name: "data", type: "bytes" as const },
             ],
           },
           {
@@ -187,8 +199,9 @@ describe("parseProposalData", () => {
             mechanisms: [
               {
                 paramType: PARAM_TYPE.Constraint,
+                moduleKind: 1, // ERC7579Hook
                 module: moduleAddr,
-                initData: "0xabcd" as Hex,
+                data: "0xabcd" as Hex,
               },
             ],
             resources: [
@@ -209,8 +222,9 @@ describe("parseProposalData", () => {
     expect(result.zones).toHaveLength(1);
     expect(result.zones[0].mechanisms).toHaveLength(1);
     expect(result.zones[0].mechanisms[0].paramType).toBe(PARAM_TYPE.Constraint);
+    expect(result.zones[0].mechanisms[0].moduleKind).toBe(1);
     expect(result.zones[0].mechanisms[0].module.toLowerCase()).toBe(moduleAddr.toLowerCase());
-    expect(result.zones[0].mechanisms[0].initData).toBe("0xabcd");
+    expect(result.zones[0].mechanisms[0].data).toBe("0xabcd");
 
     expect(result.zones[0].resources).toHaveLength(1);
     expect(result.zones[0].resources[0].tokenType).toBe(TOKEN_TYPE.Permission);

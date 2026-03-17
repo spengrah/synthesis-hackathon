@@ -105,7 +105,8 @@ export const constraint = onchainTable("constraint", (t) => ({
   trustZoneId: t.hex(),
   zoneIndex: t.integer().notNull(),
   module: t.hex().notNull(),
-  initData: t.hex().notNull(),
+  moduleKind: t.text(),
+  data: t.hex().notNull(),
   createdAt: t.bigint().notNull(),
 }));
 
@@ -116,7 +117,8 @@ export const eligibility = onchainTable("eligibility", (t) => ({
   trustZoneId: t.hex(),
   zoneIndex: t.integer().notNull(),
   module: t.hex().notNull(),
-  initData: t.hex().notNull(),
+  moduleKind: t.text(),
+  data: t.hex().notNull(),
   createdAt: t.bigint().notNull(),
 }));
 
@@ -128,7 +130,8 @@ export const incentive = onchainTable("incentive", (t) => ({
   zoneIndex: t.integer().notNull(),
   incentiveType: t.text().notNull(),
   module: t.hex().notNull(),
-  initData: t.hex().notNull(),
+  moduleKind: t.text(),
+  data: t.hex().notNull(),
   createdAt: t.bigint().notNull(),
 }));
 
@@ -139,7 +142,8 @@ export const decisionModel = onchainTable("decision_model", (t) => ({
   trustZoneId: t.hex(),
   zoneIndex: t.integer().notNull(),
   module: t.hex().notNull(),
-  initData: t.hex().notNull(),
+  moduleKind: t.text(),
+  data: t.hex().notNull(),
   createdAt: t.bigint().notNull(),
 }));
 
@@ -150,7 +154,8 @@ export const principalAlignment = onchainTable("principal_alignment", (t) => ({
   trustZoneId: t.hex(),
   zoneIndex: t.integer().notNull(),
   module: t.hex().notNull(),
-  initData: t.hex().notNull(),
+  moduleKind: t.text(),
+  data: t.hex().notNull(),
   createdAt: t.bigint().notNull(),
 }));
 

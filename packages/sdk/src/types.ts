@@ -14,12 +14,19 @@ export enum TZParamType {
   DecisionModel = 8,
 }
 
+export enum TZModuleKind {
+  HatsModule = 0,
+  ERC7579Hook = 1,
+  External = 2,
+}
+
 // ---- Core structs (mirror Solidity) ----
 
 export interface TZMechanism {
   paramType: TZParamType;
+  moduleKind: TZModuleKind;
   module: Address;
-  initData: Hex;
+  data: Hex;
 }
 
 export interface TZResourceTokenConfig {

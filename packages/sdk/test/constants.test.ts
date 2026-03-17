@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as C from "../src/constants.js";
+import { TZModuleKind } from "../src/types.js";
 import fixtures from "./fixtures/abi-fixtures.json";
 
 describe("constants match Solidity", () => {
@@ -41,5 +42,19 @@ describe("constants match Solidity", () => {
         expect(actual.toLowerCase()).toBe(expected.toLowerCase());
       },
     );
+  });
+
+  describe("module kind constants", () => {
+    it("MODULE_KIND_HATS_MODULE matches TZModuleKind.HatsModule", () => {
+      expect(C.MODULE_KIND_HATS_MODULE).toBe(TZModuleKind.HatsModule);
+    });
+
+    it("MODULE_KIND_ERC7579_HOOK matches TZModuleKind.ERC7579Hook", () => {
+      expect(C.MODULE_KIND_ERC7579_HOOK).toBe(TZModuleKind.ERC7579Hook);
+    });
+
+    it("MODULE_KIND_EXTERNAL matches TZModuleKind.External", () => {
+      expect(C.MODULE_KIND_EXTERNAL).toBe(TZModuleKind.External);
+    });
   });
 });

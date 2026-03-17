@@ -863,7 +863,8 @@ type constraint {
   trustZoneId: String
   zoneIndex: Int!
   module: String!
-  initData: String!
+  moduleKind: String
+  data: String!
   createdAt: BigInt!
 }
 
@@ -934,16 +935,26 @@ input constraintFilter {
   module_ends_with: String
   module_not_starts_with: String
   module_not_ends_with: String
-  initData: String
-  initData_not: String
-  initData_in: [String]
-  initData_not_in: [String]
-  initData_contains: String
-  initData_not_contains: String
-  initData_starts_with: String
-  initData_ends_with: String
-  initData_not_starts_with: String
-  initData_not_ends_with: String
+  moduleKind: String
+  moduleKind_not: String
+  moduleKind_in: [String]
+  moduleKind_not_in: [String]
+  moduleKind_contains: String
+  moduleKind_not_contains: String
+  moduleKind_starts_with: String
+  moduleKind_ends_with: String
+  moduleKind_not_starts_with: String
+  moduleKind_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]
@@ -961,7 +972,8 @@ type eligibility {
   trustZoneId: String
   zoneIndex: Int!
   module: String!
-  initData: String!
+  moduleKind: String
+  data: String!
   createdAt: BigInt!
 }
 
@@ -1032,16 +1044,26 @@ input eligibilityFilter {
   module_ends_with: String
   module_not_starts_with: String
   module_not_ends_with: String
-  initData: String
-  initData_not: String
-  initData_in: [String]
-  initData_not_in: [String]
-  initData_contains: String
-  initData_not_contains: String
-  initData_starts_with: String
-  initData_ends_with: String
-  initData_not_starts_with: String
-  initData_not_ends_with: String
+  moduleKind: String
+  moduleKind_not: String
+  moduleKind_in: [String]
+  moduleKind_not_in: [String]
+  moduleKind_contains: String
+  moduleKind_not_contains: String
+  moduleKind_starts_with: String
+  moduleKind_ends_with: String
+  moduleKind_not_starts_with: String
+  moduleKind_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]
@@ -1060,7 +1082,8 @@ type incentive {
   zoneIndex: Int!
   incentiveType: String!
   module: String!
-  initData: String!
+  moduleKind: String
+  data: String!
   createdAt: BigInt!
 }
 
@@ -1141,16 +1164,26 @@ input incentiveFilter {
   module_ends_with: String
   module_not_starts_with: String
   module_not_ends_with: String
-  initData: String
-  initData_not: String
-  initData_in: [String]
-  initData_not_in: [String]
-  initData_contains: String
-  initData_not_contains: String
-  initData_starts_with: String
-  initData_ends_with: String
-  initData_not_starts_with: String
-  initData_not_ends_with: String
+  moduleKind: String
+  moduleKind_not: String
+  moduleKind_in: [String]
+  moduleKind_not_in: [String]
+  moduleKind_contains: String
+  moduleKind_not_contains: String
+  moduleKind_starts_with: String
+  moduleKind_ends_with: String
+  moduleKind_not_starts_with: String
+  moduleKind_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]
@@ -1168,7 +1201,8 @@ type decisionModel {
   trustZoneId: String
   zoneIndex: Int!
   module: String!
-  initData: String!
+  moduleKind: String
+  data: String!
   createdAt: BigInt!
 }
 
@@ -1239,16 +1273,26 @@ input decisionModelFilter {
   module_ends_with: String
   module_not_starts_with: String
   module_not_ends_with: String
-  initData: String
-  initData_not: String
-  initData_in: [String]
-  initData_not_in: [String]
-  initData_contains: String
-  initData_not_contains: String
-  initData_starts_with: String
-  initData_ends_with: String
-  initData_not_starts_with: String
-  initData_not_ends_with: String
+  moduleKind: String
+  moduleKind_not: String
+  moduleKind_in: [String]
+  moduleKind_not_in: [String]
+  moduleKind_contains: String
+  moduleKind_not_contains: String
+  moduleKind_starts_with: String
+  moduleKind_ends_with: String
+  moduleKind_not_starts_with: String
+  moduleKind_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]
@@ -1266,7 +1310,8 @@ type principalAlignment {
   trustZoneId: String
   zoneIndex: Int!
   module: String!
-  initData: String!
+  moduleKind: String
+  data: String!
   createdAt: BigInt!
 }
 
@@ -1337,16 +1382,26 @@ input principalAlignmentFilter {
   module_ends_with: String
   module_not_starts_with: String
   module_not_ends_with: String
-  initData: String
-  initData_not: String
-  initData_in: [String]
-  initData_not_in: [String]
-  initData_contains: String
-  initData_not_contains: String
-  initData_starts_with: String
-  initData_ends_with: String
-  initData_not_starts_with: String
-  initData_not_ends_with: String
+  moduleKind: String
+  moduleKind_not: String
+  moduleKind_in: [String]
+  moduleKind_not_in: [String]
+  moduleKind_contains: String
+  moduleKind_not_contains: String
+  moduleKind_starts_with: String
+  moduleKind_ends_with: String
+  moduleKind_not_starts_with: String
+  moduleKind_not_ends_with: String
+  data: String
+  data_not: String
+  data_in: [String]
+  data_not_in: [String]
+  data_contains: String
+  data_not_contains: String
+  data_starts_with: String
+  data_ends_with: String
+  data_not_starts_with: String
+  data_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]

@@ -26,6 +26,7 @@ import {
   parseDirectiveMetadata,
   PARAM_TYPE,
   TOKEN_TYPE,
+  MODULE_KIND_LABELS,
 } from "./utils";
 import type { Hex } from "viem";
 
@@ -85,6 +86,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
         const mech = zone.mechanisms[mechIdx];
         const entityId = `${proposalId}:z${zoneIdx}:m${mechIdx}`;
 
+        const moduleKind = MODULE_KIND_LABELS[mech.moduleKind] ?? `Unknown(${mech.moduleKind})`;
+
         switch (mech.paramType) {
           case PARAM_TYPE.Constraint:
             await db.insert(constraint).values({
@@ -93,7 +96,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               proposalId,
               zoneIndex: zoneIdx,
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -104,7 +108,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               proposalId,
               zoneIndex: zoneIdx,
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -116,7 +121,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               zoneIndex: zoneIdx,
               incentiveType: "Reward",
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -128,7 +134,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               zoneIndex: zoneIdx,
               incentiveType: "Penalty",
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -139,7 +146,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               proposalId,
               zoneIndex: zoneIdx,
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -150,7 +158,8 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               proposalId,
               zoneIndex: zoneIdx,
               module: mech.module,
-              initData: mech.initData,
+              moduleKind,
+              data: mech.data,
               createdAt: event.block.timestamp,
             });
             break;
@@ -303,7 +312,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
   const tzId = tz?.id;
 
   const entityId = `${agreementId}:deployed:m${mechIndex}`;
-  const initData = "0x" as Hex;
+  const data = "0x" as Hex;
 
   switch (paramType) {
     case PARAM_TYPE.Constraint:
@@ -313,7 +322,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         trustZoneId: tzId,
         zoneIndex,
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;
@@ -324,7 +333,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         trustZoneId: tzId,
         zoneIndex,
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;
@@ -336,7 +345,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         zoneIndex,
         incentiveType: "Reward",
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;
@@ -348,7 +357,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         zoneIndex,
         incentiveType: "Penalty",
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;
@@ -359,7 +368,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         trustZoneId: tzId,
         zoneIndex,
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;
@@ -370,7 +379,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
         trustZoneId: tzId,
         zoneIndex,
         module,
-        initData,
+        data,
         createdAt: event.block.timestamp,
       });
       break;

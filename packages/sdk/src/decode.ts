@@ -1,14 +1,15 @@
 import { decodeAbiParameters, type Hex } from "viem";
 import type { ProposalData, AdjudicationAction } from "./types.js";
-import { TZParamType } from "./types.js";
+import { TZParamType, TZModuleKind } from "./types.js";
 import { BYTES32_LABELS } from "./constants.js";
 
 // ---- ABI parameter definitions for decoding ----
 
 const tzMechanismComponents = [
   { name: "paramType", type: "uint8" as const },
+  { name: "moduleKind", type: "uint8" as const },
   { name: "module", type: "address" as const },
-  { name: "initData", type: "bytes" as const },
+  { name: "data", type: "bytes" as const },
 ] as const;
 
 const tzResourceTokenConfigComponents = [
@@ -73,8 +74,9 @@ export function decodeProposalData(proposalDataBytes: Hex): ProposalData {
       hatDetails: z.hatDetails,
       mechanisms: z.mechanisms.map((m) => ({
         paramType: m.paramType as TZParamType,
+        moduleKind: m.moduleKind as TZModuleKind,
         module: m.module,
-        initData: m.initData,
+        data: m.data,
       })),
       resources: z.resources.map((r) => ({
         tokenType: r.tokenType as TZParamType,

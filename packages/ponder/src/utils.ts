@@ -48,6 +48,15 @@ export const PARAM_TYPE = {
   DecisionModel: 8,
 } as const;
 
+// ─── TZModuleKind enum mapping ──────────────────────────────────
+
+// Matches the Solidity enum TZModuleKind
+export const MODULE_KIND_LABELS: Record<number, string> = {
+  0: "HatsModule",
+  1: "ERC7579Hook",
+  2: "External",
+};
+
 // Token types for resource tokens (Permission=1, Responsibility=2, Directive=3)
 // These match TZParamType values for Permission, Responsibility, Directive
 export const TOKEN_TYPE = {
@@ -60,7 +69,7 @@ export const TOKEN_TYPE = {
 
 // ProposalData { string termsDocUri, TZConfig[] zones, address adjudicator, uint256 deadline }
 // TZConfig { address party, uint256 agentId, uint32 hatMaxSupply, string hatDetails, TZMechanism[] mechanisms, TZResourceTokenConfig[] resources }
-// TZMechanism { uint8 paramType, address module, bytes initData }
+// TZMechanism { uint8 paramType, uint8 moduleKind, address module, bytes data }
 // TZResourceTokenConfig { uint8 tokenType, bytes metadata }
 
 const proposalDataParams = [
@@ -81,8 +90,9 @@ const proposalDataParams = [
             type: "tuple[]",
             components: [
               { name: "paramType", type: "uint8" },
+              { name: "moduleKind", type: "uint8" },
               { name: "module", type: "address" },
-              { name: "initData", type: "bytes" },
+              { name: "data", type: "bytes" },
             ],
           },
           {
@@ -112,8 +122,9 @@ export interface ParsedProposalData {
     hatDetails: string;
     mechanisms: Array<{
       paramType: number;
+      moduleKind: number;
       module: Hex;
-      initData: Hex;
+      data: Hex;
     }>;
     resources: Array<{
       tokenType: number;
@@ -135,8 +146,9 @@ export function parseProposalData(data: Hex): ParsedProposalData {
       hatDetails: z.hatDetails,
       mechanisms: z.mechanisms.map((m: any) => ({
         paramType: m.paramType,
+        moduleKind: m.moduleKind,
         module: m.module as Hex,
-        initData: m.initData as Hex,
+        data: m.data as Hex,
       })),
       resources: z.resources.map((r: any) => ({
         tokenType: r.tokenType,

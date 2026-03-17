@@ -71,6 +71,12 @@ export const BYTES32_LABELS: Record<Hex, string> = {
   ...ACTION_LABELS,
 };
 
+// ---- Module kinds ----
+
+export const MODULE_KIND_HATS_MODULE = 0;
+export const MODULE_KIND_ERC7579_HOOK = 1;
+export const MODULE_KIND_EXTERNAL = 2;
+
 // ---- Deployed addresses (placeholder — filled after deployment) ----
 
 export const ADDRESSES = {
