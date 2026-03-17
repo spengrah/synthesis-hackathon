@@ -297,14 +297,14 @@ No settlement needed. No zones were deployed.
 During activation, the agreement registers ALL mechanisms from `TZConfig.mechanisms[]` arrays into a registry that serves as the complete zone definition:
 
 ```solidity
-struct ClaimableMechanism {
+struct RegisteredMechanism {
     TZParamType paramType; // enum value
     address module;        // target contract
     uint8 zoneIndex;       // which zone this belongs to
     bytes context;         // module-specific context (hatId, agentId, etc.)
 }
 
-ClaimableMechanism[] public mechanisms;
+RegisteredMechanism[] public mechanisms;
 ```
 
 All mechanism types are registered (Constraint, Eligibility, Reward, Penalty, etc.) so the full zone configuration is visible onchain and indexable. However, **Constraint mechanisms are self-enforcing** (via ERC-7579 hooks) and cannot be claimed against — `CLAIM` reverts with `InvalidMechanismIndex` if the referenced mechanism is a Constraint.
@@ -344,7 +344,7 @@ address public adjudicator;
 uint256 public deadline;
 
 // Mechanisms
-ClaimableMechanism[] public mechanisms;
+RegisteredMechanism[] public mechanisms;
 
 // Two-step close signals
 bool[2] public completionSignaled;

@@ -81,8 +81,10 @@ Agreement_handleActivate
         │   ├── it should mint the zone hat to the party
         │   ├── it should deploy a TrustZone clone via Clones.cloneDeterministic
         │   ├── it should initialize the TrustZone clone
-        │   ├── it should install CONSTRAINT mechanisms as ERC-7579 hooks
-        │   ├── it should register ELIGIBILITY, REWARD, and PENALTY mechanisms
+        │   ├── it should install CONSTRAINT mechanisms as ERC-7579 hooks via HookMultiPlexer
+        │   ├── it should initialize CONSTRAINT sub-hooks with their initData via executeFromExecutor
+        │   ├── it should deploy ELIGIBILITY modules via HatsModuleFactory and wire to zone hat
+        │   ├── it should register all mechanisms in the mechanism registry
         │   ├── it should mint resource tokens to the TrustZone
         │   ├── it should emit ZoneDeployed
         │   ├── it should emit MechanismRegistered for each mechanism

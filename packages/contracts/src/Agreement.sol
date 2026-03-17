@@ -58,7 +58,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     address _adjudicator;
     uint256 _deadline;
     // Mechanisms
-    ClaimableMechanism[] _mechanisms;
+    RegisteredMechanism[] _mechanisms;
     // Two-step close signals
     bool[2] _completionSignaled;
     bool[2] _exitSignaled;
@@ -75,7 +75,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     bytes _storedProposalData;
   }
 
-  struct ClaimableMechanism {
+  struct RegisteredMechanism {
     TZTypes.TZParamType paramType;
     address module;
     uint256 zoneIndex;
@@ -286,7 +286,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   {
     AgreementStorage storage $ = _getAgreementStorage();
     if (index >= $._mechanisms.length) revert InvalidMechanismIndex(index);
-    ClaimableMechanism storage m = $._mechanisms[index];
+    RegisteredMechanism storage m = $._mechanisms[index];
     return (m.paramType, m.module, m.zoneIndex, m.context);
   }
 
@@ -563,7 +563,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       uint256 mechIndex = $._mechanisms.length;
       $._mechanisms
         .push(
-          ClaimableMechanism({
+          RegisteredMechanism({
             paramType: mech.paramType, module: mech.module, zoneIndex: zoneIndex, context: mech.initData
           })
         );
@@ -717,7 +717,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
       if (action.actionType == AgreementTypes.PENALIZE || action.actionType == AgreementTypes.REWARD) {
         if (action.mechanismIndex >= $._mechanisms.length) revert InvalidMechanismIndex(action.mechanismIndex);
-        ClaimableMechanism storage mech = $._mechanisms[action.mechanismIndex];
+        RegisteredMechanism storage mech = $._mechanisms[action.mechanismIndex];
         // Constraints are self-enforcing — not adjudicatable
         if (mech.paramType == TZTypes.TZParamType.Constraint) revert InvalidMechanismIndex(action.mechanismIndex);
         (bool success,) = mech.module.call(action.params);

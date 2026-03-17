@@ -127,8 +127,8 @@ interface IAgreement is IAgreementErrors, IAgreementEvents {
   /// @notice The locked terms URI.
   function termsUri() external view returns (string memory);
 
-  /// @notice Get a registered claimable mechanism by index.
-  /// @dev Built during activation from TZConfig.mechanisms[] arrays.
+  /// @notice Get a registered mechanism by index.
+  /// @dev All mechanism types are registered during activation. Constraints are not claimable.
   function mechanisms(uint256 index)
     external
     view
