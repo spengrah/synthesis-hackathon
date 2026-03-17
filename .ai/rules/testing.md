@@ -108,6 +108,45 @@ contract MockMechanism {
 }
 ```
 
+## Running contract tests
+
+All test scripts are in the root `package.json`. Each `test:contracts:*` script automatically starts a local Anvil fork if one isn't already running.
+
+### Local Anvil fork
+
+Fork-based tests hit an RPC endpoint for every new address touched. A persistent local Anvil fork eliminates RPC latency and rate-limit risk. The test scripts handle this automatically, but you can also manage the fork manually:
+
+```bash
+pnpm fork:start      # start Anvil fork (Base mainnet at pinned block)
+pnpm fork:status     # check if running
+pnpm fork:stop       # stop Anvil, restore Alchemy URL in foundry.toml
+```
+
+`fork:start` swaps the `base` RPC endpoint in `foundry.toml` to `localhost:8545`. `fork:stop` restores it to Alchemy.
+
+### Test scripts
+
+```bash
+pnpm test:contracts            # full suite (default profile: 64 fuzz runs, 32 invariant runs)
+pnpm test:contracts:unit       # unit tests only (no integration/invariant)
+pnpm test:contracts:invariant  # invariant tests only
+pnpm test:contracts:fast       # lite profile (32 fuzz runs, 5 invariant runs)
+pnpm test:contracts:ci         # CI profile (5000 fuzz runs, 100 invariant runs)
+```
+
+### Foundry profiles
+
+| Profile   | Fuzz runs | Invariant runs | Invariant depth | Use case           |
+|-----------|-----------|----------------|-----------------|--------------------|
+| default   | 64        | 32             | 15              | Local development  |
+| lite      | 32        | 5              | 20              | Quick smoke test   |
+| ci        | 5000      | 100            | 25              | Pre-merge CI       |
+| minimal   | 1         | 1              | 1               | Compilation check  |
+
+### Invariant test gotchas
+
+Invariant tests that run on a fork **must** restrict `targetSender` to known actor addresses. Without this, Foundry's fuzzer generates random `msg.sender` values, each triggering an RPC call to fetch account state — causing rate limits and slow runs.
+
 ## Fork testing
 
 Fork tests use Base mainnet at a pinned block (`Constants.FORK_BLOCK`). Real deployed dependencies:
@@ -117,7 +156,7 @@ Fork tests use Base mainnet at a pinned block (`Constants.FORK_BLOCK`). Real dep
 - ERC-8004 IdentityRegistry: `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`
 - ERC-8004 ReputationRegistry: `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63`
 
-Requires `INFURA_KEY` in `.env` for the Base RPC endpoint.
+Requires `ALCHEMY_API_KEY` in `.env` for the Base RPC endpoint (or a running local Anvil fork via `pnpm fork:start`).
 
 ## Test directory structure
 
