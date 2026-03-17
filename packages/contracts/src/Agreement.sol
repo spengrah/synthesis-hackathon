@@ -329,7 +329,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     // Set state
     $._currentState = AgreementTypes.PROPOSED;
 
-    emit ProposalSubmitted(proposer, $._termsHash, data.termsDocUri);
+    emit ProposalSubmitted(proposer, $._termsHash, data.termsDocUri, payload);
     emit AgreementStateChanged(fromState, AgreementTypes.PROPOSED);
   }
 
@@ -363,7 +363,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       // No state change event — already in NEGOTIATING
     }
 
-    emit ProposalSubmitted(caller, $._termsHash, data.termsDocUri);
+    emit ProposalSubmitted(caller, $._termsHash, data.termsDocUri, payload);
   }
 
   function _handleAccept(AgreementStorage storage $, address caller, bytes calldata payload)

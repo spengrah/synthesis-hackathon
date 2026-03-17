@@ -31,7 +31,7 @@ interface IAgreementEvents {
 
   // ---- Negotiation ----
 
-  event ProposalSubmitted(address indexed proposer, bytes32 termsHash, string termsUri);
+  event ProposalSubmitted(address indexed proposer, bytes32 termsHash, string termsUri, bytes proposalData);
 
   // ---- Activation ----
 
