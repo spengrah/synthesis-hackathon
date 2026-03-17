@@ -169,19 +169,6 @@ export const AgreementABI = [
   },
   {
     "type": "function",
-    "name": "acceptAndActivate",
-    "inputs": [
-      {
-        "name": "proposalData",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "adjudicator",
     "inputs": [],
     "outputs": [
@@ -669,6 +656,31 @@ export const AgreementABI = [
         "type": "bytes32",
         "indexed": true,
         "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AgreementSetUp",
+    "inputs": [
+      {
+        "name": "agreement",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "trustZones",
+        "type": "address[2]",
+        "indexed": false,
+        "internalType": "address[2]"
+      },
+      {
+        "name": "zoneHatIds",
+        "type": "uint256[2]",
+        "indexed": false,
+        "internalType": "uint256[2]"
       }
     ],
     "anonymous": false

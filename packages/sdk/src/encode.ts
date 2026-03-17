@@ -10,6 +10,7 @@ import {
   ACCEPT,
   REJECT,
   WITHDRAW,
+  SET_UP,
   ACTIVATE,
   CLAIM,
   ADJUDICATE,
@@ -120,6 +121,10 @@ export function encodeWithdraw(): SubmitInputArgs {
   return { inputId: WITHDRAW, payload: "0x" };
 }
 
+export function encodeSetUp(): SubmitInputArgs {
+  return { inputId: SET_UP, payload: "0x" };
+}
+
 export function encodeActivate(): SubmitInputArgs {
   return { inputId: ACTIVATE, payload: "0x" };
 }
@@ -185,11 +190,3 @@ export function encodeFinalize(): SubmitInputArgs {
   return { inputId: FINALIZE, payload: "0x" };
 }
 
-export function encodeAcceptAndActivate(
-  activationData: Hex,
-): SubmitInputArgs {
-  // acceptAndActivate is a convenience that bundles ACCEPT + ACTIVATE
-  // The inputId is ACCEPT, payload carries activation data
-  const payload = activationData;
-  return { inputId: ACCEPT, payload };
-}

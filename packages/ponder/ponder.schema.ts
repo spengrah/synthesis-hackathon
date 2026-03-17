@@ -16,6 +16,7 @@ export const agreement = onchainTable("agreement", (t) => ({
   partyAExited: t.boolean().notNull().default(false),
   partyBExited: t.boolean().notNull().default(false),
   createdAt: t.bigint().notNull(),
+  setUpAt: t.bigint(),
   activatedAt: t.bigint(),
   closedAt: t.bigint(),
 }));

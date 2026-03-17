@@ -19,7 +19,7 @@ import {
 // ─── decodeBytes32 ──────────────────────────────────────────────
 
 describe("decodeBytes32", () => {
-  const states = ["PROPOSED", "NEGOTIATING", "ACCEPTED", "ACTIVE", "CLOSED", "REJECTED"] as const;
+  const states = ["PROPOSED", "NEGOTIATING", "ACCEPTED", "READY", "ACTIVE", "CLOSED", "REJECTED"] as const;
   const outcomes = ["COMPLETED", "EXITED", "EXPIRED", "ADJUDICATED"] as const;
   const actionTypes = ["PENALIZE", "REWARD", "FEEDBACK", "DEACTIVATE", "CLOSE"] as const;
 

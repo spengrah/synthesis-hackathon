@@ -1,5 +1,5 @@
 import { ponder } from "@/generated";
-import { eq } from "@ponder/core";
+import { eq, and, isNull } from "@ponder/core";
 import {
   agreement,
   actor,
@@ -241,6 +241,17 @@ ponder.on("Agreement:AgreementStateChanged", async ({ event, context }) => {
   await db.update(agreement, { id: agreementId }).set({ state: toState });
 });
 
+// ─── AgreementSetUp ──────────────────────────────────────────────
+
+ponder.on("Agreement:AgreementSetUp", async ({ event, context }) => {
+  const { db } = context;
+  const agreementId = event.log.address.toLowerCase() as Hex;
+
+  await db
+    .update(agreement, { id: agreementId })
+    .set({ setUpAt: event.block.timestamp });
+});
+
 // ─── AgreementActivated ──────────────────────────────────────────
 
 ponder.on("Agreement:AgreementActivated", async ({ event, context }) => {
@@ -294,13 +305,19 @@ ponder.on("Agreement:ZoneDeployed", async ({ event, context }) => {
 });
 
 // ─── MechanismRegistered ─────────────────────────────────────────
+// Strategy: promote the matching tentative entity (from ProposalData parsing) to
+// deployed by setting trustZoneId. This preserves moduleKind and data.
+//
+// Matching: for singletons (ERC7579Hook/External), the deployed address matches
+// the tentative module address exactly. For HatsModule clones, the deployed
+// address differs, so we fall back to positional match — but only if there is
+// exactly one unmatched candidate (ambiguity = no promotion).
 
 ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
   const { db } = context;
   const agreementId = event.log.address.toLowerCase() as Hex;
-  const mechIndex = event.args.mechanismIndex;
   const paramType = event.args.paramType;
-  const module = event.args.module as Hex;
+  const deployedModule = (event.args.module as string).toLowerCase() as Hex;
   const zoneIndex = Number(event.args.zoneIndex);
 
   // Find the trust zone for this agreement + zoneIndex
@@ -311,77 +328,62 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
   const tz = zones.find((z) => z.zoneIndex === zoneIndex);
   const tzId = tz?.id;
 
-  const entityId = `${agreementId}:deployed:m${mechIndex}`;
-  const data = "0x" as Hex;
+  // Helper: find a tentative entity to promote.
+  // 1. Try exact module address match (works for singletons)
+  // 2. Fall back to sole unmatched candidate (works for clones when unambiguous)
+  const promote = async (
+    table: typeof constraint | typeof eligibility | typeof decisionModel | typeof principalAlignment,
+  ) => {
+    const candidates = await db.sql
+      .select()
+      .from(table)
+      .where(and(eq(table.agreementId, agreementId), eq(table.zoneIndex, zoneIndex), isNull(table.trustZoneId)));
+
+    // Try exact address match first (singleton modules keep their address)
+    let match = candidates.find((c) => (c.module as string).toLowerCase() === deployedModule);
+
+    // Fall back: if exactly one unmatched candidate, it must be the one (clone)
+    if (!match && candidates.length === 1) {
+      match = candidates[0];
+    }
+
+    if (match) {
+      await db.update(table, { id: match.id }).set({ trustZoneId: tzId, module: deployedModule });
+    }
+  };
+
+  const promoteIncentive = async () => {
+    const candidates = await db.sql
+      .select()
+      .from(incentive)
+      .where(and(eq(incentive.agreementId, agreementId), eq(incentive.zoneIndex, zoneIndex), isNull(incentive.trustZoneId)));
+
+    let match = candidates.find((c) => (c.module as string).toLowerCase() === deployedModule);
+    if (!match && candidates.length === 1) {
+      match = candidates[0];
+    }
+
+    if (match) {
+      await db.update(incentive, { id: match.id }).set({ trustZoneId: tzId, module: deployedModule });
+    }
+  };
 
   switch (paramType) {
     case PARAM_TYPE.Constraint:
-      await db.insert(constraint).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
+      await promote(constraint);
       break;
     case PARAM_TYPE.Eligibility:
-      await db.insert(eligibility).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
+      await promote(eligibility);
       break;
     case PARAM_TYPE.Reward:
-      await db.insert(incentive).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        incentiveType: "Reward",
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
-      break;
     case PARAM_TYPE.Penalty:
-      await db.insert(incentive).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        incentiveType: "Penalty",
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
+      await promoteIncentive();
       break;
     case PARAM_TYPE.PrincipalAlignment:
-      await db.insert(principalAlignment).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
+      await promote(principalAlignment);
       break;
     case PARAM_TYPE.DecisionModel:
-      await db.insert(decisionModel).values({
-        id: entityId,
-        agreementId,
-        trustZoneId: tzId,
-        zoneIndex,
-        module,
-        data,
-        createdAt: event.block.timestamp,
-      });
+      await promote(decisionModel);
       break;
   }
 });

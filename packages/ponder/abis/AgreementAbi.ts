@@ -18,6 +18,15 @@ export const agreementAbi = [
   },
   {
     type: "event",
+    name: "AgreementSetUp",
+    inputs: [
+      { name: "agreement", type: "address", indexed: true },
+      { name: "trustZones", type: "address[2]", indexed: false },
+      { name: "zoneHatIds", type: "uint256[2]", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "AgreementActivated",
     inputs: [
       { name: "agreement", type: "address", indexed: true },

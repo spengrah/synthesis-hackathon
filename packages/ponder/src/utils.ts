@@ -7,6 +7,7 @@ const LABELS = [
   "PROPOSED",
   "NEGOTIATING",
   "ACCEPTED",
+  "READY",
   "ACTIVE",
   "CLOSED",
   "REJECTED",
