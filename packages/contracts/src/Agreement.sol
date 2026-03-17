@@ -451,6 +451,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     AgreementTypes.ProposalData memory data = abi.decode($._storedProposalData, (AgreementTypes.ProposalData));
     if (data.zones.length != 2) revert InvalidZoneCount();
+    if (data.deadline <= block.timestamp) revert DeadlineReached(data.deadline);
 
     $._adjudicator = data.adjudicator;
     $._deadline = data.deadline;
@@ -468,6 +469,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
   /// @dev Deploy a single trust zone: create hat, verify agentId, deploy clone, register mechanisms, mint tokens.
   function _deployZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
+    if (zone.party != $._parties[zoneIndex]) revert NotAParty(zone.party);
     _verifyAgentId(zone);
     uint256 zoneHatId = _createZoneHat($, zone);
     address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex);

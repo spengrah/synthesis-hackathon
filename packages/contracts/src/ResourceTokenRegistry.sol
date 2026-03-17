@@ -72,6 +72,7 @@ contract ResourceTokenRegistry is IResourceTokenRegistry {
     internal
     returns (bool)
   {
+    if (amount != 1) revert BalanceExceedsMax();
     _checkIsCreator(id);
     _checkIsHeld(sender, id);
     _checkNotHeld(receiver, id);

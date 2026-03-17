@@ -3,8 +3,11 @@ pragma solidity >=0.8.28;
 
 import { AgreementBase } from "../../Base.t.sol";
 import { AgreementTypes } from "../../../src/lib/AgreementTypes.sol";
+import { TZTypes } from "../../../src/lib/TZTypes.sol";
 import { IAgreement, IAgreementErrors, IAgreementEvents } from "../../../src/interfaces/IAgreement.sol";
+import { Agreement } from "../../../src/Agreement.sol";
 import { Constants } from "../../helpers/Constants.sol";
+import { Defaults } from "../../helpers/Defaults.sol";
 
 contract Agreement_handleActivate is AgreementBase {
   function test_RevertIf_StateIsNotAccepted() public {
@@ -87,6 +90,40 @@ contract Agreement_handleActivate is AgreementBase {
     // Verify hats are minted
     assertTrue(hats.isWearerOfHat(partyA, agreement.zoneHatIds(0)));
     assertTrue(hats.isWearerOfHat(partyB, agreement.zoneHatIds(1)));
+  }
+
+  function test_RevertIf_ZonePartyDoesNotMatchAgreementParty() public {
+    // Build proposal where zone[0].party is a random address instead of partyA
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(makeAddr("imposter"), 0); // wrong party
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    AgreementTypes.ProposalData memory data =
+      Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);
+    bytes memory payload = abi.encode(data);
+
+    (Agreement badAgreement,) = _createAgreementClone(payload);
+    vm.prank(partyB);
+    badAgreement.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.NotAParty.selector, makeAddr("imposter")));
+    vm.prank(partyA);
+    badAgreement.submitInput(AgreementTypes.ACTIVATE, "");
+  }
+
+  function test_RevertIf_DeadlineIsInThePast() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    AgreementTypes.ProposalData memory data = Defaults.proposalData(zones, adjudicator, block.timestamp - 1);
+    bytes memory payload = abi.encode(data);
+
+    (Agreement badAgreement,) = _createAgreementClone(payload);
+    vm.prank(partyB);
+    badAgreement.submitInput(AgreementTypes.ACCEPT, payload);
+
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.DeadlineReached.selector, block.timestamp - 1));
+    vm.prank(partyA);
+    badAgreement.submitInput(AgreementTypes.ACTIVATE, "");
   }
 
   function test_EmitsAgreementStateChanged() public {

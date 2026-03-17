@@ -16,6 +16,28 @@ contract Transfer_Test is ResourceTokenRegistryBase {
     aliceTokenId = _mintDefault(alice, Defaults.PERMISSION_TYPE);
   }
 
+  // --- amount validation ---
+
+  function test_Transfer_RevertIf_AmountIsZero() public {
+    uint256 minterTokenId = _mintDefault(minter, Defaults.PERMISSION_TYPE);
+    vm.prank(minter);
+    vm.expectRevert(IResourceTokenRegistryErrors.BalanceExceedsMax.selector);
+    registry.transfer(bob, minterTokenId, 0);
+  }
+
+  function test_Transfer_RevertIf_AmountIsGreaterThanOne() public {
+    uint256 minterTokenId = _mintDefault(minter, Defaults.PERMISSION_TYPE);
+    vm.prank(minter);
+    vm.expectRevert(IResourceTokenRegistryErrors.BalanceExceedsMax.selector);
+    registry.transfer(bob, minterTokenId, 2);
+  }
+
+  function test_TransferFrom_RevertIf_AmountIsNotOne() public {
+    vm.prank(minter);
+    vm.expectRevert(IResourceTokenRegistryErrors.BalanceExceedsMax.selector);
+    registry.transferFrom(alice, bob, aliceTokenId, 0);
+  }
+
   // --- transfer ---
 
   function test_Transfer_RevertIf_CallerIsNotCreator() public {

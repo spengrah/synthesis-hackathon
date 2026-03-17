@@ -71,6 +71,10 @@ Agreement_handleActivate
     │   └── it should revert with AgentIdVerificationFailed
     ├── given zones length is not 2
     │   └── it should revert with InvalidZoneCount
+    ├── given a zone party does not match the agreement party
+    │   └── it should revert with NotAParty
+    ├── given deadline is in the past or zero
+    │   └── it should revert with DeadlineReached
     └── given all validations pass
         ├── for each zone
         │   ├── it should create a zone hat via Hats Protocol
