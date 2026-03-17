@@ -27,19 +27,17 @@ Zone hats are created during activation. Their configuration comes from `TZConfi
 - `hatMaxSupply` — how many of this zone hat can exist (typically 1 for 1:1 agreements)
 - `hatDetails` — human/agent-readable description
 
-### Eligibility modules (from TZConfig.mechanisms where paramType == ELIGIBILITY)
+### Hat-wired eligibility modules
 
-ELIGIBILITY mechanisms are installed as Hats eligibility modules on the zone hat. Multiple eligibility modules can be chained.
+Mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Eligibility, Penalty}` are deployed via `HatsModuleFactory` and wired to the zone hat as eligibility modules. Multiple modules are chained via `HatsEligibilitiesChain` (AND-all logic).
 
-Example mechanisms:
+**ELIGIBILITY** modules gate hat-wearing — the agent must meet criteria to wear the hat:
+1. **Staking eligibility** — agent deposits ETH/tokens. `data` encodes minStake, token, cooldown.
+2. **8004ReputationEligibility** — checks agent's 8004 reputation. `data` encodes threshold.
 
-1. **Staking eligibility** (existing Hats module) — agent deposits ETH/tokens to become hat-eligible
-   - `minStake` threshold is a negotiated term encoded in `Mechanism.params`
-   - Agreement contract is configured as the `judge` (can call `slash()`)
+**PENALTY** modules are also wired to the hat because a negative judgment (e.g., slashing) results in the agent losing hat eligibility and being ejected from the zone.
 
-2. **8004ReputationEligibility** (new module) — checks agent's 8004 reputation history
-   - Threshold/criteria are negotiated terms encoded in `Mechanism.params`
-   - For hackathon: simple check against 8004 feedback count/tags
+**REWARD** modules with `moduleKind == HatsModule` are deployed via the factory but NOT wired to the zone hat — they don't affect eligibility.
 
 ### Toggle module
 
@@ -65,9 +63,16 @@ When the agreement transitions to CLOSED, it interacts with mechanisms based on 
 
 ## Eligibility module deployment
 
-During activation, ELIGIBILITY mechanisms from `TZConfig.mechanisms[]` are deployed as Hats eligibility modules via `HatsModuleFactory.createHatsModule()`. If multiple eligibility modules exist for a zone, they are wrapped in a `HatsEligibilitiesChain` (AND-all logic). The resulting eligibility address is set on the zone hat at creation time.
+During activation, mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Eligibility, Penalty}` are deployed via `HatsModuleFactory.createHatsModule()` and wired to the zone hat:
 
-If no ELIGIBILITY mechanisms are specified, `Agreement.getWearerStatus()` is used as the eligibility module and always returns `(true, true)` (open eligibility).
+1. Predict zone hat ID via `HATS.getNextId(agreementHatId)`
+2. Deploy each module: `factory.createHatsModule(implementation, hatId, "", data, salt)`
+3. If multiple: wrap in `HatsEligibilitiesChain` (AND-all)
+4. Create hat with the resulting eligibility address
+
+Salt uniqueness: `zoneIndex * 100 + subIndex` per module to avoid collisions when two modules share the same implementation.
+
+If no hat-wired mechanisms are specified, `Agreement.getWearerStatus()` is used as the eligibility module and always returns `(true, true)` (open eligibility).
 
 ## Hats Protocol addresses
 

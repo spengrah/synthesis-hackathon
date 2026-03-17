@@ -233,8 +233,9 @@ Constraint {
   trustZone: TrustZone?
   zoneIndex: int
 
-  module: address                // ERC-7579 hook contract
-  initData: hex                  // raw init data
+  moduleKind: string             // "HatsModule", "ERC7579Hook", "External"
+  module: address                // deployed address (clone or singleton)
+  data: hex                      // module-specific config
 
   createdAt: bigint
 }
@@ -246,8 +247,9 @@ Eligibility {
   trustZone: TrustZone?
   zoneIndex: int
 
-  module: address                // Hats eligibility module
-  initData: hex
+  moduleKind: string
+  module: address
+  data: hex
 
   createdAt: bigint
 }
@@ -260,8 +262,9 @@ Incentive {
   zoneIndex: int
 
   incentiveType: string          // "Reward" or "Penalty"
-  module: address                // claimable mechanism contract
-  initData: hex
+  moduleKind: string
+  module: address
+  data: hex
 
   createdAt: bigint
 }
@@ -273,8 +276,9 @@ DecisionModel {
   trustZone: TrustZone?
   zoneIndex: int
 
+  moduleKind: string
   module: address
-  initData: hex
+  data: hex
 
   createdAt: bigint
 }
@@ -286,8 +290,9 @@ PrincipalAlignment {
   trustZone: TrustZone?
   zoneIndex: int
 
+  moduleKind: string
   module: address
-  initData: hex
+  data: hex
 
   createdAt: bigint
 }
@@ -420,6 +425,13 @@ struct TZConfig {
     string hatDetails;
     TZMechanism[] mechanisms;
     TZResourceTokenConfig[] resources;
+}
+
+struct TZMechanism {
+    TZParamType paramType;
+    TZModuleKind moduleKind;  // HatsModule(0), ERC7579Hook(1), External(2)
+    address module;
+    bytes data;
 }
 ```
 

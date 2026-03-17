@@ -17,23 +17,30 @@ The compiler is focused exclusively on PROPOSE/COUNTER payloads (TZ schema ↔ P
 
 Atomic, composable functions. Each maps one TZ schema dimension to one onchain artifact.
 
-### CONSTRAINT templates (TZParamType.Constraint → ERC-7579 hooks on TZ Account)
+Each template produces a `TZMechanism` with the appropriate `paramType`, `moduleKind`, `module` address, and `data`.
+
+### CONSTRAINT templates (ERC7579Hook — pre-deployed singletons)
 ```
-budget-cap             →  TZMechanism{Constraint, SpendingLimitHook, initData}
-target-allowlist       →  TZMechanism{Constraint, PermissionsHook, initData}
-time-lock              →  TZMechanism{Constraint, ColdStorageHook, initData}
+budget-cap             →  TZMechanism{Constraint, ERC7579Hook, SpendingLimitHook, data}
+target-allowlist       →  TZMechanism{Constraint, ERC7579Hook, PermissionsHook, data}
+time-lock              →  TZMechanism{Constraint, ERC7579Hook, ColdStorageHook, data}
 ```
 
-### ELIGIBILITY templates (TZParamType.Eligibility → Hats eligibility modules on zone hat)
+### ELIGIBILITY templates (HatsModule — factory-deployed, wired to zone hat)
 ```
-reputation-gate        →  TZMechanism{Eligibility, 8004ReputationEligibility, initData}
-staking-requirement    →  TZMechanism{Eligibility, StakingEligibility, initData}
+reputation-gate        →  TZMechanism{Eligibility, HatsModule, 8004ReputationEligibility, data}
+staking-requirement    →  TZMechanism{Eligibility, HatsModule, StakingEligibility, data}
 ```
 
-### INCENTIVE templates (TZParamType.Penalty/Reward → claimable mechanisms in agreement registry)
+### PENALTY templates (HatsModule — factory-deployed, wired to zone hat)
 ```
-slashable-bond         →  TZMechanism{Penalty, StakingModule, initData{slashPercent, ...}}
-reputation-feedback    →  TZMechanism{Reward, ReputationRegistry, initData{...}}
+slashable-bond         →  TZMechanism{Penalty, HatsModule, StakingEligibility, data}
+```
+
+### REWARD templates (HatsModule or External — NOT wired to zone hat)
+```
+reputation-feedback    →  TZMechanism{Reward, External, ReputationRegistry, data}
+token-distribution     →  TZMechanism{Reward, HatsModule, RewardModule, data}
 ```
 
 ### Adjudication (agreement-level, not per-zone)

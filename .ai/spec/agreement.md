@@ -71,12 +71,20 @@ enum TZParamType {
     DecisionModel        // 8
 }
 
+/// @notice How a mechanism module is deployed and initialized.
+enum TZModuleKind {
+    HatsModule,    // 0 — Deploy clone via HatsModuleFactory; data = setUp args
+    ERC7579Hook,   // 1 — Pre-deployed singleton; data = onInstall args
+    External       // 2 — Pre-deployed contract; data = raw calldata (selector + args)
+}
+
 /// @notice A mechanism attached to a trust zone. Used for negotiation terms,
 ///         activation config, and runtime claim/adjudication routing.
 struct TZMechanism {
-    TZParamType paramType; // enum value
-    address module;        // target contract
-    bytes initData;        // negotiable, module-specific config
+    TZParamType paramType;   // what role this mechanism plays
+    TZModuleKind moduleKind; // how the module is deployed/initialized
+    address module;          // implementation (HatsModule) or deployed address (ERC7579Hook/External)
+    bytes data;              // module-specific config (semantics depend on moduleKind)
 }
 
 /// @notice A resource token to mint to a trust zone's TZ account.
@@ -197,22 +205,37 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 - ACTIVATE deploys zones, installs mechanisms, mints hats and resource tokens.
 
 ### Activation logic (ACCEPTED → ACTIVE)
+
 1. For each zone (`TZConfig`):
-   a. Create zone hat (child of agreement hat) via Hats Protocol
+   a. **Create zone hat** (child of agreement hat) via Hats Protocol
       - Predict zone hat ID via `HATS.getNextId(agreementHatId)`
-      - Deploy ELIGIBILITY mechanisms via `HatsModuleFactory.createHatsModule()` (if any)
-      - If multiple eligibility modules, wrap in `HatsEligibilitiesChain` (AND-all)
-      - If no eligibility modules, use `address(this)` (always eligible)
+      - Collect mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Eligibility, Penalty}` — these are hat-wired
+      - Deploy each via `HatsModuleFactory.createHatsModule(module, hatId, "", data, salt)`
+      - If multiple, wrap in `HatsEligibilitiesChain` (AND-all)
+      - If none, use `address(this)` (always eligible)
       - Toggle is always `address(this)` (the agreement contract as `IHatsToggle`)
-   b. Verify `agentId`: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
-   c. Mint zone hat to party
-   d. Deploy TZ Account clone via `Clones.cloneDeterministic`
-   e. Install HatValidator + agreement executor + HookMultiPlexer on TZ Account
-   f. Collect CONSTRAINT mechanisms (deduplicated) and pass as globalHooks to HookMultiPlexer init
-   f2. Initialize each CONSTRAINT sub-hook's `onInstall(initData)` via `executeFromExecutor` (for hooks with non-empty initData)
-   g. Register all mechanisms in the mechanism registry (full zone definition; Constraints rejected at claim time, not at registration)
-   h. Mint resource tokens to TZ account
-2. Emit `AgreementActivated`, `ZoneDeployed`, `ResourceTokenAssigned`
+   b. **Deploy non-hat-wired HatsModules** — mechanisms with `moduleKind == HatsModule` and `paramType ∈ {Reward, ...}`. Deployed via factory but NOT wired to the zone hat.
+   c. **Verify `agentId`**: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
+   d. **Mint zone hat** to party
+   e. **Deploy TZ Account clone** via `Clones.cloneDeterministic`
+   f. **Install 7579 modules** on TZ Account: HatValidator + agreement executor + HookMultiPlexer
+   g. **Wire CONSTRAINT hooks**: collect `moduleKind == ERC7579Hook` mechanisms (sorted, deduplicated), pass as globalHooks to HookMultiPlexer init
+   h. **Initialize module configs** per `moduleKind`:
+      - `ERC7579Hook`: call `onInstall(data)` on each hook via `executeFromExecutor` (for hooks with non-empty data)
+      - `External`: call `module.call(data)` if data is non-empty (raw calldata including selector)
+   i. **Register all mechanisms** in the mechanism registry (full zone definition; Constraints rejected at claim time)
+   j. **Mint resource tokens** to TZ account
+2. Emit `AgreementActivated`, `ZoneDeployed`, `MechanismRegistered`, `ResourceTokenAssigned`
+
+### Mechanism deployment per `moduleKind`
+
+| `moduleKind` | `module` field is | Deployed during activation? | Initialization | Wired to zone hat? |
+|---|---|---|---|---|
+| `HatsModule` | Implementation address | Yes — factory deploys clone | Factory calls `setUp(data)` | If Eligibility/Penalty: yes. If Reward: no |
+| `ERC7579Hook` | Deployed singleton address | No | `onInstall(data)` via executeFromExecutor on TZ account | No (registered on HookMultiPlexer) |
+| `External` | Deployed contract address | No | `module.call(data)` if data non-empty | No |
+
+**Registry storage:** For `HatsModule` mechanisms, the mechanism registry stores the **deployed clone address** (not the implementation). For `ERC7579Hook` and `External`, it stores the `module` address as-is.
 
 ### ACTIVE
 
@@ -298,16 +321,19 @@ During activation, the agreement registers ALL mechanisms from `TZConfig.mechani
 
 ```solidity
 struct RegisteredMechanism {
-    TZParamType paramType; // enum value
-    address module;        // target contract
-    uint8 zoneIndex;       // which zone this belongs to
-    bytes context;         // module-specific context (hatId, agentId, etc.)
+    TZParamType paramType;   // what role this mechanism plays
+    TZModuleKind moduleKind; // how it was deployed/initialized
+    address module;          // deployed address (clone for HatsModule, singleton for others)
+    uint8 zoneIndex;         // which zone this belongs to
+    bytes context;           // module-specific context (original data from TZMechanism)
 }
 
 RegisteredMechanism[] public mechanisms;
 ```
 
-All mechanism types are registered (Constraint, Eligibility, Reward, Penalty, etc.) so the full zone configuration is visible onchain and indexable. However, **Constraint mechanisms are self-enforcing** (via ERC-7579 hooks) and cannot be claimed against — `CLAIM` reverts with `InvalidMechanismIndex` if the referenced mechanism is a Constraint.
+All mechanism types are registered so the full zone configuration is visible onchain and indexable. This is the complete zone definition — the Ponder indexer reads it to build the TrustZone subgraph.
+
+**Claimability:** Constraint mechanisms are self-enforcing (ERC-7579 hooks) and cannot be claimed or adjudicated against — `CLAIM` reverts with `InvalidMechanismIndex` if the referenced mechanism is a Constraint. `ADJUDICATE` also rejects `PENALIZE`/`REWARD` actions targeting Constraints.
 
 CLAIM and ADJUDICATE inputs reference mechanisms by index in this array.
 

@@ -109,10 +109,17 @@ interface TZConfig {
   resources: TZResourceTokenConfig[]
 }
 
+enum TZModuleKind {
+  HatsModule = 0,
+  ERC7579Hook = 1,
+  External = 2,
+}
+
 interface TZMechanism {
   paramType: TZParamType
+  moduleKind: TZModuleKind
   module: Address
-  initData: Hex
+  data: Hex
 }
 
 interface TZResourceTokenConfig {
