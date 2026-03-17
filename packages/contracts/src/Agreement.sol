@@ -718,6 +718,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
       if (action.actionType == AgreementTypes.PENALIZE || action.actionType == AgreementTypes.REWARD) {
         if (action.mechanismIndex >= $._mechanisms.length) revert InvalidMechanismIndex(action.mechanismIndex);
         ClaimableMechanism storage mech = $._mechanisms[action.mechanismIndex];
+        // Constraints are self-enforcing — not adjudicatable
+        if (mech.paramType == TZTypes.TZParamType.Constraint) revert InvalidMechanismIndex(action.mechanismIndex);
         (bool success,) = mech.module.call(action.params);
         if (!success) revert InvalidInput(action.actionType);
       } else if (action.actionType == AgreementTypes.FEEDBACK) {

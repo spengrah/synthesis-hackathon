@@ -313,4 +313,45 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
     vm.prank(adjudicator);
     activeAgreement.submitInput(AgreementTypes.ADJUDICATE, abi.encode(uint256(0), true, actions));
   }
+
+  function test_Adjudicate_PenalizeRevertsForConstraintMechanism() public {
+    // Build agreement with Constraint (index 0) + Penalty (index 1)
+    address mockHook = address(new MockConstraintHook());
+    MockMechanism penaltyMech = new MockMechanism();
+
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    TZTypes.TZMechanism[] memory mechs = new TZTypes.TZMechanism[](2);
+    mechs[0] = TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Constraint, module: mockHook, initData: "" });
+    mechs[1] =
+      TZTypes.TZMechanism({ paramType: TZTypes.TZParamType.Penalty, module: address(penaltyMech), initData: "" });
+    zones[0].mechanisms = mechs;
+
+    AgreementTypes.ProposalData memory data =
+      Defaults.proposalData(zones, adjudicator, block.timestamp + Constants.DEFAULT_DEADLINE);
+    bytes memory payload = abi.encode(data);
+
+    (AgreementHarness clone,) = _createHarnessCloneWithPayload(payload);
+    vm.prank(partyB);
+    clone.submitInput(AgreementTypes.ACCEPT, payload);
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+
+    // File a claim against the Penalty mechanism (index 1)
+    clone.exposed_handleClaim(partyA, abi.encode(uint256(1), abi.encode("evidence")));
+
+    // Try to PENALIZE the Constraint mechanism (index 0) — should revert
+    AgreementTypes.AdjudicationAction[] memory actions = new AgreementTypes.AdjudicationAction[](1);
+    actions[0] = AgreementTypes.AdjudicationAction({
+      mechanismIndex: 0, targetIndex: 0, actionType: AgreementTypes.PENALIZE, params: ""
+    });
+
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.InvalidMechanismIndex.selector, uint256(0)));
+    clone.exposed_handleAdjudicate(adjudicator, abi.encode(uint256(0), true, actions));
+  }
+}
+
+contract MockConstraintHook {
+  fallback() external payable { }
 }
