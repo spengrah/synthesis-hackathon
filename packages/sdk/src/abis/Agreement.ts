@@ -36,9 +36,32 @@ export const AgreementABI = [
         "name": "_hatValidator",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_hatsModuleFactory",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_eligibilitiesChainImpl",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "ELIGIBILITIES_CHAIN_IMPL",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -49,6 +72,19 @@ export const AgreementABI = [
         "name": "",
         "type": "address",
         "internalType": "contract IHats"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "HATS_MODULE_FACTORY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract HatsModuleFactory"
       }
     ],
     "stateMutability": "view"
