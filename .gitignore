@@ -5,6 +5,7 @@ node_modules/
 packages/contracts/out/
 packages/contracts/cache/
 packages/contracts/.anvil.pid
+packages/contracts/lcov.info
 
 # Env
 .env
@@ -12,6 +13,9 @@ packages/contracts/.anvil.pid
 
 # Build
 dist/
+
+# Claude Code
+.claude/settings.local.json
 
 # OS
 .DS_Store
