@@ -18,13 +18,14 @@ interface IAgreementRegistryEvents {
 
 /// @title IAgreementRegistry
 /// @notice Factory + Hats tree manager for Trust Zone agreements.
-/// @dev Wears the Trust Zones top hat. Deploys agreement contracts, creates agreement-level hats,
+/// @dev Wears the Trust Zones top hat. Deploys agreement clones, creates agreement-level hats,
 ///      and registers new agreements as authorized minters on the ResourceTokenRegistry.
 interface IAgreementRegistry is IAgreementRegistryErrors, IAgreementRegistryEvents {
   /// @notice Deploy a new agreement contract. msg.sender is partyA (the initial proposer).
-  /// @dev Deploys via CREATE2 (deterministic address). Creates an agreement-level hat as a child of
-  ///      the top hat, transfers hat admin to the new agreement, and registers the agreement as
-  ///      an authorized minter on the ResourceTokenRegistry.
+  /// @dev Creates an agreement-level hat (child of top hat), mints it to the new agreement,
+  ///      deploys an Agreement clone via Clones.cloneDeterministic (salt = keccak256(agreementHatId, chainId)),
+  ///      registers the agreement as an authorized minter on ResourceTokenRegistry,
+  ///      and initializes the agreement with parties + proposalData.
   /// @param partyB The counterparty.
   /// @param proposalData ABI-encoded initial ProposalData submitted by msg.sender (partyA).
   /// @return agreement The deployed agreement contract address.
@@ -44,12 +45,6 @@ interface IAgreementRegistry is IAgreementRegistryErrors, IAgreementRegistryEven
   /// @notice The ResourceTokenRegistry address.
   function resourceTokenRegistry() external view returns (address);
 
-  /// @notice The ERC-8004 IdentityRegistry address.
-  function identityRegistry() external view returns (address);
-
-  /// @notice The ERC-8004 ReputationRegistry address.
-  function reputationRegistry() external view returns (address);
-
-  /// @notice The TrustZone implementation address (used for ERC-1167 clones).
-  function trustZoneImplementation() external view returns (address);
+  /// @notice The Agreement implementation address (used for ERC-1167 clones).
+  function agreementImplementation() external view returns (address);
 }

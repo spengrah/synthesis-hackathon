@@ -11,6 +11,8 @@ import { TestHelpers } from "./helpers/TestHelpers.sol";
 import { ResourceTokenRegistry } from "../src/ResourceTokenRegistry.sol";
 import { HatValidator } from "../src/modules/HatValidator.sol";
 import { TrustZone } from "../src/TrustZone.sol";
+import { Agreement } from "../src/Agreement.sol";
+import { IAgreement, IAgreementErrors } from "../src/interfaces/IAgreement.sol";
 import { IReputationRegistry } from "../src/interfaces/IERC8004.sol";
 import { TZTypes } from "../src/lib/TZTypes.sol";
 import { AgreementTypes } from "../src/lib/AgreementTypes.sol";
@@ -18,7 +20,12 @@ import { AgreementTypes } from "../src/lib/AgreementTypes.sol";
 import { DeployResourceTokenRegistry } from "../script/DeployResourceTokenRegistry.s.sol";
 import { DeployHatValidator } from "../script/DeployHatValidator.s.sol";
 import { DeployTrustZone } from "../script/DeployTrustZone.s.sol";
+import { DeployAgreement } from "../script/DeployAgreement.s.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+
+import { HookMultiPlexer } from "core-modules/HookMultiPlexer/HookMultiPlexer.sol";
+import { MockRegistry } from "modulekit/module-bases/mocks/MockRegistry.sol";
+import { IERC7484 } from "modulekit/module-bases/interfaces/IERC7484.sol";
 
 // ====================
 // ForkTestBase
@@ -36,6 +43,8 @@ abstract contract ForkTestBase is Test {
   ResourceTokenRegistry internal registry;
   HatValidator internal hatValidator;
   TrustZone internal trustZoneImpl;
+  Agreement internal agreementImpl;
+  HookMultiPlexer internal hookMultiplexer;
   // AgreementRegistry internal agreementRegistry;
 
   // ---- Hat tree (set by _createHatTree) ----
@@ -97,6 +106,31 @@ abstract contract ForkTestBase is Test {
     vm.stopPrank();
   }
 
+  /// @dev Deploy HookMultiPlexer with a MockRegistry.
+  function _deployHookMultiplexer() internal {
+    vm.startPrank(deployer);
+    MockRegistry mockRegistry = new MockRegistry();
+    hookMultiplexer = new HookMultiPlexer(IERC7484(address(mockRegistry)));
+    vm.stopPrank();
+  }
+
+  /// @dev Deploy Agreement implementation using the deploy script.
+  ///      Requires registry, hatValidator, trustZoneImpl, and hookMultiplexer to be deployed first.
+  function _deployAgreementImpl() internal {
+    vm.startPrank(deployer);
+    DeployAgreement deployScript = new DeployAgreement();
+    agreementImpl = deployScript.execute(
+      address(hats),
+      address(registry),
+      identityRegistry,
+      address(reputationRegistry),
+      address(trustZoneImpl),
+      address(hookMultiplexer),
+      address(hatValidator)
+    );
+    vm.stopPrank();
+  }
+
   /// @dev Deploy AgreementRegistry and wire it to the other contracts.
   ///      Requires registry, hatValidator, and trustZoneImpl to be deployed first.
   function _deployAgreementRegistry() internal {
@@ -116,6 +150,8 @@ abstract contract ForkTestBase is Test {
     _deployResourceTokenRegistry();
     _deployHatValidator();
     _deployTrustZoneImpl();
+    _deployHookMultiplexer();
+    _deployAgreementImpl();
     _deployAgreementRegistry();
   }
 
@@ -123,7 +159,7 @@ abstract contract ForkTestBase is Test {
   // Hat tree helpers
   // ====================
 
-  /// @dev Create a minimal hat tree: top hat → agreement hat → two zone hats.
+  /// @dev Create a minimal hat tree: top hat -> agreement hat -> two zone hats.
   ///      Mints zone hats to partyA and partyB.
   function _createHatTree() internal {
     vm.startPrank(deployer);
@@ -156,27 +192,69 @@ abstract contract ForkTestBase is Test {
   }
 
   // ====================
+  // Agreement helpers
+  // ====================
+
+  uint256 private _cloneNonce;
+
+  /// @dev Create an agreement clone, initialize it, and return the clone address.
+  ///      Creates a hat tree where the clone can create child hats.
+  function _createAgreementClone(bytes memory proposalPayload)
+    internal
+    returns (Agreement agreementClone, uint256 _agreementHatId)
+  {
+    // Predict clone address (use nonce for uniqueness)
+    bytes32 salt = keccak256(abi.encode("agreement-test", _cloneNonce++));
+    address predicted = Clones.predictDeterministicAddress(address(agreementImpl), salt);
+
+    // Create hat tree: topHat (deployer) -> agreementHat (clone as eligibility/toggle)
+    // Transfer topHat to clone so it can create child zone hats (Hats requires admin wearer).
+    vm.startPrank(deployer);
+    topHatId = hats.mintTopHat(deployer, "Trust Zones", "");
+    _agreementHatId = hats.createHat(topHatId, "Agreement #1", 10, predicted, predicted, true, "");
+    hats.transferHat(topHatId, deployer, predicted);
+    vm.stopPrank();
+
+    // Deploy and initialize clone
+    agreementClone = Agreement(Clones.cloneDeterministic(address(agreementImpl), salt));
+
+    // Register clone as minter on ResourceTokenRegistry
+    _registerMinter(address(agreementClone));
+
+    // Initialize
+    address[2] memory partiesArr = [partyA, partyB];
+    agreementClone.initialize(partiesArr, _agreementHatId, proposalPayload);
+
+    return (agreementClone, _agreementHatId);
+  }
+
+  // ====================
   // Agreement state helpers
   // ====================
 
   /// @dev Advance an agreement from PROPOSED to NEGOTIATING (partyB counters).
-  function _advanceToNegotiating(address agreement) internal {
-    // vm.prank(partyB);
-    // IAgreement(agreement).submitInput(AgreementTypes.COUNTER, _defaultCounterPayload());
+  function _advanceToNegotiating(IAgreement agreement) internal {
+    bytes memory payload = _defaultProposalPayload();
+    vm.prank(partyB);
+    agreement.submitInput(AgreementTypes.COUNTER, payload);
   }
 
   /// @dev Advance an agreement to ACCEPTED (current turn party accepts).
-  function _advanceToAccepted(address agreement) internal {
-    // address turnParty = IAgreement(agreement).turn();
-    // vm.prank(turnParty);
-    // IAgreement(agreement).submitInput(AgreementTypes.ACCEPT, "");
+  function _advanceToAccepted(IAgreement agreement) internal {
+    address turnParty = agreement.turn();
+    bytes memory payload = _defaultProposalPayload();
+    // Need the terms hash to match
+    // The payload we accept with must hash to the current termsHash
+    // Since we initialized with _defaultProposalPayload, we can re-submit it
+    vm.prank(turnParty);
+    agreement.submitInput(AgreementTypes.ACCEPT, payload);
   }
 
   /// @dev Advance an agreement to ACTIVE (accept + activate).
-  function _advanceToActive(address agreement) internal {
+  function _advanceToActive(IAgreement agreement) internal {
     _advanceToAccepted(agreement);
-    // vm.prank(partyA);
-    // IAgreement(agreement).submitInput(AgreementTypes.ACTIVATE, _defaultActivatePayload());
+    vm.prank(partyA);
+    agreement.submitInput(AgreementTypes.ACTIVATE, "");
   }
 
   // ====================
@@ -304,13 +382,15 @@ contract MockExecutorModule is IERC7579Module {
 
 /// @notice Base for Agreement unit tests.
 abstract contract AgreementBase is ForkTestBase {
+  Agreement internal agreement;
+  uint256 internal agrmtHatId;
+
   function setUp() public virtual override {
     super.setUp();
     _deployAll();
-    _createHatTree();
-    // Create agreement via registry:
-    // vm.prank(partyA);
-    // agreement = agreementRegistry.createAgreement(partyB, _defaultProposalPayload());
+
+    bytes memory proposalPayload = _defaultProposalPayload();
+    (agreement, agrmtHatId) = _createAgreementClone(proposalPayload);
   }
 }
 
@@ -318,8 +398,8 @@ abstract contract AgreementBase is ForkTestBase {
 abstract contract AgreementHarnessBase is AgreementBase {
   function setUp() public virtual override {
     super.setUp();
-    // Override: deploy AgreementHarness instead of Agreement
-    // agreementHarness = new AgreementHarness(...);
+    // Harness not needed since internal functions use private storage accessor.
+    // Tests use public interface (submitInput, initialize, etc.)
   }
 }
 
@@ -352,8 +432,8 @@ abstract contract IntegrationBase is ForkTestBase {
 
   /// @dev Create an agreement and advance it to ACTIVE state.
   function _createActiveAgreement() internal returns (address) {
-    address agreement = _createDefaultAgreement();
-    _advanceToActive(agreement);
-    return agreement;
+    address agr = _createDefaultAgreement();
+    _advanceToActive(IAgreement(agr));
+    return agr;
   }
 }
