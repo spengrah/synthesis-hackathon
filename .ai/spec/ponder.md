@@ -26,29 +26,29 @@ InputAccepted(bytes32 indexed fromState, bytes32 indexed toState, bytes32 indexe
 AgreementStateChanged(bytes32 indexed fromState, bytes32 indexed toState)
 
 // Negotiation
-ProposalSubmitted(address indexed proposer, bytes32 termsHash, string termsUri)
+ProposalSubmitted(address indexed proposer, bytes32 termsHash, bytes proposalData)
 
 // Activation
-AgreementActivated(address indexed agreement, address[] tzAccounts, uint256[] zoneHatIds)
+AgreementActivated(address indexed agreement, address[2] trustZones, uint256[2] zoneHatIds)
 ZoneDeployed(address indexed agreement, address indexed tzAccount, uint256 indexed zoneHatId, address party, uint256 agentId)
 ResourceTokenAssigned(address indexed tzAccount, uint256 indexed tokenId, uint8 tokenType)
-MechanismRegistered(uint8 indexed mechanismIndex, uint8 paramType, address module, uint8 zoneIndex)
+MechanismRegistered(uint256 indexed mechanismIndex, uint8 paramType, address module, uint256 zoneIndex)
 
 // Claims + Adjudication
-ClaimFiled(uint256 indexed claimId, uint8 indexed mechanismIndex, address indexed claimant, bytes evidence)
+ClaimFiled(uint256 indexed claimId, uint256 indexed mechanismIndex, address indexed claimant, bytes evidence)
 AdjudicationDelivered(uint256 indexed claimId, bool verdict, bytes32[] actionTypes)
 
 // Close
-AgreementClosed(bytes32 indexed outcome)
 CompletionSignaled(address indexed party, string feedbackURI, bytes32 feedbackHash)
 ExitSignaled(address indexed party, string feedbackURI, bytes32 feedbackHash)
+AgreementClosed(bytes32 indexed outcome)
 ReputationFeedbackWritten(uint256 indexed agentId, string tag2, string feedbackURI, bytes32 feedbackHash)
 ```
 
 ### From Resource Token Registry
 ```
-Transfer(address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount)
-TokenCreated(uint256 indexed tokenId, address indexed creator, bytes metadata)
+Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount)
+TokenCreated(uint256 indexed tokenId, address indexed creator, uint8 tokenType, bytes metadata)
 MinterRegistered(address indexed minter)
 ```
 
@@ -101,10 +101,10 @@ ResourceTokenHolding {
 RegisteredMechanism {
   id: string                  // agreement + mechanismIndex
   agreement: Agreement
-  mechanismIndex: uint8
-  paramType: uint8            // ELIGIBILITY, INCENTIVE, CONSTRAINT
+  mechanismIndex: uint256
+  paramType: uint8            // TZParamType enum value
   module: address
-  zoneIndex: uint8
+  zoneIndex: uint256
 }
 
 Claim {

@@ -15,23 +15,23 @@ Offchain TypeScript library + x402-gated API server. Translates between TZ schem
 
 Atomic, composable functions. Each maps one TZ schema dimension to one onchain artifact.
 
-### CONSTRAINT templates (paramType 0x03 → ERC-7579 hooks on TZ Account)
+### CONSTRAINT templates (TZParamType.Constraint → ERC-7579 hooks on TZ Account)
 ```
-budget-cap             →  Mechanism{CONSTRAINT, SpendingLimitHook, params}
-target-allowlist       →  Mechanism{CONSTRAINT, PermissionsHook, params}
-time-lock              →  Mechanism{CONSTRAINT, ColdStorageHook, params}
-```
-
-### ELIGIBILITY templates (paramType 0x01 → Hats eligibility modules on zone hat)
-```
-reputation-gate        →  Mechanism{ELIGIBILITY, 8004ReputationEligibility, params}
-staking-requirement    →  Mechanism{ELIGIBILITY, StakingEligibility, params}
+budget-cap             →  TZMechanism{Constraint, SpendingLimitHook, initData}
+target-allowlist       →  TZMechanism{Constraint, PermissionsHook, initData}
+time-lock              →  TZMechanism{Constraint, ColdStorageHook, initData}
 ```
 
-### INCENTIVE templates (paramType 0x02 → claimable mechanisms in agreement registry)
+### ELIGIBILITY templates (TZParamType.Eligibility → Hats eligibility modules on zone hat)
 ```
-slashable-bond         →  Mechanism{INCENTIVE, StakingModule, params{slashPercent, ...}}
-reputation-feedback    →  Mechanism{INCENTIVE, ReputationRegistry, params{...}}
+reputation-gate        →  TZMechanism{Eligibility, 8004ReputationEligibility, initData}
+staking-requirement    →  TZMechanism{Eligibility, StakingEligibility, initData}
+```
+
+### INCENTIVE templates (TZParamType.Penalty/Reward → claimable mechanisms in agreement registry)
+```
+slashable-bond         →  TZMechanism{Penalty, StakingModule, initData{slashPercent, ...}}
+reputation-feedback    →  TZMechanism{Reward, ReputationRegistry, initData{...}}
 ```
 
 ### Adjudication (agreement-level, not per-zone)

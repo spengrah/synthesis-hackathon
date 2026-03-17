@@ -37,7 +37,7 @@ Simpler call signature for agents. Encodes as a 7579 single call and invokes the
 
 ```solidity
 function initialize(
-    address _hatValidator, bytes calldata _hatValidatorInitData,
+    address _hatValidator, bytes calldata _hatValidatorInitData, // abi.encode(hatId)
     address _agreementExecutor, bytes calldata _executorInitData,
     address _hookMultiplexer, bytes calldata _hookInitData
 ) external initializer
@@ -81,14 +81,15 @@ Single source of truth for hat-based authorization. Reusable ERC-7579 validator 
 
 ```solidity
 contract HatValidator is IValidator {
-    struct Config {
-        IHats hats;
-        uint256 hatId;
-    }
+    IHats public immutable HATS;  // set in constructor
 
     // Associated storage — keyed by the smart account that installed this module.
     // One HatValidator deployment serves all TZ accounts.
-    mapping(address account => Config) internal _configs;
+    mapping(address account => uint256) internal _hatIds;
+
+    constructor(address hats) {
+        HATS = IHats(hats);
+    }
 
     // Direct-call authorization (called by TZAccount._checkEntryPointOrSelf)
     function isAuthorized(address account, address caller) external view returns (bool);
@@ -102,7 +103,7 @@ contract HatValidator is IValidator {
         external view returns (bytes4);
 
     // ERC-7579 lifecycle
-    function onInstall(bytes calldata data) external;  // decode hatId + hats address, store keyed by msg.sender
+    function onInstall(bytes calldata data) external;  // decode abi.encode(hatId), store keyed by msg.sender
     function onUninstall(bytes calldata data) external;
     function isModuleType(uint256 typeID) external pure returns (bool);
 }
@@ -110,15 +111,14 @@ contract HatValidator is IValidator {
 
 ## Authorization logic
 
-All three paths converge on `hats.isWearerOfHat(signer, hatId)`, reading config for the calling account:
-- `isAuthorized(account, caller)`: reads `_configs[account]`, checks caller directly
-- `validateUserOp`: reads `_configs[msg.sender]`, recovers signer from UserOp signature
-- `isValidSignatureWithSender`: reads `_configs[msg.sender]`, recovers signer from signature bytes
+All three paths converge on `HATS.isWearerOfHat(signer, hatId)`, reading the hat ID for the calling account:
+- `isAuthorized(account, caller)`: reads `_hatIds[account]`, checks caller directly
+- `validateUserOp`: reads `_hatIds[msg.sender]`, recovers signer from UserOp signature
+- `isValidSignatureWithSender`: reads `_hatIds[msg.sender]`, recovers signer from signature bytes
 
 ## State
 
 Associated storage pattern (standard ERC-7579 module approach):
-- `mapping(address account => Config)` — one entry per TZ account that installs this module
-- `Config.hats`: IHats contract address
-- `Config.hatId`: uint256 hat ID for this zone
-- Configured via `onInstall(abi.encode(hatsAddress, hatId))` — stores keyed by `msg.sender` (the installing account)
+- `IHats public immutable HATS` — Hats Protocol contract address, set in constructor
+- `mapping(address account => uint256) _hatIds` — one entry per TZ account that installs this module
+- Configured via `onInstall(abi.encode(hatId))` — stores keyed by `msg.sender` (the installing account)

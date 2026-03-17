@@ -15,12 +15,12 @@ Single ERC-6909 contract holding three typed tokens. Non-transferable (except by
 ## Token ID encoding
 
 ```
-| bits  | field                          |
-|-------|--------------------------------|
-| 0-7   | type (0x01/0x02/0x03)          |
-| 8-71  | namespace / category (64 bits) |
-| 72+   | specific identifier            |
+ID = (counter << 8) | typePrefix
 ```
+
+- `counter` is per-type, auto-incremented by the registry on each `mint()`
+- `typePrefix` is the low byte (0x01, 0x02, 0x03)
+- No namespace concept — IDs are simply `(counter << 8) | typePrefix`
 
 Token IDs are self-describing — type is parseable from the ID without storage reads.
 
@@ -41,13 +41,14 @@ Approval functions (disabled — holders have no transfer authority):
 ## Minting
 
 ```solidity
-function mint(address to, uint256 id, bytes calldata metadata) external;
+function mint(address to, uint8 tokenType, bytes calldata metadata) external returns (uint256 id);
 ```
 
 - Restricted to authorized minters (agreement contracts registered by AgreementRegistry)
+- `tokenType` is the type prefix (0x01, 0x02, 0x03)
+- ID is auto-generated: `(++counter << 8) | typePrefix`
 - Reverts if `balanceOf(to, id) > 0` (max balance = 1)
-- First mint of a token ID sets its creator and metadata permanently
-- Subsequent mints of the same token ID to other addresses use the existing metadata (no `metadata` param needed, or ignored)
+- Sets creator and metadata permanently on mint
 
 ```solidity
 function burn(address from, uint256 id) external;
@@ -109,13 +110,43 @@ function tokenMetadata(uint256 id) external view returns (bytes memory);
 ## Events
 
 ```solidity
-// ERC-6909 standard
-event Transfer(address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
+// ERC-6909 standard (with leading non-indexed caller per ERC-6909)
+event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
 event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
 // Custom
-event TokenCreated(uint256 indexed tokenId, address indexed creator, bytes metadata);
+event TokenCreated(uint256 indexed tokenId, address indexed creator, uint8 tokenType, bytes metadata);
 event MinterRegistered(address indexed minter);
+```
+
+## Errors
+
+```solidity
+error InvalidTokenType(uint8 tokenType);
+error InsufficientBalance(address from, uint256 id);
+```
+
+## Getters
+
+```solidity
+/// @notice Returns the last minted ID for a given token type
+function lastId(uint8 tokenType) external view returns (uint256);
+```
+
+## Helper functions
+
+```solidity
+/// @notice Extract the token type from a token ID
+function tokenType(uint256 id) internal pure returns (uint8);
+
+/// @notice Check if a token ID is a Permission
+function isPermission(uint256 id) internal pure returns (bool);
+
+/// @notice Check if a token ID is a Responsibility
+function isResponsibility(uint256 id) internal pure returns (bool);
+
+/// @notice Check if a token ID is a Directive
+function isDirective(uint256 id) internal pure returns (bool);
 ```
 
 ## State

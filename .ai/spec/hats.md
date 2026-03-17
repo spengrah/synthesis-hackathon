@@ -60,7 +60,11 @@ When the agreement transitions to CLOSED, it interacts with mechanisms based on 
 1. **Deactivate zone hats** — `HATS.setHatStatus(hatId, false)` for each zone
 2. **INCENTIVE mechanisms** — the adjudicator can trigger actions (SLASH, FEEDBACK, etc.) via ADJUDICATE before or as part of closure
 3. **8004 reputation** — agreement writes `giveFeedback()` for each party with an `agentId` (see agreement.md)
-4. **Resource tokens** — agreement burns all resource tokens from TZ accounts
+4. **Resource tokens** — resource tokens remain in TZ accounts but are inoperative — zone hats are deactivated so no agent can operate the TZ account. Resource providers should verify hat status in addition to token balance.
+
+## Hackathon eligibility note
+
+For the hackathon, eligibility is hardcoded open — `Agreement.getWearerStatus()` always returns `(true, true)`. The chained eligibility modules (StakingEligibility + 8004ReputationEligibility) are available as dependencies but not yet wired into the activation flow.
 
 ## Hats Protocol addresses
 
