@@ -210,7 +210,7 @@ async function deployVault(rtrAddress: Address, fundAmount: bigint): Promise<Add
   execSync("forge build", { cwd: contractsDir, stdio: "pipe" });
 
   const artifact = JSON.parse(
-    readFileSync(resolve(contractsDir, "out/Vault.sol/Vault.json"), "utf-8"),
+    readFileSync(resolve(contractsDir, "out/Temptation.sol/Temptation.json"), "utf-8"),
   );
   const bytecode = artifact.bytecode.object as Hex;
 

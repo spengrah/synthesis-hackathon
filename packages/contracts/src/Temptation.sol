@@ -3,17 +3,17 @@ pragma solidity >=0.8.28;
 
 import { IResourceTokenRegistry } from "./interfaces/IResourceTokenRegistry.sol";
 
-/// @title Vault
+/// @title Temptation
 /// @notice Simple ETH holder with permission-token-gated withdrawal.
 /// @dev Withdrawals require the caller to hold a permission token whose metadata
-///      encodes `(address vault, uint256 maxAmount)` matching this vault.
-contract Vault {
+///      encodes `(address temptation, uint256 maxAmount)` matching this contract.
+contract Temptation {
   // ─── Errors
   // ───────────────────────────────────────────────────────
 
   error NoPermissionToken();
   error ExceedsPermittedAmount(uint256 requested, uint256 permitted);
-  error InvalidVault(address expected, address actual);
+  error InvalidTemptation(address expected, address actual);
   error InsufficientBalance(uint256 requested, uint256 available);
   error TransferFailed();
 
@@ -54,12 +54,12 @@ contract Vault {
   // ─── External functions
   // ───────────────────────────────────────────
 
-  /// @notice Deposit ETH into the vault.
+  /// @notice Deposit ETH into the temptation contract.
   function deposit() external payable {
     emit Deposited(msg.sender, msg.value);
   }
 
-  /// @notice Withdraw ETH from the vault. Caller must hold the given permission token.
+  /// @notice Withdraw ETH. Caller must hold the given permission token.
   /// @param amount The amount of ETH to withdraw.
   /// @param permissionTokenId The permission token ID authorising the withdrawal.
   function withdraw(uint256 amount, uint256 permissionTokenId) external nonReentrant {
@@ -68,13 +68,13 @@ contract Vault {
       revert NoPermissionToken();
     }
 
-    // 2. Decode metadata: (address vault, uint256 maxAmount)
+    // 2. Decode metadata: (address temptation, uint256 maxAmount)
     bytes memory metadata = REGISTRY.tokenMetadata(permissionTokenId);
-    (address vault, uint256 maxAmount) = abi.decode(metadata, (address, uint256));
+    (address temptation, uint256 maxAmount) = abi.decode(metadata, (address, uint256));
 
-    // 3. Token is for THIS vault
-    if (vault != address(this)) {
-      revert InvalidVault(address(this), vault);
+    // 3. Token is for THIS temptation
+    if (temptation != address(this)) {
+      revert InvalidTemptation(address(this), temptation);
     }
 
     // 4. Enforce cap
@@ -96,12 +96,12 @@ contract Vault {
     emit Withdrawn(msg.sender, amount, permissionTokenId);
   }
 
-  /// @notice Returns the vault's ETH balance.
+  /// @notice Returns the contract's ETH balance.
   function balance() external view returns (uint256) {
     return address(this).balance;
   }
 
-  /// @notice Allow the vault to receive ETH directly.
+  /// @notice Allow the contract to receive ETH directly.
   receive() external payable {
     emit Deposited(msg.sender, msg.value);
   }

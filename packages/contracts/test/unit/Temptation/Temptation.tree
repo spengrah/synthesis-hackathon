@@ -1,0 +1,34 @@
+Temptation
+├── constructor
+│   ├── it should set REGISTRY to the provided address
+│   └── it should set owner to msg.sender
+├── deposit
+│   ├── it should increase the temptation balance by msg.value
+│   ├── it should emit Deposited event
+│   └── given multiple deposits
+│       └── it should accumulate the total balance
+├── receive
+│   └── when ETH is sent directly to the temptation
+│       ├── it should accept the transfer
+│       ├── it should increase the temptation balance
+│       └── it should emit Deposited event
+├── withdraw
+│   ├── when caller has no permission token
+│   │   └── it should revert with NoPermissionToken
+│   ├── when token metadata temptation does not match this temptation
+│   │   └── it should revert with InvalidTemptation
+│   ├── when amount exceeds permitted max
+│   │   └── it should revert with ExceedsPermittedAmount
+│   ├── when temptation has insufficient balance
+│   │   └── it should revert with InsufficientBalance
+│   └── when all checks pass
+│       ├── it should transfer ETH to the caller
+│       ├── it should reduce the temptation balance
+│       ├── it should emit Withdrawn event
+│       └── given amount equals maxAmount
+│           └── it should succeed
+└── balance
+    ├── when temptation is empty
+    │   └── it should return 0
+    └── when temptation has ETH
+        └── it should return the temptation's ETH balance
