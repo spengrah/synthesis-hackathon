@@ -17,6 +17,7 @@ export * from "./constants.js";
 export * from "./encode.js";
 export * from "./decode.js";
 export * from "./zone.js";
+export { createPonderBackend } from "./reads/ponder.js";
 export {
   AgreementABI,
   AgreementRegistryABI,

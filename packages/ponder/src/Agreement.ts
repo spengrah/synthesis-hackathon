@@ -70,6 +70,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
       adjudicator: parsed.adjudicator,
       deadline: parsed.deadline,
       zoneCount: parsed.zones.length,
+      rawProposalData: proposalDataBytes,
     });
 
     // Update agreement termsHash

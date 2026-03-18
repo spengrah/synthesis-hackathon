@@ -4,15 +4,16 @@ import { agreementRegistryAbi } from "./abis/AgreementRegistryAbi";
 import { agreementAbi } from "./abis/AgreementAbi";
 import { resourceTokenRegistryAbi } from "./abis/ResourceTokenRegistryAbi";
 
-// Placeholder addresses — update after deployment
-const AGREEMENT_REGISTRY = "0x0000000000000000000000000000000000000001" as const;
-const RESOURCE_TOKEN_REGISTRY = "0x0000000000000000000000000000000000000002" as const;
+// Configurable via env vars — defaults are placeholders for development
+const AGREEMENT_REGISTRY = (process.env.PONDER_AGREEMENT_REGISTRY ?? "0x0000000000000000000000000000000000000001") as `0x${string}`;
+const RESOURCE_TOKEN_REGISTRY = (process.env.PONDER_RESOURCE_TOKEN_REGISTRY ?? "0x0000000000000000000000000000000000000002") as `0x${string}`;
+const START_BLOCK = Number(process.env.PONDER_START_BLOCK ?? 0);
 
 export default createConfig({
   networks: {
     base: {
       chainId: 8453,
-      transport: http("http://127.0.0.1:8545"),
+      transport: http(process.env.PONDER_RPC_URL ?? "http://127.0.0.1:8545"),
     },
   },
   contracts: {
@@ -20,7 +21,7 @@ export default createConfig({
       network: "base",
       abi: agreementRegistryAbi,
       address: AGREEMENT_REGISTRY,
-      startBlock: 0,
+      startBlock: START_BLOCK,
     },
     Agreement: {
       network: "base",
@@ -32,13 +33,13 @@ export default createConfig({
         ),
         parameter: "agreement",
       },
-      startBlock: 0,
+      startBlock: START_BLOCK,
     },
     ResourceTokenRegistry: {
       network: "base",
       abi: resourceTokenRegistryAbi,
       address: RESOURCE_TOKEN_REGISTRY,
-      startBlock: 0,
+      startBlock: START_BLOCK,
     },
   },
 });
