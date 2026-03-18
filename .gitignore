@@ -26,6 +26,9 @@ dist/
 packages/e2e/*-transcript.md
 packages/e2e/transcript.md
 
+# LLM session transcripts (generated artifacts)
+packages/agents/llm-sessions/
+
 # OS
 .DS_Store
 
