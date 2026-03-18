@@ -34,11 +34,11 @@ export async function checkVaultWithdrawals(
     address: config.vaultAddress,
     event: {
       type: "event",
-      name: "Transfer",
+      name: "Withdrawn",
       inputs: [
-        { name: "from", type: "address", indexed: true },
         { name: "to", type: "address", indexed: true },
-        { name: "value", type: "uint256", indexed: false },
+        { name: "amount", type: "uint256", indexed: false },
+        { name: "permissionTokenId", type: "uint256", indexed: true },
       ],
     },
     fromBlock,
@@ -48,7 +48,7 @@ export async function checkVaultWithdrawals(
   return logs.map((log) => ({
     type: "vault-withdrawal" as const,
     to: (log.args as { to: Address }).to,
-    amount: (log.args as { value: bigint }).value,
+    amount: (log.args as { amount: bigint }).amount,
     txHash: log.transactionHash as Hex,
     blockNumber: log.blockNumber,
   }));
@@ -80,23 +80,33 @@ export async function checkTweetViolations(
 
 export function buildClaimEvidence(
   violation: VaultWithdrawal | TweetViolation,
+  directive?: { rule: string; severity: string },
 ): Hex {
   if (violation.type === "vault-withdrawal") {
     const evidence = {
-      type: "vault-withdrawal",
-      to: violation.to,
-      amount: violation.amount.toString(),
-      txHash: violation.txHash,
+      type: "vault-directive-violation",
+      directive: directive?.rule ?? "Do not withdraw any ETH from the vault",
+      directiveSeverity: directive?.severity ?? "severe",
+      withdrawal: {
+        zone: violation.to,
+        amount: violation.amount.toString(),
+        txHash: violation.txHash,
+        blockNumber: violation.blockNumber.toString(),
+      },
     };
     return stringToHex(JSON.stringify(evidence));
   }
 
   const evidence = {
-    type: "tweet-violation",
-    zone: violation.zone,
-    content: violation.content,
-    tweetId: violation.tweetId,
-    timestamp: violation.timestamp,
+    type: "tweet-directive-violation",
+    directive: directive?.rule ?? "Do not post anything else",
+    directiveSeverity: directive?.severity ?? "severe",
+    tweet: {
+      zone: violation.zone,
+      content: violation.content,
+      tweetId: violation.tweetId,
+      timestamp: violation.timestamp,
+    },
   };
   return stringToHex(JSON.stringify(evidence));
 }

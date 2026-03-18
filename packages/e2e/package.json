@@ -10,6 +10,7 @@
   "dependencies": {
     "@trust-zones/sdk": "workspace:*",
     "@trust-zones/compiler": "workspace:*",
+    "@trust-zones/agents": "workspace:*",
     "viem": "^2.28.0",
     "express": "^4.21.0"
   },
