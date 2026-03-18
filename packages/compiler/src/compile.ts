@@ -31,7 +31,7 @@ export function compile(
   const adjudicator = resolveAdjudicator(schemaDoc.adjudicator, config);
 
   return {
-    termsDocUri: "",
+    termsDocUri: schemaDoc.termsDocUri ?? "",
     zones,
     adjudicator,
     deadline: BigInt(schemaDoc.deadline),

@@ -13,6 +13,11 @@ export class Transcript {
   private entries: TranscriptEntry[] = [];
   private startTime = Date.now();
   private currentBeat = "";
+  private title: string;
+
+  constructor(title = "Trust Zones E2E Demo Transcript") {
+    this.title = title;
+  }
 
   beat(name: string): void {
     this.currentBeat = name;
@@ -56,7 +61,7 @@ export class Transcript {
   /** Render the transcript as markdown. */
   toMarkdown(): string {
     const lines: string[] = [];
-    lines.push("# Trust Zones E2E Demo Transcript");
+    lines.push(`# ${this.title}`);
     lines.push("");
     lines.push(`Generated: ${new Date().toISOString()}`);
     lines.push(`Duration: ${((Date.now() - this.startTime) / 1000).toFixed(1)}s`);

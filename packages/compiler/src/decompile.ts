@@ -25,6 +25,7 @@ export function decompile(
 
   return {
     version: SCHEMA_VERSION,
+    termsDocUri: proposalData.termsDocUri || undefined,
     zones,
     adjudicator,
     deadline: Number(proposalData.deadline),

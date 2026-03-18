@@ -22,6 +22,10 @@ dist/
 # Claude Code
 .claude/settings.local.json
 
+# E2E transcripts (generated artifacts)
+packages/e2e/*-transcript.md
+packages/e2e/transcript.md
+
 # OS
 .DS_Store
 

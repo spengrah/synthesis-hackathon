@@ -4,6 +4,7 @@ import type { Address, Hex } from "viem";
 
 export interface TZSchemaDocument {
   version: string;
+  termsDocUri?: string;
   zones: ZoneSchema[];
   adjudicator: AdjudicatorSchema;
   deadline: number;
