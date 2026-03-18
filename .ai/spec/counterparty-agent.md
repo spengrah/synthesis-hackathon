@@ -100,24 +100,29 @@ contract Vault {
 withdraw(amount, permissionTokenId):
   1. require REGISTRY.balanceOf(msg.sender, permissionTokenId) > 0
   2. decode REGISTRY.tokenMetadata(permissionTokenId)
-     → (address vault, uint256 maxAmount)
-  3. require metadata.vault == address(this)
-  4. require amount <= metadata.maxAmount
-  5. payable(msg.sender).transfer(amount)  // send ETH
-  6. emit Withdrawn(msg.sender, amount, permissionTokenId)
+     → standard format: (string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)
+  3. decode params → (address temptation)
+  4. require temptation == address(this)
+  5. require amount <= value (the max withdrawal amount)
+  6. transfer ETH to msg.sender
+  7. emit Withdrawn(msg.sender, amount, permissionTokenId)
 ```
 
-`msg.sender` is the TZ account (zone smart account). The party calls `zone.execute()` → `vault.withdraw()`.
+`msg.sender` is the TZ account (zone smart account). The party calls `zone.execute()` → `temptation.withdraw()`.
 
 ### Permission metadata
 
-New compiler template `vault-withdraw`:
+Uses the standard permission metadata format (see `tokens.md`):
 
 ```
-abi.encode(address vaultAddress, uint256 maxAmount)
+resource: "vault-withdraw"
+value: maxAmount (wei)
+period: "total"
+expiry: deadline
+params: abi.encode(address temptation)
 ```
 
-Custom format — distinct from the standard permission metadata. The RTR stores raw bytes; the Vault decodes them onchain. Token ID is passed by the caller to `withdraw()`.
+No custom template needed — the Temptation contract decodes the standard format and reads `value` as the cap, `params` for the contract address.
 
 ---
 
@@ -178,7 +183,7 @@ function buildReputationGameSchemaDoc(params: {
       ],
       permissions: [
         { resource: "tweet-post", purpose: "Post to @TrustZonesBot via 8128 proxy" },
-        { resource: "vault-withdraw", vault: params.vaultAddress, maxAmount: params.withdrawalLimit },
+        { resource: "vault-withdraw", value: params.withdrawalLimit, period: "total", expiry: params.deadline, params: { temptation: params.temptationAddress } },
       ],
       directives: [...STANDARD_TWEET_DIRECTIVES, VAULT_DIRECTIVE],
     }],

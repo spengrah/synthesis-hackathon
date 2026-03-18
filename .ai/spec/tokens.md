@@ -78,16 +78,26 @@ function tokenMetadata(uint256 id) external view returns (bytes memory);
 ## Metadata schemas (per type)
 
 ### Permission (0x01)
+
+ABI: `(string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)`
+
 ```json
 {
-  "resource": "string — resource identifier (e.g., endpoint path, contract address)",
-  "rules": {
-    "rateLimit": { "value": 10, "period": "hour" },
-    "expiry": 1234567890,
-    "purpose": "string — intended use"
-  }
+  "resource": "string — resource identifier (e.g., 'tweet-post', 'vault-withdraw', endpoint path)",
+  "value": "uint256 — numeric value (rate limit count, max withdrawal amount, etc.)",
+  "period": "bytes32 — time period or qualifier ('hour', 'day', 'total'). Packed as bytes32.",
+  "expiry": "uint256 — unix timestamp, 0 = no expiry",
+  "params": "bytes — freeform encoded parameters (e.g., abi.encode(address temptation) for vault-withdraw)"
 }
 ```
+
+The format is intentionally generic: `resource` names the capability, `value` + `period` quantify it, `expiry` bounds it in time, and `params` carries any additional data the resource provider needs to decode. Different permission consumers interpret these fields differently:
+
+| Resource | value | period | params |
+|----------|-------|--------|--------|
+| `tweet-post` | 10 (tweets) | `"day"` | — |
+| `vault-withdraw` | maxAmount (wei) | `"total"` | `abi.encode(address temptation)` |
+| `data-api-read` | 100 (requests) | `"hour"` | — |
 
 ### Responsibility (0x02)
 ```json
