@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+.DS_Store
+packages/contracts/out
+packages/contracts/cache
+packages/contracts/.anvil.pid
+packages/contracts/lcov.info
+packages/contracts/broadcast
+packages/ponder/.ponder
