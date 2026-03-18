@@ -36,6 +36,7 @@ import {
   evaluateClaim,
   mapVerdictToActions,
   buildClaimEvidence,
+  createClaudeCliGenerate,
   type ClaimContext,
   type Verdict,
   type GenerateObjectFn,
@@ -95,52 +96,37 @@ const vaultAbi = parseAbi([
 
 const tx = new Transcript("Trust Zones Reputation Game Transcript");
 
-// ---- Mock LLM for adjudicator ----
+// ---- LLM for adjudicator ----
 
-/** Mock generate function that returns a deterministic verdict based on evidence. */
+/** Use real claude -p (haiku) by default, mock as fallback if MOCK_LLM=1 */
+const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
+
 const mockGenerate: GenerateObjectFn = async (opts) => {
-  // Parse the prompt to determine verdict
   const prompt = opts.prompt;
   const hasVaultActivity = prompt.includes("On-Chain Vault Activity") && !prompt.includes("No vault activity");
-  const hasTweetViolation = prompt.includes("Tweet Posted by Accused Party");
-
   if (hasVaultActivity) {
     return {
       object: {
         violated: true,
-        violatedDirectives: [4], // "Do not withdraw any ETH from the vault"
-        reasoning: "Vault withdrawal detected. The directive prohibits any withdrawal, regardless of amount.",
-        actions: ["CLOSE"],
+        violatedDirectives: [4],
+        reasoning: "Vault withdrawal detected. Directive prohibits any withdrawal.",
+        actions: ["CLOSE"] as const,
       },
     };
   }
-
-  if (hasTweetViolation && prompt.includes("Do not post anything else")) {
-    // Check if the tweet content seems compliant
-    const contentMatch = prompt.match(/Content: "([^"]+)"/);
-    const content = contentMatch?.[1] ?? "";
-    const isCompliant = content.includes("temptation") && content.includes("@synthesis_md");
-    return {
-      object: {
-        violated: !isCompliant,
-        violatedDirectives: isCompliant ? [] : [0, 2, 3],
-        reasoning: isCompliant
-          ? "Tweet follows all directives."
-          : "Tweet does not discuss the temptation game and/or misses required attribution.",
-        actions: isCompliant ? [] : ["CLOSE"],
-      },
-    };
-  }
-
   return {
     object: {
       violated: false,
       violatedDirectives: [],
-      reasoning: "Insufficient evidence to determine a violation.",
+      reasoning: "No violation evidence found.",
       actions: [],
     },
   };
 };
+
+const generateFn: GenerateObjectFn = USE_MOCK_LLM
+  ? mockGenerate
+  : createClaudeCliGenerate();
 
 // ---- Helpers ----
 
@@ -264,8 +250,8 @@ describe("Reputation Game E2E", () => {
   const withdrawalLimit = determineWithdrawalLimit({ count: 0 }, GAME_MIN_STAKE);
   const VAULT_FUND_AMOUNT = 10_000_000_000_000_000n; // 0.01 ETH
 
-  // Mock LLM client (not used directly — we pass mockGenerate to evaluateClaim)
-  const mockLLM = { provider: (() => "mock") as any, model: "mock" };
+  // LLM client placeholder (not used directly when using claude-cli generate)
+  const llmClient = { provider: (() => "claude-cli") as any, model: "haiku" };
 
   beforeAll(async () => {
     tx.beat("Setup");
@@ -565,7 +551,7 @@ describe("Reputation Game E2E", () => {
   });
 
   // ====================
-  // Beat 6: ADJUDICATION (real evaluateClaim with mock LLM)
+  // Beat 6: ADJUDICATION (evaluateClaim with claude -p haiku or mock)
   // ====================
 
   it("6a. adjudicator evaluates claim via evaluateClaim()", async () => {
@@ -614,8 +600,8 @@ describe("Reputation Game E2E", () => {
       evidenceType: evidenceJson.type,
     });
 
-    // Call the real evaluateClaim with mock LLM
-    const verdict = await evaluateClaim(claimContext, mockLLM, mockGenerate);
+    // Call evaluateClaim with claude -p haiku (or mock if MOCK_LLM=1)
+    const verdict = await evaluateClaim(claimContext, llmClient, generateFn);
 
     tx.result("LLM verdict returned", {
       violated: verdict.violated,
@@ -649,7 +635,7 @@ describe("Reputation Game E2E", () => {
     expect(updatedClaims[0].actionTypes).toContain("CLOSE");
 
     tx.result("Verdict delivered — agreement CLOSED", { outcome: "ADJUDICATED" });
-    tx.assert("evaluateClaim() → mapVerdictToActions() → encodeAdjudicate() → submitInput()");
+    tx.assert(`evaluateClaim() [${USE_MOCK_LLM ? "mock" : "claude-haiku"}] → mapVerdictToActions() → encodeAdjudicate() → submitInput()`);
     tx.assert("Full adjudicator agent pipeline integrated");
   });
 

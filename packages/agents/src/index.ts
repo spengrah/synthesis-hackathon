@@ -19,3 +19,4 @@ export type { LLMConfig, LLMClient } from "./shared/llm.js";
 export { pollUntil } from "./shared/polling.js";
 export { createAgentPonderClient } from "./shared/ponder.js";
 export type { AgentPonderClient } from "./shared/ponder.js";
+export { createClaudeCliGenerate } from "./shared/claude-cli.js";
