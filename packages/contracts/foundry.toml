@@ -13,7 +13,7 @@ fuzz = { runs = 64 }
 invariant = { runs = 64, depth = 32 }
 auto_detect_solc = false
 # Enable tests to read ir-optimized bytecode precompiled by profile.optimized
-fs_permissions = [{ access = "read", path = "./optimized-out" }]
+fs_permissions = [{ access = "read", path = "./optimized-out" }, { access = "read-write", path = "./deployments.json" }]
 
 # for pre-compiling ir-optimized bytecode that will be later deployed by tests
 [profile.optimized]
@@ -23,6 +23,14 @@ script = "src"
 bytecode_hash = "none"
 sizes = true
 # no need to compile tests with via-ir since they load optimized bytecode directly by default
+test = "src"
+
+# for deploying with via-ir optimization (scripts + src only, no tests)
+# Lower optimizer_runs trades gas efficiency for smaller bytecode
+[profile.deploy]
+via_ir = true
+optimizer_runs = 200
+bytecode_hash = "none"
 test = "src"
 
 # for running tests against pre-compiled ir-optimized deployments
@@ -52,7 +60,7 @@ tab_width = 2
 wrap_comments = true
 
 [rpc_endpoints]
-base = "http://localhost:8545" # managed by `make c-fork`
+base = "http://localhost:8545" # managed by anvil-fork.sh
 base-sepolia = "https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 local = "http://localhost:8545"
 mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
