@@ -909,9 +909,173 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
   }
+
+  /* Mechanism template grid */
+  .template-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .template-card {
+    padding: 16px;
+    border-radius: 10px;
+    text-align: left;
+  }
+
+  .template-card.constraint {
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  .template-card.eligibility {
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .template-card.incentive-tmpl {
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+  }
+
+  .template-category {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .template-category.constraint { color: var(--emerald); }
+  .template-category.eligibility { color: var(--indigo); }
+  .template-category.incentive-tmpl { color: var(--violet); }
+
+  .template-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-bright);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .template-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Possibilities grid */
+  .possibilities-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .possibility-card {
+    padding: 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .possibility-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+  }
+
+  .possibility-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+  }
+
+  .possibility-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Additional token types for scene 3 */
+  .arch-token.other {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
+  .arch-token.incentive {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    color: var(--violet);
+  }
+
+  .arch-token.meta {
+    background: rgba(107, 107, 133, 0.08);
+    border: 1px solid rgba(107, 107, 133, 0.15);
+    color: var(--text-dim);
+  }
+  /* Site nav */
+  .site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(42, 42, 58, 0.8);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 200;
+  }
+
+  .site-header .logo {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.3px;
+    text-decoration: none;
+  }
+
+  .site-header .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .site-header .nav-links a {
+    color: #8888a0;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+
+  .site-header .nav-links a:hover { color: #ffffff; }
+  .site-header .nav-links a.dimmed { opacity: 0.4; cursor: default; }
+  .site-header .nav-links a.dimmed:hover { color: #8888a0; }
 </style>
 </head>
 <body>
+
+<header class="site-header">
+  <a href="/" class="logo">Trust Zones</a>
+  <nav class="nav-links">
+    <a href="/">Leaderboard</a>
+    <a href="/dashboard">Agreement Dashboard</a>
+    <a href="#" class="dimmed">Bonfires</a>
+    <a href="https://synthesis.fun" target="_blank" rel="noopener">The Synthesis</a>
+    <a href="#" class="dimmed">Demo Video</a>
+  </nav>
+</header>
 
 <div class="canvas">
   <div class="grid-bg"></div>
@@ -1044,6 +1208,10 @@
             <div class="arch-token resp">RESP: Attribute @synthesis_md</div>
             <div class="arch-token dir">DIR: Do not post anything else [severe]</div>
             <div class="arch-token dir">DIR: Do not withdraw from Temptation Vault [severe]</div>
+            <div class="arch-token other">OTHER: data-api-read (ERC-8128)</div>
+            <div class="arch-token incentive">INCENTIVE: 1 USDC stake</div>
+            <div class="arch-token meta">DECISION: 1-of-1 (sole signer)</div>
+            <div class="arch-token meta">ALIGNMENT: Temptee principal</div>
           </div>
         </div>
 
@@ -1060,10 +1228,14 @@
           <div class="arch-tokens">
             <div class="arch-token perm">PERM: data-api-read (ERC-8128)</div>
             <div class="arch-token dir">DIR: Do not redistribute data [severe]</div>
+            <div class="arch-token other">OTHER: tweet-post (proxy access)</div>
+            <div class="arch-token incentive">INCENTIVE: 1 USDC stake</div>
+            <div class="arch-token meta">DECISION: 1-of-1 (sole signer)</div>
+            <div class="arch-token meta">ALIGNMENT: Tempter principal</div>
           </div>
           <div style="margin-top: 16px; padding: 10px; background: rgba(139, 92, 246, 0.08); border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.2);">
             <div style="font-size: 10px; font-weight: 700; color: var(--violet); letter-spacing: 1px; margin-bottom: 4px;">STAKING</div>
-            <div style="font-size: 11px; color: var(--text-dim);">Both parties stake 1 USDC into eligibility modules. At risk on violation.</div>
+            <div style="font-size: 11px; color: var(--text-dim);">Both parties stake 1 USDC. Slashed on violation.</div>
           </div>
         </div>
       </div>
@@ -1198,6 +1370,10 @@
           </div>
         </div>
       </div>
+
+      <div style="margin-top: 20px; padding: 12px 16px; border-radius: 8px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 12px; color: var(--text-dim); line-height: 1.6;">
+        <strong style="color: var(--indigo);">Production Note:</strong> This demo uses a single LLM call for adjudication. In production, use <strong style="color: var(--text-bright);">GenLayer</strong> for cryptographic verifiability — multiple validators reach consensus on the verdict, providing trustless adjudication without relying on a single LLM.
+      </div>
     </div>
   </div>
 
@@ -1244,7 +1420,7 @@
   <!-- Scene 8: Closing -->
   <div class="scene" id="scene-8">
     <div class="scene-content" style="text-align: center;">
-      <div class="intro-title" style="font-size: 56px;">Every Primitive.<br>One Scenario.</div>
+      <div class="intro-title" style="font-size: 56px;">What Are Trust Zones?</div>
       <div style="margin-top: 32px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 700px; margin-left: auto; margin-right: auto;">
         <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
           <div style="font-weight: 700; color: var(--indigo); margin-bottom: 4px;">Negotiation</div>
@@ -1293,6 +1469,117 @@
       </div>
     </div>
   </div>
+
+  <!-- Scene 9: Mechanism Template Library -->
+  <div class="scene" id="scene-9">
+    <div class="scene-content">
+      <div class="scene-number">Deep Dive</div>
+      <div class="scene-title">Mechanism Template Library</div>
+      <div class="scene-subtitle">
+        Composable building blocks for agreement enforcement. Each template compiles to an ERC-7579 module or a Hats Protocol module.
+      </div>
+
+      <div class="template-grid">
+        <!-- Constraints (emerald) -->
+        <div class="template-card constraint">
+          <div class="template-category constraint">Constraint</div>
+          <div class="template-name">budget-cap</div>
+          <div class="template-desc">Limits total spend or withdrawal amount per period. Hard onchain enforcement.</div>
+        </div>
+        <div class="template-card constraint">
+          <div class="template-category constraint">Constraint</div>
+          <div class="template-name">target-allowlist</div>
+          <div class="template-desc">Restricts callable addresses to an explicit allowlist. Blocks unauthorized interactions.</div>
+        </div>
+        <div class="template-card constraint">
+          <div class="template-category constraint">Constraint</div>
+          <div class="template-name">time-lock</div>
+          <div class="template-desc">Enforces minimum delay between actions. Prevents rapid extraction patterns.</div>
+        </div>
+
+        <!-- Eligibilities (indigo) -->
+        <div class="template-card eligibility">
+          <div class="template-category eligibility">Qualification</div>
+          <div class="template-name">staking</div>
+          <div class="template-desc">Requires collateral deposit to participate. Slashable on violation.</div>
+        </div>
+        <div class="template-card eligibility">
+          <div class="template-category eligibility">Qualification</div>
+          <div class="template-name">reputation-gate</div>
+          <div class="template-desc">Requires minimum ERC-8004 reputation score to enter agreement.</div>
+        </div>
+        <div class="template-card eligibility">
+          <div class="template-category eligibility">Qualification</div>
+          <div class="template-name">erc20-balance</div>
+          <div class="template-desc">Requires minimum token balance. Permissionless participation gate.</div>
+        </div>
+
+        <!-- More eligibilities (indigo) -->
+        <div class="template-card eligibility">
+          <div class="template-category eligibility">Qualification</div>
+          <div class="template-name">allowlist</div>
+          <div class="template-desc">Gates a trust zone to selected addresses. Requires selection by another party.</div>
+        </div>
+        <div class="template-card eligibility">
+          <div class="template-category eligibility">Qualification</div>
+          <div class="template-name">hat-wearing</div>
+          <div class="template-desc">Requires having a configurable Hats Protocol role.</div>
+        </div>
+        <div class="template-card" style="border: 1px dashed var(--border); background: transparent; display: flex; align-items: center; justify-content: center; text-align: center;">
+          <div style="color: var(--text-dim); font-size: 13px; font-style: italic;">And anything else you can imagine.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 10: What Else Is Possible? -->
+  <div class="scene" id="scene-10">
+    <div class="scene-content" style="text-align: center;">
+      <div class="intro-title" style="font-size: 56px;">What Else Is Possible?</div>
+      <div class="intro-subtitle" style="font-size: 16px; margin-bottom: 32px;">
+        Trust Zones are a general-purpose protocol. The Temptation Game is one scenario.
+        Here are more agreement types that compose from the same primitives.
+      </div>
+
+      <div class="possibilities-grid">
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F4CA;</div>
+          <div class="possibility-name">Data Exchange</div>
+          <div class="possibility-desc">Two parties share proprietary datasets under strict redistribution constraints with staking collateral.</div>
+        </div>
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F4CB;</div>
+          <div class="possibility-name">SLA Enforcement</div>
+          <div class="possibility-desc">Service provider commits to uptime/latency targets. Violations auto-detected and adjudicated.</div>
+        </div>
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F52C;</div>
+          <div class="possibility-name">Multi-Party Research</div>
+          <div class="possibility-desc">N agents collaborate on a research task with IP protection, contribution tracking, and fair credit.</div>
+        </div>
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F512;</div>
+          <div class="possibility-name">Escrow</div>
+          <div class="possibility-desc">Payment held in zone vault. Released on deliverable verification via adjudicator.</div>
+        </div>
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F511;</div>
+          <div class="possibility-name">API Access</div>
+          <div class="possibility-desc">ERC-8128 authenticated access to APIs with rate limits, budget caps, and usage-based billing.</div>
+        </div>
+        <div class="possibility-card">
+          <div class="possibility-icon">&#x1F916;</div>
+          <div class="possibility-name">Collaborative Training</div>
+          <div class="possibility-desc">Agents share training data or model weights under federated agreements with verifiable compliance.</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px;">
+        <a href="/story" style="display: inline-block; padding: 12px 24px; border-radius: 8px; background: linear-gradient(135deg, var(--indigo), var(--cyan)); color: var(--text-bright); text-decoration: none; font-weight: 600; font-size: 14px;">Watch the Full Story &rarr;</a>
+        <a href="/dashboard" style="display: inline-block; padding: 12px 24px; border-radius: 8px; border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 500; font-size: 14px; margin-left: 12px;">Open Dashboard &rarr;</a>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Navigation -->
@@ -1314,7 +1601,7 @@
 </div>
 
 <script>
-const TOTAL_SCENES = 9;
+const TOTAL_SCENES = 11;
 let currentScene = 0;
 let autoPlay = false;
 let autoTimer = null;
@@ -1328,7 +1615,9 @@ const SCENE_LABELS = [
   'Vault & Constraints',
   'LLM Adjudication',
   'Resolution',
-  'Summary',
+  'What Are Trust Zones?',
+  'Template Library',
+  'What Else Is Possible?',
 ];
 
 function initNavDots() {

@@ -1066,9 +1066,63 @@
 
   /* ====== HIDDEN ====== */
   .hidden { display: none !important; }
+
+  /* Site nav */
+  .site-header {
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(42, 42, 58, 0.8);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+  }
+
+  .site-header .logo {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #6366f1, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.3px;
+    text-decoration: none;
+  }
+
+  .site-header .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .site-header .nav-links a {
+    color: #8888a0;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+
+  .site-header .nav-links a:hover { color: #ffffff; }
+  .site-header .nav-links a.dimmed { opacity: 0.4; cursor: default; }
+  .site-header .nav-links a.dimmed:hover { color: #8888a0; }
 </style>
 </head>
 <body>
+
+<header class="site-header">
+  <a href="/" class="logo">Trust Zones</a>
+  <nav class="nav-links">
+    <a href="/">Leaderboard</a>
+    <a href="/story">Story</a>
+    <a href="#" class="dimmed">Bonfires</a>
+    <a href="https://synthesis.fun" target="_blank" rel="noopener">The Synthesis</a>
+    <a href="#" class="dimmed">Demo Video</a>
+  </nav>
+</header>
 
 <!-- ============ OVERVIEW SCREEN ============ -->
 <div class="overview-screen" id="overviewScreen">

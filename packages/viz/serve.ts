@@ -5,7 +5,7 @@
  *   npx tsx serve.ts [port]
  *
  * Serves:
- *   /                 -> dashboard.html
+ *   /                 -> index.html (leaderboard)
  *   /dashboard        -> dashboard.html
  *   /story            -> protocol-story.html
  */
@@ -18,10 +18,12 @@ const PORT = parseInt(process.argv[2] || "3000", 10);
 const DIR = import.meta.dirname;
 
 const ROUTES: Record<string, string> = {
-  "/": "dashboard.html",
+  "/": "index.html",
+  "/index.html": "index.html",
   "/dashboard": "dashboard.html",
   "/dashboard.html": "dashboard.html",
   "/story": "protocol-story.html",
+  "/story.html": "protocol-story.html",
   "/protocol-story.html": "protocol-story.html",
 };
 
@@ -31,7 +33,7 @@ const server = createServer((req, res) => {
 
   if (!file) {
     res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("Not found. Try / (dashboard) or /story (protocol story).");
+    res.end("Not found. Try / (leaderboard), /dashboard, or /story.");
     return;
   }
 
@@ -50,7 +52,8 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Trust Zones Viz Server`);
-  console.log(`  Dashboard:      http://localhost:${PORT}/`);
+  console.log(`  Leaderboard:     http://localhost:${PORT}/`);
+  console.log(`  Dashboard:       http://localhost:${PORT}/dashboard`);
   console.log(`  Protocol Story:  http://localhost:${PORT}/story`);
   console.log();
   console.log("Press Ctrl+C to stop.");
