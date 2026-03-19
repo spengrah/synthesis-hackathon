@@ -457,11 +457,7 @@ describe("Reciprocal Demo E2E", () => {
       }))}`,
     });
 
-    tx.action("Counterparty constructs counter-proposal with full terms", {
-      zoneAPermissions: ["tweet-post", "vault-withdraw"],
-      zoneBPermissions: ["data-api-read"],
-      zoneBDirectives: ["Do not redistribute received data"],
-    });
+    tx.action("Counterparty constructs counter-proposal with full terms", counterDoc as unknown as Record<string, unknown>);
 
     const counterData = compileGameSchemaDoc(counterDoc);
     const { inputId, payload } = encodeCounter(counterData);
@@ -962,6 +958,8 @@ describe("Reciprocal Demo E2E", () => {
         message: "Round 2 — reciprocal. Prove you can resist this time.",
       }))}`,
     });
+    tx.action("Counterparty constructs renegotiation counter-proposal", counterDoc as unknown as Record<string, unknown>);
+
     const counter = encodeCounter(compileGameSchemaDoc(counterDoc));
     await submitInput(counterpartyAccount, newAgreement, counter.inputId, counter.payload);
     await waitForState(backend, newAgreement, "NEGOTIATING");
