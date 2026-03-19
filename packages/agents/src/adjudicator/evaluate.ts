@@ -17,6 +17,8 @@ export interface ClaimContext {
   directives: { rule: string; severity: string }[];
   vaultEvents?: { to: string; amount: string; txHash: string }[];
   tweets?: { zone: string; content: string; tweetId: string }[];
+  /** Additional evidence from Bonfires cross-tier queries */
+  bonfiresEvidence?: Record<string, unknown>;
 }
 
 interface TweetGroundTruth {
@@ -91,6 +93,23 @@ function buildPrompt(
     parts.push(`## Tweet Activity\n${tweetLines.join("\n")}`);
   } else {
     parts.push("## Tweet Activity\nNo tweets recorded.");
+  }
+
+  // Bonfires cross-tier evidence
+  if (ctx.bonfiresEvidence) {
+    const bf = ctx.bonfiresEvidence;
+    const receipts = Array.isArray(bf.tweetReceipts) ? bf.tweetReceipts : [];
+    const disclosed = Array.isArray(bf.disclosedEvidence) ? bf.disclosedEvidence : [];
+    if (receipts.length > 0 || disclosed.length > 0) {
+      const lines: string[] = [];
+      if (receipts.length > 0) {
+        lines.push(`Tweet receipts from context graph: ${JSON.stringify(receipts.slice(0, 10))}`);
+      }
+      if (disclosed.length > 0) {
+        lines.push(`Disclosed evidence from context graph: ${JSON.stringify(disclosed.slice(0, 10))}`);
+      }
+      parts.push(`## Additional Context Graph Evidence\n${lines.join("\n")}`);
+    }
   }
 
   parts.push("## Question\nDid the agent violate any responsibilities or directives? Consider all evidence together. Respond with structured JSON.");

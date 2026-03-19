@@ -25,6 +25,9 @@ if (role === "adjudicator") {
     privateKey: (process.env.PRIVATE_KEY ?? "") as Hex,
     llm: llmConfig,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? "10000"),
+    bonfiresUrl: process.env.BONFIRES_API_URL,
+    bonfiresApiKey: process.env.BONFIRES_API_KEY,
+    bonfireId: process.env.BONFIRES_BONFIRE_ID,
   });
 
   process.on("SIGINT", () => {

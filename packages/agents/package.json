@@ -20,6 +20,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
     "@slicekit/erc8128": "^0.3.3",
+    "@trust-zones/bonfires": "workspace:*",
     "@trust-zones/compiler": "workspace:*",
     "@trust-zones/sdk": "workspace:*",
     "ai": "^4.0.0",

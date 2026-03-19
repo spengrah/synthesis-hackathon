@@ -16,6 +16,9 @@ importers:
       '@slicekit/erc8128':
         specifier: ^0.3.3
         version: 0.3.3
+      '@trust-zones/bonfires':
+        specifier: workspace:*
+        version: link:../bonfires
       '@trust-zones/compiler':
         specifier: workspace:*
         version: link:../compiler

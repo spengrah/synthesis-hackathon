@@ -26,6 +26,7 @@ import {
   type MonitorConfig,
 } from "./monitor.js";
 import { createCliEvaluateTweets, type EvaluateTweetsFn } from "./evaluate-tweets.js";
+import { BonfiresClient, createReceiptLogger } from "@trust-zones/bonfires";
 
 export interface CounterpartyConfig {
   rpcUrl: string;
@@ -36,6 +37,9 @@ export interface CounterpartyConfig {
   tweetProxyUrl: string;
   llm?: LLMConfig;
   pollIntervalMs?: number;
+  bonfiresUrl?: string;
+  bonfiresApiKey?: string;
+  bonfireId?: string;
 }
 
 export async function startCounterparty(

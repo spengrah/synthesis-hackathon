@@ -9,6 +9,7 @@ import { createLLMClient, type LLMConfig } from "../shared/llm.js";
 import { createAgentPonderClient } from "../shared/ponder.js";
 import { evaluateClaim, verdictSchema, type ClaimContext, type GenerateObjectFn } from "./evaluate.js";
 import { mapVerdictToActions } from "./actions.js";
+import { BonfiresClient, createAdjudicatorQueries } from "@trust-zones/bonfires";
 
 export interface AdjudicatorConfig {
   rpcUrl: string;
@@ -16,6 +17,9 @@ export interface AdjudicatorConfig {
   privateKey: Hex;
   llm: LLMConfig;
   pollIntervalMs?: number;
+  bonfiresUrl?: string;
+  bonfiresApiKey?: string;
+  bonfireId?: string;
 }
 
 export async function startAdjudicator(
@@ -25,6 +29,15 @@ export async function startAdjudicator(
   const ponder = createAgentPonderClient(config.ponderUrl);
   const llm = createLLMClient(config.llm);
   const pollInterval = config.pollIntervalMs ?? 10_000;
+
+  // Optional Bonfires integration for cross-tier evidence queries
+  const bonfires = config.bonfiresUrl && config.bonfiresApiKey && config.bonfireId
+    ? createAdjudicatorQueries(new BonfiresClient({
+        apiUrl: config.bonfiresUrl,
+        apiKey: config.bonfiresApiKey,
+        bonfireId: config.bonfireId,
+      }))
+    : null;
 
   let running = true;
 
@@ -73,10 +86,34 @@ export async function startAdjudicator(
           evidence = { raw: claim.evidence };
         }
 
+        // Enrich with Bonfires cross-tier evidence if available
+        let bonfiresEvidence: Record<string, unknown> | undefined;
+        if (bonfires) {
+          try {
+            const zoneAddr = (evidence as { zone?: string }).zone;
+            if (zoneAddr) {
+              const ctx = await bonfires.getAdjudicationContext({
+                claimId: String(claimIdNum),
+                agreementAddr: claim.agreementAddress,
+                zoneAddr,
+                claimTimestamp: claim.timestamp,
+              });
+              bonfiresEvidence = {
+                tweetReceipts: ctx.receipts.episodes,
+                disclosedEvidence: ctx.evidence.episodes,
+                directives: ctx.directives.entities,
+              };
+            }
+          } catch (err) {
+            console.warn("Bonfires evidence query failed:", err);
+          }
+        }
+
         const ctx: ClaimContext = {
           claimId: claimIdNum,
           evidence,
           directives,
+          bonfiresEvidence,
         };
 
         const verdict = await evaluateClaim(ctx, llm, generate);

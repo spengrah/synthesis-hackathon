@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { TwitterApi } from "twitter-api-v2";
 import { verifyRequest, type NonceStore, type VerifyResult } from "@slicekit/erc8128";
 import type { PublicClient } from "viem";
+import { BonfiresClient, createReceiptLogger } from "@trust-zones/bonfires";
 
 /** In-memory nonce store — sufficient for hackathon. */
 class MemoryNonceStore implements NonceStore {
@@ -33,6 +34,8 @@ export interface TweetProxyConfig {
   username: string;
   /** When provided, enables ERC-8128 signature verification */
   publicClient?: PublicClient;
+  /** Called after a successful tweet — fire-and-forget for receipt logging */
+  onTweet?: (record: TweetRecord) => void;
 }
 
 export interface TweetRecord {
@@ -61,6 +64,7 @@ export class TweetProxy {
   private username: string;
   private publicClient: PublicClient | undefined;
   private nonceStore: NonceStore;
+  private onTweet: ((record: TweetRecord) => void) | undefined;
 
   constructor(config: TweetProxyConfig) {
     this.twitter = new TwitterApi({
@@ -72,6 +76,7 @@ export class TweetProxy {
     this.username = config.username;
     this.publicClient = config.publicClient;
     this.nonceStore = new MemoryNonceStore();
+    this.onTweet = config.onTweet;
 
     this.app = express();
     this.app.use(express.json());
@@ -188,6 +193,11 @@ export class TweetProxy {
 
       console.log(`[tweet-proxy] ${zone} posted tweet ${tweetId}: "${content.slice(0, 80)}..."`);
 
+      // Fire-and-forget receipt logging
+      if (this.onTweet) {
+        try { this.onTweet(record); } catch { /* don't block response */ }
+      }
+
       res.status(201).json({ tweetId, url });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -239,6 +249,18 @@ export function createTweetProxyFromEnv(publicClient?: PublicClient): TweetProxy
     return val;
   };
 
+  // Auto-wire Bonfires receipt logging if env vars are present
+  let onTweet: ((record: TweetRecord) => void) | undefined;
+  const bonfiresUrl = process.env["BONFIRES_API_URL"];
+  const bonfiresKey = process.env["BONFIRES_API_KEY"];
+  const bonfireId = process.env["BONFIRES_BONFIRE_ID"];
+  if (bonfiresUrl && bonfiresKey && bonfireId) {
+    const client = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
+    const logReceipt = createReceiptLogger(client);
+    onTweet = (record) => { logReceipt(record); };
+    console.log("[tweet-proxy] Bonfires receipt logging enabled");
+  }
+
   return new TweetProxy({
     consumerKey: required("X_CONSUMER_KEY"),
     consumerSecret: required("X_CONSUMER_SECRET"),
@@ -246,5 +268,6 @@ export function createTweetProxyFromEnv(publicClient?: PublicClient): TweetProxy
     accessTokenSecret: required("X_ACCESS_TOKEN_SECRET"),
     username: process.env["X_USERNAME"] ?? "tempt_game_bot",
     publicClient,
+    onTweet,
   });
 }
