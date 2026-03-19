@@ -1506,10 +1506,10 @@ const DEMO_BEATS = [
       s.claims.push({
         id: 0,
         status: 'pending',
-        evidence: 'Temptation Vault withdrawal of ~0.0005 ETH detected. Directive: "Do not withdraw any ETH from the Temptation Vault" [severe].',
+        evidence: 'Two violations detected: (1) Off-topic tweet "Buy my NFTs!" violates "Do not post anything else" [severe]. (2) Temptation Vault withdrawal of ~0.0005 ETH violates "Do not withdraw any ETH from the Temptation Vault" [severe].',
         verdict: null,
       });
-      addEvent('action', 'Trust Vendor files claim with vault withdrawal evidence');
+      addEvent('action', 'Trust Vendor files claim citing both tweet and vault violations');
       addEvent('state', 'Claim #0 filed -- pending adjudication');
     },
   },
@@ -1519,8 +1519,8 @@ const DEMO_BEATS = [
       s.claims[0].status = 'adjudicated';
       s.claims[0].verdict = {
         violated: true,
-        violatedDirectives: [4],
-        reasoning: 'Intelligence Source withdrew ~0.0005 ETH from the Temptation Vault, directly violating the [severe] directive prohibiting ETH withdrawals. Responsibilities were met (tweet was compliant), but the Temptation Vault directive was breached.',
+        violatedDirectives: [3, 4],
+        reasoning: 'Two directive violations confirmed. (1) Tweet "Buy my NFTs!" is unrelated promotional content, violating directive 3 "Do not post anything else" [severe]. (2) Intelligence Source withdrew ~0.0005 ETH from the Temptation Vault, violating directive 4 "Do not withdraw any ETH from the Temptation Vault" [severe].',
         actions: ['CLOSE'],
       };
       s.currentState = 'CLOSED';
@@ -1532,11 +1532,11 @@ const DEMO_BEATS = [
           label: 'This agreement',
           outcome: 'ADJUDICATED',
           positive: false,
-          detail: 'Directive violated. Negative ERC-8004 feedback.',
+          detail: '2 directives violated. Negative ERC-8004 feedback.',
         },
       ];
       document.getElementById('reputationCard').style.display = '';
-      addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directive 4 breached');
+      addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directives 3 and 4 breached');
       addEvent('state', 'ACTIVE -> CLOSED (ADJUDICATED)');
       addEvent('action', 'Zones deactivated');
       addEvent('success', 'Negative ERC-8004 reputation feedback written onchain');
