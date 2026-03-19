@@ -40,6 +40,6 @@ library Constants {
   // --------------------
 
   uint256 internal constant DEFAULT_DEADLINE = 7 days;
-  uint32 internal constant DEFAULT_HAT_MAX_SUPPLY = 1;
-  string internal constant DEFAULT_HAT_DETAILS = "Test Zone Hat";
+  uint32 internal constant DEFAULT_MAX_ACTORS = 1;
+  string internal constant DEFAULT_DESCRIPTION = "Test Zone Hat";
 }

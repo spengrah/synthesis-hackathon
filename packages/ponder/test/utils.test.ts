@@ -107,8 +107,8 @@ const proposalDataAbi = [
         components: [
           { name: "party", type: "address" as const },
           { name: "agentId", type: "uint256" as const },
-          { name: "hatMaxSupply", type: "uint32" as const },
-          { name: "hatDetails", type: "string" as const },
+          { name: "maxActors", type: "uint32" as const },
+          { name: "description", type: "string" as const },
           {
             name: "mechanisms",
             type: "tuple[]" as const,
@@ -148,16 +148,16 @@ describe("parseProposalData", () => {
           {
             party: partyA,
             agentId: 1n,
-            hatMaxSupply: 10,
-            hatDetails: "Zone A",
+            maxActors: 10,
+            description: "Zone A",
             mechanisms: [],
             resources: [],
           },
           {
             party: partyB,
             agentId: 2n,
-            hatMaxSupply: 5,
-            hatDetails: "Zone B",
+            maxActors: 5,
+            description: "Zone B",
             mechanisms: [],
             resources: [],
           },
@@ -176,15 +176,15 @@ describe("parseProposalData", () => {
 
     expect(result.zones[0].party.toLowerCase()).toBe(partyA.toLowerCase());
     expect(result.zones[0].agentId).toBe(1n);
-    expect(result.zones[0].hatMaxSupply).toBe(10);
-    expect(result.zones[0].hatDetails).toBe("Zone A");
+    expect(result.zones[0].maxActors).toBe(10);
+    expect(result.zones[0].description).toBe("Zone A");
     expect(result.zones[0].mechanisms).toEqual([]);
     expect(result.zones[0].resources).toEqual([]);
 
     expect(result.zones[1].party.toLowerCase()).toBe(partyB.toLowerCase());
     expect(result.zones[1].agentId).toBe(2n);
-    expect(result.zones[1].hatMaxSupply).toBe(5);
-    expect(result.zones[1].hatDetails).toBe("Zone B");
+    expect(result.zones[1].maxActors).toBe(5);
+    expect(result.zones[1].description).toBe("Zone B");
   });
 
   it("decodes proposal with mechanisms and resources", () => {
@@ -196,8 +196,8 @@ describe("parseProposalData", () => {
           {
             party: partyA,
             agentId: 0n,
-            hatMaxSupply: 1,
-            hatDetails: "Agent zone",
+            maxActors: 1,
+            description: "Agent zone",
             mechanisms: [
               {
                 paramType: PARAM_TYPE.Constraint,
@@ -241,8 +241,8 @@ describe("parseProposalData", () => {
           {
             party: partyA,
             agentId: 42n,
-            hatMaxSupply: 100,
-            hatDetails: "details",
+            maxActors: 100,
+            description: "details",
             mechanisms: [],
             resources: [],
           },

@@ -531,8 +531,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
 
     HATS.createHat(
       $._agreementHatId,
-      zone.hatDetails,
-      zone.hatMaxSupply,
+      zone.description,
+      zone.maxActors,
       eligibility, // deployed eligibility module (or address(this) if none)
       address(this), // toggle: always this agreement
       true,

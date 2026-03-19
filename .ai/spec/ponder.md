@@ -423,8 +423,8 @@ struct ProposalData {
 struct TZConfig {
     address party;
     uint256 agentId;
-    uint32 hatMaxSupply;
-    string hatDetails;
+    uint32 maxActors;
+    string description;
     TZMechanism[] mechanisms;
     TZResourceTokenConfig[] resources;
 }

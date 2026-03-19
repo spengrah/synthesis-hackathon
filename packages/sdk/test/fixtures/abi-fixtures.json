@@ -51,16 +51,16 @@
           {
             "party": "0x7c43a64AC520DAFf081036B77780dc739dB0c127",
             "agentId": "0",
-            "hatMaxSupply": 1,
-            "hatDetails": "Test Zone Hat",
+            "maxActors": 1,
+            "description": "Test Zone Hat",
             "mechanisms": [],
             "resources": []
           },
           {
             "party": "0x7dCD0524a544b987C85F4729c83c9aD41365204e",
             "agentId": "0",
-            "hatMaxSupply": 1,
-            "hatDetails": "Test Zone Hat",
+            "maxActors": 1,
+            "description": "Test Zone Hat",
             "mechanisms": [],
             "resources": []
           }
@@ -77,8 +77,8 @@
           {
             "party": "0x7c43a64AC520DAFf081036B77780dc739dB0c127",
             "agentId": "0",
-            "hatMaxSupply": 1,
-            "hatDetails": "Test Zone Hat",
+            "maxActors": 1,
+            "description": "Test Zone Hat",
             "mechanisms": [
               { "paramType": 6, "moduleKind": 0, "module": "0x000000000000000000000000000000000000dEaD", "data": "0x1234" }
             ],
@@ -89,8 +89,8 @@
           {
             "party": "0x7dCD0524a544b987C85F4729c83c9aD41365204e",
             "agentId": "0",
-            "hatMaxSupply": 1,
-            "hatDetails": "Test Zone Hat",
+            "maxActors": 1,
+            "description": "Test Zone Hat",
             "mechanisms": [
               { "paramType": 5, "moduleKind": 0, "module": "0x000000000000000000000000000000000000bEEF", "data": "0x5678" }
             ],

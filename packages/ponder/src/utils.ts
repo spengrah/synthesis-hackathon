@@ -69,7 +69,7 @@ export const TOKEN_TYPE = {
 // ─── ProposalData ABI decoding ───────────────────────────────────
 
 // ProposalData { string termsDocUri, TZConfig[] zones, address adjudicator, uint256 deadline }
-// TZConfig { address party, uint256 agentId, uint32 hatMaxSupply, string hatDetails, TZMechanism[] mechanisms, TZResourceTokenConfig[] resources }
+// TZConfig { address party, uint256 agentId, uint32 maxActors, string description, TZMechanism[] mechanisms, TZResourceTokenConfig[] resources }
 // TZMechanism { uint8 paramType, uint8 moduleKind, address module, bytes data }
 // TZResourceTokenConfig { uint8 tokenType, bytes metadata }
 
@@ -84,8 +84,8 @@ const proposalDataParams = [
         components: [
           { name: "party", type: "address" },
           { name: "agentId", type: "uint256" },
-          { name: "hatMaxSupply", type: "uint32" },
-          { name: "hatDetails", type: "string" },
+          { name: "maxActors", type: "uint32" },
+          { name: "description", type: "string" },
           {
             name: "mechanisms",
             type: "tuple[]",
@@ -119,8 +119,8 @@ export interface ParsedProposalData {
   zones: Array<{
     party: Hex;
     agentId: bigint;
-    hatMaxSupply: number;
-    hatDetails: string;
+    maxActors: number;
+    description: string;
     mechanisms: Array<{
       paramType: number;
       moduleKind: number;
@@ -143,8 +143,8 @@ export function parseProposalData(data: Hex): ParsedProposalData {
     zones: decoded.zones.map((z: any) => ({
       party: z.party as Hex,
       agentId: z.agentId,
-      hatMaxSupply: z.hatMaxSupply,
-      hatDetails: z.hatDetails,
+      maxActors: z.maxActors,
+      description: z.description,
       mechanisms: z.mechanisms.map((m: any) => ({
         paramType: m.paramType,
         moduleKind: m.moduleKind,

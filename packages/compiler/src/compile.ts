@@ -71,8 +71,8 @@ function compileZone(
   return {
     party: zone.actor.address,
     agentId: BigInt(zone.actor.agentId),
-    hatMaxSupply: zone.hatMaxSupply,
-    hatDetails: zone.hatDetails,
+    maxActors: zone.maxActors,
+    description: zone.description,
     mechanisms,
     resources,
   };

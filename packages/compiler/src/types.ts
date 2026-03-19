@@ -12,8 +12,8 @@ export interface TZSchemaDocument {
 
 export interface ZoneSchema {
   actor: ActorSchema;
-  hatMaxSupply: number;
-  hatDetails: string;
+  maxActors: number;
+  description: string;
   constraints?: MechanismEntry[];
   eligibilities?: MechanismEntry[];
   incentives?: MechanismEntry[];

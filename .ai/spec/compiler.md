@@ -30,8 +30,8 @@ Published to IPFS as the `termsDocUri` content. Note: `termsDocUri` is NOT inclu
         "address": "0x...",
         "agentId": 42
       },
-      "hatMaxSupply": 1,
-      "hatDetails": "Zone A — A's data exposed to B",
+      "maxActors": 1,
+      "description": "Zone A — A's data exposed to B",
 
       "constraints": [
         { "template": "budget-cap", "params": { "token": "0x...", "limit": "1000000" } },

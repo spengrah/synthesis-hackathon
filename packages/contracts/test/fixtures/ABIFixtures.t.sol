@@ -76,13 +76,13 @@ contract ABIFixtures is Test {
 
     zones[0].party = partyA;
     zones[0].agentId = 0;
-    zones[0].hatMaxSupply = 1;
-    zones[0].hatDetails = "Test Zone Hat";
+    zones[0].maxActors = 1;
+    zones[0].description = "Test Zone Hat";
 
     zones[1].party = partyB;
     zones[1].agentId = 0;
-    zones[1].hatMaxSupply = 1;
-    zones[1].hatDetails = "Test Zone Hat";
+    zones[1].maxActors = 1;
+    zones[1].description = "Test Zone Hat";
 
     AgreementTypes.ProposalData memory data =
       AgreementTypes.ProposalData({ termsDocUri: "", zones: zones, adjudicator: adjudicatorAddr, deadline: 1_000_000 });
@@ -100,8 +100,8 @@ contract ABIFixtures is Test {
     // Zone A: one mechanism, one resource
     zones[0].party = partyA;
     zones[0].agentId = 0;
-    zones[0].hatMaxSupply = 1;
-    zones[0].hatDetails = "Test Zone Hat";
+    zones[0].maxActors = 1;
+    zones[0].description = "Test Zone Hat";
     zones[0].mechanisms = new TZTypes.TZMechanism[](1);
     zones[0].mechanisms[0] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Penalty,
@@ -116,8 +116,8 @@ contract ABIFixtures is Test {
     // Zone B: one mechanism, one resource
     zones[1].party = partyB;
     zones[1].agentId = 0;
-    zones[1].hatMaxSupply = 1;
-    zones[1].hatDetails = "Test Zone Hat";
+    zones[1].maxActors = 1;
+    zones[1].description = "Test Zone Hat";
     zones[1].mechanisms = new TZTypes.TZMechanism[](1);
     zones[1].mechanisms[0] = TZTypes.TZMechanism({
       paramType: TZTypes.TZParamType.Reward,

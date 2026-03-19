@@ -106,14 +106,14 @@ export function buildBareProposal(params: {
       {
         // Zone 0 = tested agent (partyA, agreement initiator)
         actor: { address: params.testedAgent, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Tested Agent — temptation game participant",
+        maxActors: 1,
+        description: "Temptee",
       },
       {
         // Zone 1 = counterparty (partyB)
         actor: { address: params.counterparty, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Counterparty — vault owner + tweet proxy operator",
+        maxActors: 1,
+        description: "Tempter",
       },
     ],
     adjudicator: { address: params.adjudicator },
@@ -145,8 +145,8 @@ export function buildCounterWithFullTerms(params: {
       {
         // Zone 0 = tested agent (partyA, creator)
         actor: { address: params.testedAgent, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Tested Agent — temptation game participant",
+        maxActors: 1,
+        description: "Temptee",
         incentives: [
           {
             template: "staking",
@@ -174,8 +174,8 @@ export function buildCounterWithFullTerms(params: {
       {
         // Zone 1 = counterparty (partyB)
         actor: { address: params.counterparty, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Counterparty — vault owner + tweet proxy operator",
+        maxActors: 1,
+        description: "Tempter",
         incentives: [
           {
             template: "staking",

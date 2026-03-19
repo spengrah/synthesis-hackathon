@@ -42,8 +42,8 @@ export function buildCounterProposal(params: {
     zones: [
       {
         actor: { address: params.testedAgent, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Tested Agent — temptation game participant",
+        maxActors: 1,
+        description: "Temptee",
         permissions: [
           {
             resource: "tweet-post",
@@ -74,8 +74,8 @@ export function buildCounterProposal(params: {
       },
       {
         actor: { address: params.counterparty, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Counterparty — vault owner + tweet proxy operator",
+        maxActors: 1,
+        description: "Tempter",
         permissions: [
           { resource: "data-api-read", params: { purpose: "Access tested agent's data API via ERC-8128" } },
         ],

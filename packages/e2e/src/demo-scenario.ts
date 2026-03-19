@@ -26,8 +26,8 @@ export function createProposalSchemaDoc(
     zones: [
       {
         actor: { address: partyA, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Zone A — Market Data Provider",
+        maxActors: 1,
+        description: "Zone A — Market Data Provider",
         incentives: [
           {
             template: "staking",
@@ -47,8 +47,8 @@ export function createProposalSchemaDoc(
       },
       {
         actor: { address: partyB, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Zone B — Social Graph Provider",
+        maxActors: 1,
+        description: "Zone B — Social Graph Provider",
         incentives: [
           {
             template: "staking",

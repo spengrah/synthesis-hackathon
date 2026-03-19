@@ -103,8 +103,8 @@ interface ProposalData {
 interface TZConfig {
   party: Address
   agentId: bigint           // 0 = no 8004
-  hatMaxSupply: number
-  hatDetails: string
+  maxActors: number
+  description: string
   mechanisms: TZMechanism[]
   resources: TZResourceTokenConfig[]
 }

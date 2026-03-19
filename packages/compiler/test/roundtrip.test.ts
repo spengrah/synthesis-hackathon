@@ -37,8 +37,8 @@ describe("compile → decompile roundtrip", () => {
       zones: [
         {
           actor: { address: PARTY_A, agentId: 0 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone A",
+          maxActors: 1,
+          description: "Zone A",
         },
       ],
       adjudicator: { template: "stub-adjudicator" },
@@ -56,8 +56,8 @@ describe("compile → decompile roundtrip", () => {
       zones: [
         {
           actor: { address: PARTY_A, agentId: 42 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone A — A's data exposed to B",
+          maxActors: 1,
+          description: "Zone A — A's data exposed to B",
           constraints: [
             { template: "budget-cap", params: { token: USDC, limit: "1000000" } },
             { template: "target-allowlist", params: { targets: [TARGET] } },
@@ -90,8 +90,8 @@ describe("compile → decompile roundtrip", () => {
       zones: [
         {
           actor: { address: PARTY_A, agentId: 1 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone A",
+          maxActors: 1,
+          description: "Zone A",
           eligibilities: [
             { template: "reputation-gate", params: { minScore: 50 } },
           ],
@@ -118,8 +118,8 @@ describe("compile → decompile roundtrip", () => {
       zones: [
         {
           actor: { address: PARTY_A, agentId: 0 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone A",
+          maxActors: 1,
+          description: "Zone A",
         },
       ],
       adjudicator: { address: "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF" as Address },
@@ -137,8 +137,8 @@ describe("compile → decompile roundtrip", () => {
       zones: [
         {
           actor: { address: PARTY_A, agentId: 1 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone 1 — A's data exposed to B",
+          maxActors: 1,
+          description: "Zone 1 — A's data exposed to B",
           constraints: [
             { template: "budget-cap", params: { token: USDC, limit: "1000000" } },
           ],
@@ -156,8 +156,8 @@ describe("compile → decompile roundtrip", () => {
         },
         {
           actor: { address: PARTY_B, agentId: 2 },
-          hatMaxSupply: 1,
-          hatDetails: "Zone 2 — B's data exposed to A",
+          maxActors: 1,
+          description: "Zone 2 — B's data exposed to A",
           constraints: [
             { template: "budget-cap", params: { token: USDC, limit: "2000000" } },
           ],

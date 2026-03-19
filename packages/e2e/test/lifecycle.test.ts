@@ -173,7 +173,7 @@ function summarizeSchemaDoc(doc: TZSchemaDocument): Record<string, unknown> {
     zones: doc.zones.map((z, i) => ({
       index: i,
       party: z.actor.address,
-      hat: z.hatDetails,
+      hat: z.description,
       mechanisms: [
         ...(z.constraints ?? []).map(m => `constraint:${m.template}`),
         ...(z.eligibilities ?? []).map(m => `eligibility:${m.template}`),

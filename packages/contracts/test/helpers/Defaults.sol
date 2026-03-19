@@ -54,8 +54,8 @@ library Defaults {
   function tzConfig(address party, uint256 agentId) internal pure returns (TZTypes.TZConfig memory config) {
     config.party = party;
     config.agentId = agentId;
-    config.hatMaxSupply = Constants.DEFAULT_HAT_MAX_SUPPLY;
-    config.hatDetails = Constants.DEFAULT_HAT_DETAILS;
+    config.maxActors = Constants.DEFAULT_MAX_ACTORS;
+    config.description = Constants.DEFAULT_DESCRIPTION;
     // mechanisms and resources left empty — callers add as needed
   }
 

@@ -37,8 +37,8 @@ export interface TZResourceTokenConfig {
 export interface TZConfig {
   party: Address;
   agentId: bigint;
-  hatMaxSupply: number;
-  hatDetails: string;
+  maxActors: number;
+  description: string;
   mechanisms: TZMechanism[];
   resources: TZResourceTokenConfig[];
 }

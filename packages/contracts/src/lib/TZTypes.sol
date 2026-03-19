@@ -56,8 +56,8 @@ library TZTypes {
   struct TZConfig {
     address party;
     uint256 agentId; // ERC-8004 agent identity (0 = no 8004, e.g. human party)
-    uint32 hatMaxSupply;
-    string hatDetails;
+    uint32 maxActors;
+    string description;
     TZMechanism[] mechanisms;
     TZResourceTokenConfig[] resources;
   }

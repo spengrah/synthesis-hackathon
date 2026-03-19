@@ -472,8 +472,8 @@ struct MechanismInstall {
 
 struct ZoneConfig {
     address party;
-    uint32 hatMaxSupply;
-    string hatDetails;
+    uint32 maxActors;
+    string description;
     address hatEligibility;       // Hats eligibility module (0 = none)
     bytes hatEligibilityInitData;
     address hatToggle;            // Hats toggle module (0 = agreement contract)

@@ -27,8 +27,8 @@ describe("decodeProposalData", () => {
       fixtures.addresses.partyA.toLowerCase(),
     );
     expect(data.zones[0].agentId).toBe(0n);
-    expect(data.zones[0].hatMaxSupply).toBe(1);
-    expect(data.zones[0].hatDetails).toBe("Test Zone Hat");
+    expect(data.zones[0].maxActors).toBe(1);
+    expect(data.zones[0].description).toBe("Test Zone Hat");
     expect(data.zones[0].mechanisms).toHaveLength(0);
     expect(data.zones[0].resources).toHaveLength(0);
 

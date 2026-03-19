@@ -26,16 +26,16 @@ const basicProposal: ProposalData = {
     {
       party: fixtures.addresses.partyA as Hex,
       agentId: 0n,
-      hatMaxSupply: 1,
-      hatDetails: "Test Zone Hat",
+      maxActors: 1,
+      description: "Test Zone Hat",
       mechanisms: [],
       resources: [],
     },
     {
       party: fixtures.addresses.partyB as Hex,
       agentId: 0n,
-      hatMaxSupply: 1,
-      hatDetails: "Test Zone Hat",
+      maxActors: 1,
+      description: "Test Zone Hat",
       mechanisms: [],
       resources: [],
     },
@@ -50,8 +50,8 @@ const richProposal: ProposalData = {
     {
       party: fixtures.addresses.partyA as Hex,
       agentId: 0n,
-      hatMaxSupply: 1,
-      hatDetails: "Test Zone Hat",
+      maxActors: 1,
+      description: "Test Zone Hat",
       mechanisms: [
         {
           paramType: TZParamType.Penalty,
@@ -65,8 +65,8 @@ const richProposal: ProposalData = {
     {
       party: fixtures.addresses.partyB as Hex,
       agentId: 0n,
-      hatMaxSupply: 1,
-      hatDetails: "Test Zone Hat",
+      maxActors: 1,
+      description: "Test Zone Hat",
       mechanisms: [
         {
           paramType: TZParamType.Reward,

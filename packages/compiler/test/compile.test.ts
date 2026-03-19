@@ -25,7 +25,7 @@ describe("compile", () => {
   it("sets termsDocUri to empty string", () => {
     const doc: TZSchemaDocument = {
       version: "0.1.0",
-      zones: [{ actor: { address: PARTY_A, agentId: 0 }, hatMaxSupply: 1, hatDetails: "Z" }],
+      zones: [{ actor: { address: PARTY_A, agentId: 0 }, maxActors: 1, description: "Z" }],
       adjudicator: { template: "stub-adjudicator" },
       deadline: 1710700000,
     };
@@ -36,7 +36,7 @@ describe("compile", () => {
   it("converts deadline to bigint", () => {
     const doc: TZSchemaDocument = {
       version: "0.1.0",
-      zones: [{ actor: { address: PARTY_A, agentId: 0 }, hatMaxSupply: 1, hatDetails: "Z" }],
+      zones: [{ actor: { address: PARTY_A, agentId: 0 }, maxActors: 1, description: "Z" }],
       adjudicator: { template: "stub-adjudicator" },
       deadline: 1710700000,
     };
@@ -47,7 +47,7 @@ describe("compile", () => {
   it("resolves adjudicator template to address", () => {
     const doc: TZSchemaDocument = {
       version: "0.1.0",
-      zones: [{ actor: { address: PARTY_A, agentId: 0 }, hatMaxSupply: 1, hatDetails: "Z" }],
+      zones: [{ actor: { address: PARTY_A, agentId: 0 }, maxActors: 1, description: "Z" }],
       adjudicator: { template: "stub-adjudicator" },
       deadline: 1710700000,
     };
@@ -59,7 +59,7 @@ describe("compile", () => {
     const raw = "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF" as Address;
     const doc: TZSchemaDocument = {
       version: "0.1.0",
-      zones: [{ actor: { address: PARTY_A, agentId: 0 }, hatMaxSupply: 1, hatDetails: "Z" }],
+      zones: [{ actor: { address: PARTY_A, agentId: 0 }, maxActors: 1, description: "Z" }],
       adjudicator: { address: raw },
       deadline: 1710700000,
     };
@@ -72,8 +72,8 @@ describe("compile", () => {
       version: "0.1.0",
       zones: [{
         actor: { address: PARTY_A, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Z",
+        maxActors: 1,
+        description: "Z",
         constraints: [{ template: "budget-cap", params: { token: USDC, limit: "1000" } }],
       }],
       adjudicator: { template: "stub-adjudicator" },
@@ -89,8 +89,8 @@ describe("compile", () => {
       version: "0.1.0",
       zones: [{
         actor: { address: PARTY_A, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Z",
+        maxActors: 1,
+        description: "Z",
         incentives: [{ template: "staking", params: { token: USDC, minStake: "1000", cooldownPeriod: 86400 } }],
       }],
       adjudicator: { template: "stub-adjudicator" },
@@ -106,8 +106,8 @@ describe("compile", () => {
       version: "0.1.0",
       zones: [{
         actor: { address: PARTY_A, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Z",
+        maxActors: 1,
+        description: "Z",
         constraints: [{ template: "nonexistent", params: {} }],
       }],
       adjudicator: { template: "stub-adjudicator" },
@@ -122,8 +122,8 @@ describe("compile", () => {
       version: "0.1.0",
       zones: [{
         actor: { address: PARTY_A, agentId: 0 },
-        hatMaxSupply: 1,
-        hatDetails: "Z",
+        maxActors: 1,
+        description: "Z",
         constraints: [{ template: "budget-cap", params: { token: USDC, limit: "1000" } }],
       }],
       adjudicator: { template: "stub-adjudicator" },

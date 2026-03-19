@@ -24,8 +24,8 @@ Trust Zones Top Hat (worn by Agreement Registry)
 Zone hats are created during SET_UP. Their configuration comes from `TZConfig`:
 
 ### Hat metadata (from TZConfig fields)
-- `hatMaxSupply` — how many of this zone hat can exist (typically 1 for 1:1 agreements)
-- `hatDetails` — human/agent-readable description
+- `maxActors` — how many of this zone hat can exist (typically 1 for 1:1 agreements)
+- `description` — human/agent-readable description
 
 ### Hat-wired eligibility modules
 

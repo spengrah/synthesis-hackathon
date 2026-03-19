@@ -176,8 +176,8 @@ function buildReputationGameSchemaDoc(params: {
     version: "0.1.0",
     zones: [{
       actor: { address: params.testedAgent, agentId: 0 },
-      hatMaxSupply: 1,
-      hatDetails: "Tested Agent — temptation game participant",
+      maxActors: 1,
+      description: "Temptee",
       incentives: [
         { template: "staking", params: { token: USDC, minStake: params.stakeAmount.toString(), cooldownPeriod: 86400 } },
       ],

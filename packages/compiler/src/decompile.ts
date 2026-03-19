@@ -18,7 +18,7 @@ export function decompile(
   registry: TemplateRegistry,
 ): TZSchemaDocument {
   const zones: ZoneSchema[] = proposalData.zones.map((zone) =>
-    decompileZone(zone.party, zone.agentId, zone.hatMaxSupply, zone.hatDetails, zone.mechanisms, zone.resources, config, registry),
+    decompileZone(zone.party, zone.agentId, zone.maxActors, zone.description, zone.mechanisms, zone.resources, config, registry),
   );
 
   const adjudicator = decompileAdjudicator(proposalData.adjudicator, config);
@@ -35,8 +35,8 @@ export function decompile(
 function decompileZone(
   party: Address,
   agentId: bigint,
-  hatMaxSupply: number,
-  hatDetails: string,
+  maxActors: number,
+  description: string,
   mechanisms: readonly TZMechanism[],
   resources: readonly TZResourceTokenConfig[],
   config: CompilerConfig,
@@ -67,8 +67,8 @@ function decompileZone(
 
   const zone: ZoneSchema = {
     actor: { address: party, agentId: Number(agentId) },
-    hatMaxSupply,
-    hatDetails,
+    maxActors,
+    description,
   };
 
   if (constraints.length > 0) zone.constraints = constraints;

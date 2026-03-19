@@ -20,8 +20,8 @@ const tzResourceTokenConfigComponents = [
 const tzConfigComponents = [
   { name: "party", type: "address" as const },
   { name: "agentId", type: "uint256" as const },
-  { name: "hatMaxSupply", type: "uint32" as const },
-  { name: "hatDetails", type: "string" as const },
+  { name: "maxActors", type: "uint32" as const },
+  { name: "description", type: "string" as const },
   {
     name: "mechanisms",
     type: "tuple[]" as const,
@@ -70,8 +70,8 @@ export function decodeProposalData(proposalDataBytes: Hex): ProposalData {
     zones: raw.zones.map((z) => ({
       party: z.party,
       agentId: z.agentId,
-      hatMaxSupply: z.hatMaxSupply,
-      hatDetails: z.hatDetails,
+      maxActors: z.maxActors,
+      description: z.description,
       mechanisms: z.mechanisms.map((m) => ({
         paramType: m.paramType as TZParamType,
         moduleKind: m.moduleKind as TZModuleKind,
