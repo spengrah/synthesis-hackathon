@@ -1,0 +1,22 @@
+{
+  "name": "@trust-zones/bonfires",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./receipts": "./src/receipts/logger.ts",
+    "./queries": "./src/queries/index.ts"
+  },
+  "scripts": {
+    "setup": "tsx src/setup/index.ts",
+    "start": "tsx src/sync/index.ts",
+    "dev": "tsx watch src/sync/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

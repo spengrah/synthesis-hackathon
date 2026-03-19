@@ -72,6 +72,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
       deadline: parsed.deadline,
       zoneCount: parsed.zones.length,
       rawProposalData: proposalDataBytes,
+      txHash: event.log.transactionHash,
     });
 
     // Update agreement termsHash
@@ -79,11 +80,11 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
       .update(agreement, { id: agreementId })
       .set({ termsHash, termsUri: parsed.termsDocUri });
 
-    // Create tentative typed entities from parsed proposal data
+    // Create proposed typed entities from parsed proposal data
     for (let zoneIdx = 0; zoneIdx < parsed.zones.length; zoneIdx++) {
       const zone = parsed.zones[zoneIdx];
 
-      // Mechanisms → tentative typed entities
+      // Mechanisms → proposed typed entities
       for (let mechIdx = 0; mechIdx < zone.mechanisms.length; mechIdx++) {
         const mech = zone.mechanisms[mechIdx];
         const entityId = `${proposalId}:z${zoneIdx}:m${mechIdx}`;
@@ -168,7 +169,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
         }
       }
 
-      // Resources → tentative typed entities
+      // Resources → proposed typed entities
       for (let resIdx = 0; resIdx < zone.resources.length; resIdx++) {
         const res = zone.resources[resIdx];
         const entityId = `${proposalId}:z${zoneIdx}:r${resIdx}`;
@@ -304,15 +305,16 @@ ponder.on("Agreement:ZoneDeployed", async ({ event, context }) => {
     zoneIndex,
     active: true,
     createdAt: event.block.timestamp,
+    txHash: event.log.transactionHash,
   });
 });
 
 // ─── MechanismRegistered ─────────────────────────────────────────
-// Strategy: promote the matching tentative entity (from ProposalData parsing) to
+// Strategy: promote the matching proposed entity (from ProposalData parsing) to
 // deployed by setting trustZoneId. This preserves moduleKind and data.
 //
 // Matching: for singletons (ERC7579Hook/External), the deployed address matches
-// the tentative module address exactly. For HatsModule clones, the deployed
+// the proposed module address exactly. For HatsModule clones, the deployed
 // address differs, so we fall back to positional match — but only if there is
 // exactly one unmatched candidate (ambiguity = no promotion).
 
@@ -331,7 +333,7 @@ ponder.on("Agreement:MechanismRegistered", async ({ event, context }) => {
   const tz = zones.find((z) => z.zoneIndex === zoneIndex);
   const tzId = tz?.id;
 
-  // Helper: find a tentative entity to promote.
+  // Helper: find a proposed entity to promote.
   // 1. Try exact module address match (works for singletons)
   // 2. Fall back to sole unmatched candidate (works for clones when unambiguous)
   const promote = async (
@@ -495,6 +497,7 @@ ponder.on("Agreement:ClaimFiled", async ({ event, context }) => {
     claimantId,
     evidence: event.args.evidence as Hex,
     timestamp: event.block.timestamp,
+    txHash: event.log.transactionHash,
   });
 });
 
@@ -614,6 +617,7 @@ ponder.on(
       feedbackURI: event.args.feedbackURI,
       feedbackHash: event.args.feedbackHash as Hex,
       timestamp: event.block.timestamp,
+      txHash: event.log.transactionHash,
     });
   }
 );

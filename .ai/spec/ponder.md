@@ -8,7 +8,7 @@ Indexes contract events into a queryable store. Materializes the Tier 1 Context 
 
 - **The indexer IS the Tier 1 context graph.** Schema mirrors the Context Graph data model, not the raw event structure.
 - **Parse everything at index time.** ABI-decode ProposalData, resource token metadata, and adjudication actions so consumers never touch raw bytes.
-- **Tentative vs deployed.** Typed entities (Permission, Directive, Constraint, etc.) are created at proposal time (tentative) and activation time (deployed). Consumers distinguish via `proposal` vs `trustZone` references.
+- **Proposed vs deployed.** Typed entities (Permission, Directive, Constraint, etc.) are created at proposal time (proposed) and activation time (deployed). Consumers distinguish via `proposal` vs `trustZone` references.
 - **TrustZone is the hub.** The TrustZone entity is the primary query target — the full surface of delegated resources and mechanisms that secure them.
 
 ## Stack
@@ -137,7 +137,7 @@ Proposal {
   deadline: bigint
   zoneCount: int
 
-  // Relations — tentative typed entities link back here
+  // Relations — proposed typed entities link back here
   permissions: [Permission]
   responsibilities: [Responsibility]
   directives: [Directive]
@@ -173,8 +173,8 @@ TrustZone {
 
 ### Context graph typed entities
 
-Each typed entity has `proposal?` + `trustZone?` references for the tentative/deployed distinction:
-- **Tentative**: `proposal` is set, `trustZone` is null → created from parsed ProposalData
+Each typed entity has `proposal?` + `trustZone?` references for the proposed/deployed distinction:
+- **Proposed**: `proposal` is set, `trustZone` is null → created from parsed ProposalData
 - **Deployed**: `trustZone` is set → created from activation events
 - Both may be set if the entity was proposed and then deployed
 
@@ -182,7 +182,7 @@ Each typed entity has `proposal?` + `trustZone?` references for the tentative/de
 Permission {
   id: string
   agreement: Agreement
-  proposal: Proposal?            // tentative (from ProposalSubmitted)
+  proposal: Proposal?            // proposed (from ProposalSubmitted)
   trustZone: TrustZone?          // deployed (from ResourceTokenAssigned)
   resourceToken: ResourceToken?  // linked after activation
   zoneIndex: int
@@ -349,14 +349,14 @@ ReputationFeedback {
 
 ### AgreementCreated
 - Creates: `Agreement`, 2x `Actor` (upsert), 2x `AgreementParty`
-- Parses: initial `proposalData` from the creation transaction to create `Proposal` + tentative typed entities
+- Parses: initial `proposalData` from the creation transaction to create `Proposal` + proposed typed entities
 
 ### ProposalSubmitted
 - Creates: `Proposal`, `Actor` (upsert for proposer)
 - Updates: `Agreement.termsHash`
 - **ABI-decodes `proposalData`** into `ProposalData { termsDocUri, TZConfig[], adjudicator, deadline }`
-- For each `TZConfig.mechanisms[]`: creates tentative typed entity (Constraint, Eligibility, Incentive, DecisionModel, PrincipalAlignment) based on `paramType`
-- For each `TZConfig.resources[]`: creates tentative typed entity (Permission, Responsibility, Directive) based on `tokenType`, ABI-decodes metadata into parsed fields
+- For each `TZConfig.mechanisms[]`: creates proposed typed entity (Constraint, Eligibility, Incentive, DecisionModel, PrincipalAlignment) based on `paramType`
+- For each `TZConfig.resources[]`: creates proposed typed entity (Permission, Responsibility, Directive) based on `tokenType`, ABI-decodes metadata into parsed fields
 
 ### AgreementStateChanged
 - Updates: `Agreement.state` (decode bytes32 to human-readable string)
@@ -439,8 +439,8 @@ struct TZMechanism {
 
 The indexer ABI-decodes this and:
 1. Stores parsed fields on the `Proposal` entity (termsDocUri, adjudicator, deadline, zoneCount)
-2. For each zone, iterates `mechanisms[]` and creates tentative typed entities based on `paramType`
-3. For each zone, iterates `resources[]` and creates tentative typed entities based on `tokenType`, ABI-decoding the inner `metadata` bytes into parsed fields per the metadata schemas below
+2. For each zone, iterates `mechanisms[]` and creates proposed typed entities based on `paramType`
+3. For each zone, iterates `resources[]` and creates proposed typed entities based on `tokenType`, ABI-decoding the inner `metadata` bytes into parsed fields per the metadata schemas below
 
 ## Resource token metadata schemas
 

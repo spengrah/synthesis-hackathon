@@ -111,6 +111,30 @@ Labels: ["Actor"]
 Summary: "Actor <address>. Agent ID: <agentId>."
 ```
 
+### Proposal
+
+Represents a proposal submitted during agreement negotiation. Contains the structured terms (parsed from ABI-encoded ProposalData).
+
+| Field | Source | KG representation |
+|-------|--------|-------------------|
+| id | Ponder `proposal.id` | Entity `name` = `proposal:<agreement>:<sequence>` |
+| termsHash | Ponder `proposal.termsHash` | `attributes.termsHash` |
+| termsDocUri | Ponder `proposal.termsDocUri` | `attributes.termsDocUri` |
+| adjudicator | Ponder `proposal.adjudicator` | `attributes.adjudicator` |
+| deadline | Ponder `proposal.deadline` | `attributes.deadline` |
+| zoneCount | Ponder `proposal.zoneCount` | `attributes.zoneCount` |
+| sequence | Ponder `proposal.sequence` | `attributes.sequence` |
+| timestamp | Ponder `proposal.timestamp` | `attributes.timestamp` |
+
+```
+Labels: ["Proposal"]
+Summary: "Proposal #<sequence> in agreement <agreementAddr>. Proposed by <proposer>. Terms: <termsDocUri>."
+```
+
+Edges:
+- `PROPOSAL_IN` (Proposal → Agreement)
+- `PROPOSED_BY` (Proposal → Actor)
+
 ### Permission (Resource Token type 0x01)
 
 What a zone holder CAN do -- access rights to counterparty resources.
@@ -122,12 +146,14 @@ What a zone holder CAN do -- access rights to counterparty resources.
 | expiry | Ponder `permission.expiry` | `attributes.expiry` |
 | purpose | Ponder `permission.purpose` | `attributes.purpose` |
 | resourceTokenId | Ponder `permission.resourceTokenId` | `attributes.resourceTokenId` |
-| status | Derived from proposalId/trustZoneId | `attributes.status` ("tentative" or "deployed") |
+| status | Derived at sync time | `attributes.status` ("proposed" or "deployed") |
 
 ```
 Labels: ["Permission", "ResourceToken"]
 Summary: "Permission for <resource>. Rate limit: <rateLimit>. Purpose: <purpose>. Status: <status>."
 ```
+
+**Attribute design:** Only intrinsic/parsed data is stored as attributes. Relationships to proposals, zones, and agreements are expressed as edges (`PROPOSED_IN`, `HOLDS_PERMISSION`, etc.), not as attributes. Status is derived at sync time: if the Ponder entity has a `trustZoneId`, status is "deployed"; if only `proposalId`, status is "proposed".
 
 ### Responsibility (Resource Token type 0x02)
 
@@ -139,7 +165,7 @@ What a zone holder MUST do -- obligations.
 | criteria | Ponder `responsibility.criteria` | `attributes.criteria` |
 | deadline | Ponder `responsibility.deadline` | `attributes.deadline` |
 | resourceTokenId | Ponder `responsibility.resourceTokenId` | `attributes.resourceTokenId` |
-| status | Derived | `attributes.status` |
+| status | Derived at sync time | `attributes.status` ("proposed" or "deployed") |
 
 ```
 Labels: ["Responsibility", "ResourceToken"]
@@ -156,7 +182,7 @@ What a zone holder SHOULD/SHOULDN'T do -- subjective behavioral rules.
 | severity | Ponder `directive.severity` | `attributes.severity` |
 | params | Ponder `directive.params` | `attributes.params` |
 | resourceTokenId | Ponder `directive.resourceTokenId` | `attributes.resourceTokenId` |
-| status | Derived | `attributes.status` |
+| status | Derived at sync time | `attributes.status` ("proposed" or "deployed") |
 
 ```
 Labels: ["Directive", "ResourceToken"]
@@ -229,12 +255,14 @@ Mechanism-type entities. These share a similar structure: module address, module
 | module | Ponder entity `.module` | `attributes.module` |
 | moduleKind | Ponder entity `.moduleKind` | `attributes.moduleKind` |
 | data | Ponder entity `.data` | `attributes.data` |
-| status | Derived from proposalId/trustZoneId | `attributes.status` |
+| status | Derived at sync time | `attributes.status` ("proposed" or "deployed") |
 
 ```
 Labels: ["<Type>", "Mechanism"]  // e.g., ["Constraint", "Mechanism"]
 Summary: "<Type> mechanism. Module: <module>. Kind: <moduleKind>. Status: <status>."
 ```
+
+**Attribute design:** Same principle as resource tokens — only intrinsic data (module, moduleKind, data) as attributes. Relationships to proposals and zones are edges only.
 
 ---
 
@@ -259,7 +287,9 @@ Edges are created via `POST /knowledge_graph/edge`. Each edge has an `edge_name`
 | `CLAIM_IN` | Claim | Agreement | Claim is in this agreement |
 | `FEEDBACK_FOR` | ReputationFeedback | Actor | Feedback is about this actor |
 | `FEEDBACK_IN` | ReputationFeedback | Agreement | Feedback is from this agreement |
-| `PROPOSED_IN` | Permission/Responsibility/Directive | Agreement | Tentative entity was proposed in this agreement (pre-deployment) |
+| `PROPOSAL_IN` | Proposal | Agreement | Proposal was submitted in this agreement |
+| `PROPOSED_BY` | Proposal | Actor | Proposal was submitted by this actor |
+| `PROPOSED_IN` | Permission/Responsibility/Directive/Mechanism | Proposal | Proposed entity originated from this proposal |
 
 ### Episode-to-entity links (automatic)
 
@@ -340,7 +370,33 @@ async function syncPonderToBonfires(lastSyncTimestamp: number) {
       await upsertEdge(actorUuid, agrUuid, "PARTY_OF", ...)
     }
 
-    // 4. Upsert TrustZone entities + edges + nested resource/mechanism entities
+    // 4. Upsert Proposal entities + edges
+    for (const prop of agr.proposals.items) {
+      const propUuid = await upsertEntity({
+        name: `proposal:${prop.id}`,
+        labels: ["Proposal"],
+        summary: `Proposal #${prop.sequence} in agreement ${agr.id}. Terms: ${prop.termsDocUri}.`,
+        attributes: {
+          termsHash: prop.termsHash,
+          termsDocUri: prop.termsDocUri,
+          adjudicator: prop.adjudicator,
+          deadline: prop.deadline,
+          zoneCount: prop.zoneCount,
+          sequence: prop.sequence,
+          timestamp: prop.timestamp,
+        },
+        bonfire_id: BONFIRE_ID,
+      })
+      await upsertEdge(propUuid, agrUuid, "PROPOSAL_IN", ...)
+      const proposerUuid = await upsertEntity({
+        name: `actor:${prop.proposer.id}`,
+        labels: ["Actor"],
+        ...
+      })
+      await upsertEdge(propUuid, proposerUuid, "PROPOSED_BY", ...)
+    }
+
+    // 5. Upsert TrustZone entities + edges + nested resource/mechanism entities
     for (const zone of agr.trustZones.items) {
       const zoneUuid = await upsertEntity({
         name: `zone:${zone.id}`,
@@ -349,19 +405,31 @@ async function syncPonderToBonfires(lastSyncTimestamp: number) {
       })
       await upsertEdge(agrUuid, zoneUuid, "HAS_ZONE", ...)
 
-      // Permissions, Responsibilities, Directives, Constraints, etc.
+      // Deployed permissions, responsibilities, directives, constraints, etc.
+      // Only entities with trustZoneId set (deployed) get HOLDS_* edges to the zone.
       for (const perm of zone.permissions.items) {
         const permUuid = await upsertEntity({
           name: `permission:${perm.id}`,
           labels: ["Permission", "ResourceToken"],
+          attributes: {
+            resource: perm.resource,
+            value: perm.value,
+            period: perm.period,
+            expiry: perm.expiry,
+            params: perm.params,
+            status: "deployed",  // derived: trustZoneId is set
+          },
           ...
         })
         await upsertEdge(zoneUuid, permUuid, "HOLDS_PERMISSION", ...)
       }
       // ... same pattern for other typed entities
+
+      // Proposed entities (proposalId set, no trustZoneId) get PROPOSED_IN edges to the proposal.
+      // These are queried from Ponder separately (entities where trustZoneId is null).
     }
 
-    // 5. Upsert Claim entities + edges
+    // 6. Upsert Claim entities + edges
     for (const claim of agr.claims.items) {
       const claimUuid = await upsertEntity({
         name: `claim:${claim.id}`,
@@ -756,9 +824,10 @@ How the context graph is populated during the 9-beat demo.
   - Agreement entity (state: PROPOSED -> NEGOTIATING -> ACCEPTED)
   - 2 Actor entities
   - 2 PARTY_OF edges
+  - Proposal entities with PROPOSAL_IN and PROPOSED_BY edges
   - State transition episodes (PROPOSED -> NEGOTIATING, NEGOTIATING -> ACCEPTED)
   - Proposal episodes (initial proposal, counter, acceptance)
-  - Tentative Permission, Responsibility, Directive entities (status: "tentative", linked to proposals)
+  - Proposed Permission, Responsibility, Directive entities (status: "proposed", linked to proposals via PROPOSED_IN edges)
 
 ### Beat 2: SET UP + STAKE + ACTIVATE
 
@@ -767,7 +836,7 @@ How the context graph is populated during the 9-beat demo.
   - 2 TrustZone entities
   - HAS_ZONE edges
   - OPERATES edges (Actor -> TrustZone)
-  - Deployed Permission, Responsibility, Directive entities (status: "deployed")
+  - Deployed Permission, Responsibility, Directive entities (status: "deployed", linked to zones via HOLDS_* edges)
   - HOLDS_PERMISSION, HOLDS_RESPONSIBILITY, HOLDS_DIRECTIVE edges
   - Constraint, Eligibility, Incentive entities + HAS_* edges
   - State transition episodes (ACCEPTED -> READY, READY -> ACTIVE)
@@ -818,6 +887,39 @@ How the context graph is populated during the 9-beat demo.
 ---
 
 ## Design Decisions
+
+### Entity attribute principle: intrinsic data only, relationships are edges
+
+Entity attributes store only data intrinsic to the entity itself (parsed fields, status, timestamps). Foreign key relationships (`proposalId`, `trustZoneId`, `agreementId`) are NOT stored as attributes — they are expressed exclusively as KG edges. This prevents redundancy and ensures the graph is the single source of relationship truth.
+
+Status (`"proposed"` or `"deployed"`) is derived at sync time from the Ponder entity's FK fields, but only the derived string value is stored as an attribute, not the FK itself.
+
+### Episode entity_types for Graphiti auto-extraction
+
+When creating episodes, pass the full entity type list so Graphiti can auto-extract entity mentions from episode bodies:
+
+```typescript
+const ENTITY_TYPES = [
+  "Agreement",
+  "TrustZone",
+  "Actor",
+  "Proposal",
+  "Permission",
+  "Responsibility",
+  "Directive",
+  "Constraint",
+  "Eligibility",
+  "Incentive",
+  "DecisionModel",
+  "PrincipalAlignment",
+  "Claim",
+  "ReputationFeedback",
+]
+```
+
+### group_id = bonfire_id
+
+All `group_id` fields on edge and episode creation requests use the bonfire ID. For the hackathon there is no access control scoping — anyone can read from the bonfire. Only the Ponder sync service and data API receipt loggers have write access.
 
 ### Zone identifiers: address, not zoneIndex
 
