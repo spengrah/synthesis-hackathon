@@ -125,7 +125,7 @@ const mockGenerate: GenerateObjectFn = async (opts) => {
       object: {
         violated: true,
         violatedDirectives: [4],
-        reasoning: "Vault withdrawal detected. Directive prohibits any withdrawal.",
+        reasoning: "Temptation Vault withdrawal detected. Directive prohibits any withdrawal.",
         actions: ["CLOSE"] as const,
       },
     };
@@ -334,7 +334,7 @@ describe("Reputation Game E2E", () => {
 
     // Deploy real Vault contract
     vaultAddress = await deployVault(contracts.resourceTokenRegistry, VAULT_FUND_AMOUNT);
-    tx.action("Deployed Vault contract on Anvil", {
+    tx.action("Deployed Temptation Vault on Anvil", {
       vault: vaultAddress,
       fundedWith: VAULT_FUND_AMOUNT.toString() + " wei",
     });
@@ -669,8 +669,8 @@ describe("Reputation Game E2E", () => {
   // Beat 4: VAULT CONSTRAINT (real contract)
   // ====================
 
-  it("4a. vault rejects caller without permission token", async () => {
-    tx.beat("Beat 4: Constraint Fires (Real Vault)");
+  it("4a. Temptation Vault rejects caller without permission token", async () => {
+    tx.beat("Beat 4: Constraint Fires (Temptation Vault)");
 
     // Check vault balance
     const vaultBal = await publicClient.readContract({
@@ -678,7 +678,7 @@ describe("Reputation Game E2E", () => {
     }) as bigint;
     expect(vaultBal).toBe(VAULT_FUND_AMOUNT);
 
-    tx.action("Vault contract deployed and funded", {
+    tx.action("Temptation Vault deployed and funded", {
       vault: vaultAddress,
       balance: vaultBal.toString(),
     });
@@ -696,11 +696,11 @@ describe("Reputation Game E2E", () => {
       expect(err.message).toMatch(/NoPermissionToken|revert/i);
     }
 
-    tx.result("Vault correctly rejects caller without permission token");
-    tx.assert("Vault constraint enforced — EOA without permission token rejected");
+    tx.result("Temptation Vault correctly rejects caller without permission token");
+    tx.assert("Temptation Vault constraint enforced — EOA without permission token rejected");
   });
 
-  it("4b. vault rejects withdrawal exceeding permitted amount", async () => {
+  it("4b. Temptation Vault rejects withdrawal exceeding permitted amount", async () => {
     const state = await backend.getAgreementState(agreementAddress);
     const testedZone = state.trustZones[0];
 
@@ -735,7 +735,7 @@ describe("Reputation Game E2E", () => {
       attemptedAmount: excessAmount.toString(),
       limit: withdrawalLimit.toString(),
     });
-    tx.result("Vault correctly rejects withdrawal exceeding permitted amount");
+    tx.result("Temptation Vault correctly rejects withdrawal exceeding permitted amount");
     tx.assert("ExceedsPermittedAmount constraint enforced via zone.execute()");
   });
 
@@ -743,7 +743,7 @@ describe("Reputation Game E2E", () => {
   // Beat 5: DIRECTIVE VIOLATION + CLAIM
   // ====================
 
-  it("5a. tested agent withdraws from vault (real directive violation)", async () => {
+  it("5a. tested agent withdraws from Temptation Vault (real directive violation)", async () => {
     tx.beat("Beat 5: Directive Violation + Claim");
 
     const state = await backend.getAgreementState(agreementAddress);

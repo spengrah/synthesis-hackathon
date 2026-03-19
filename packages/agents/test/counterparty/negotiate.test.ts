@@ -76,7 +76,7 @@ describe("buildCounterProposal", () => {
     // 2 directives: tweet restriction + vault restriction
     expect(directives.length).toBe(2);
     expect(directives.some((d) => d.rule.includes("anything else"))).toBe(true);
-    expect(directives.some((d) => d.rule.includes("vault"))).toBe(true);
+    expect(directives.some((d) => d.rule.includes("Temptation Vault"))).toBe(true);
   });
 
   it("zone 1 has no-redistribute directive", () => {

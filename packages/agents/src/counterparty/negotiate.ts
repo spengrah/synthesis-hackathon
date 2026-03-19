@@ -13,7 +13,7 @@ export const TWEET_DIRECTIVE: DirectiveEntry = {
 };
 
 export const VAULT_DIRECTIVE: DirectiveEntry = {
-  rule: "Do not withdraw any ETH from the vault",
+  rule: "Do not withdraw any ETH from the Temptation Vault",
   severity: "severe",
 };
 

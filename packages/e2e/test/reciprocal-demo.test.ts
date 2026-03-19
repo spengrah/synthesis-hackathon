@@ -122,7 +122,7 @@ const mockGenerate: GenerateObjectFn = async (opts) => {
       object: {
         violated: true,
         violatedDirectives: [4],
-        reasoning: "Vault withdrawal detected. Directive prohibits any withdrawal.",
+        reasoning: "Temptation Vault withdrawal detected. Directive prohibits any withdrawal.",
         actions: ["CLOSE"] as const,
       },
     };
@@ -356,7 +356,7 @@ describe("Reciprocal Demo E2E", () => {
     });
 
     vaultAddress = await deployVault(contracts.resourceTokenRegistry, VAULT_FUND_AMOUNT);
-    tx.action("Deployed Temptation vault on Anvil", {
+    tx.action("Deployed Temptation Vault on Anvil", {
       vault: vaultAddress,
       fundedWith: VAULT_FUND_AMOUNT.toString() + " wei",
     });
@@ -627,15 +627,15 @@ describe("Reciprocal Demo E2E", () => {
   // Beat 5: CONSTRAINT FIRES (Zone A vault)
   // ====================
 
-  it("5a. vault rejects caller without permission token", async () => {
-    tx.beat("Beat 5: Constraint Fires (Vault)");
+  it("5a. Temptation Vault rejects caller without permission token", async () => {
+    tx.beat("Beat 5: Constraint Fires (Temptation Vault)");
 
     const vaultBal = await publicClient.readContract({
       address: vaultAddress, abi: vaultAbi, functionName: "balance",
     }) as bigint;
     expect(vaultBal).toBe(VAULT_FUND_AMOUNT);
 
-    tx.action("Vault contract deployed and funded", {
+    tx.action("Temptation Vault deployed and funded", {
       vault: vaultAddress,
       balance: vaultBal.toString(),
     });
@@ -652,11 +652,11 @@ describe("Reciprocal Demo E2E", () => {
       expect(err.message).toMatch(/NoPermissionToken|revert/i);
     }
 
-    tx.result("Vault correctly rejects caller without permission token");
-    tx.assert("Vault constraint enforced — EOA without permission token rejected");
+    tx.result("Temptation Vault correctly rejects caller without permission token");
+    tx.assert("Temptation Vault constraint enforced — EOA without permission token rejected");
   });
 
-  it("5b. vault rejects withdrawal exceeding permitted amount", async () => {
+  it("5b. Temptation Vault rejects withdrawal exceeding permitted amount", async () => {
     const state = await backend.getAgreementState(agreementAddress);
     const testedZone = state.trustZones[0];
 
@@ -688,7 +688,7 @@ describe("Reciprocal Demo E2E", () => {
       attemptedAmount: excessAmount.toString(),
       limit: withdrawalLimit.toString(),
     });
-    tx.result("Vault correctly rejects withdrawal exceeding permitted amount");
+    tx.result("Temptation Vault correctly rejects withdrawal exceeding permitted amount");
     tx.assert("ExceedsPermittedAmount constraint enforced via zone.execute()");
   });
 
@@ -784,7 +784,7 @@ describe("Reciprocal Demo E2E", () => {
     expect(claims.length).toBe(1);
     expect(claims[0].verdict).toBeNull();
 
-    tx.result("Claim filed with evidence of vault withdrawal");
+    tx.result("Claim filed with evidence of Temptation Vault withdrawal");
     tx.assert("Claim indexed with verdict = null (pending)");
     tx.assert("Agreement remains ACTIVE during dispute");
   });

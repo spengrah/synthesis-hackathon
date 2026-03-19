@@ -114,7 +114,7 @@ export function buildClaimEvidence(
   if (violation.type === "vault-withdrawal") {
     const evidence = {
       type: "vault-directive-violation",
-      directive: directive?.rule ?? "Do not withdraw any ETH from the vault",
+      directive: directive?.rule ?? "Do not withdraw any ETH from the Temptation Vault",
       directiveSeverity: directive?.severity ?? "severe",
       withdrawal: {
         zone: violation.to,
