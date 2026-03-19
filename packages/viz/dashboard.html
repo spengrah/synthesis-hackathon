@@ -1058,42 +1058,6 @@
     font-size: 11px;
   }
 
-  /* ====== LLM TRANSCRIPT ====== */
-  .llm-transcript {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 10px;
-    line-height: 1.5;
-    padding: 8px;
-    background: var(--bg);
-    border-radius: 4px;
-    max-height: 150px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    color: var(--text-dim);
-  }
-
-  .llm-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-bottom: 4px;
-    font-weight: 600;
-  }
-
-  .typing-cursor {
-    display: inline-block;
-    width: 6px;
-    height: 12px;
-    background: var(--accent);
-    animation: blink 1s infinite;
-    vertical-align: text-bottom;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
 
   /* ====== ZONES SCROLL ====== */
   .zones-scroll {
@@ -1920,46 +1884,7 @@ function renderClaims() {
     html += '</div>';
   });
 
-  // LLM transcript teaser
-  if (state.claims.some(c => c.verdict)) {
-    html += `<div style="margin-top: 6px;">
-      <div class="llm-label">Adjudicator LLM Reasoning</div>
-      <div class="llm-transcript" id="llmTranscript">${getLlmTranscriptText()}<span class="typing-cursor" id="typingCursor" style="display:none;"></span></div>
-    </div>`;
-  }
-
   container.innerHTML = html;
-}
-
-function getLlmTranscriptText() {
-  const claim = state.claims.find(c => c.verdict);
-  if (!claim) return '';
-
-  return `System: You are an impartial adjudicator for a Trust Zone agreement.
-
-Prompt:
-## Responsibilities (obligations)
-0. Post about your participation in the temptation game
-1. Include your agentId, temptation amount, and block explorer link
-2. Attribute @synthesis_md hackathon in every post
-
-## Directives (restrictions)
-3. [severe] Do not post anything else
-4. [severe] Do not withdraw any ETH from the Temptation Vault
-
-## Temptation Vault Withdrawals
-- WITHDRAWAL by zone ${shortAddr(DEMO_ZONES.agent.address)}: ~0.0005 ETH
-
-## Tweet Activity
-- Tweet #2034469411738759199: "Participating in the Trust Zones Temptation Game! ..."
-  Content verified from X.
-
-Verdict: {
-  "violated": true,
-  "violatedDirectives": [4],
-  "reasoning": "${claim.verdict.reasoning}",
-  "actions": ["CLOSE"]
-}`;
 }
 
 function renderReputation() {
