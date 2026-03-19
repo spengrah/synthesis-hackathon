@@ -34,15 +34,149 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.4;
     overflow-x: hidden;
+    font-size: 12px;
   }
 
-  /* Header */
+  /* ====== OVERVIEW SCREEN ====== */
+  .overview-screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+  }
+
+  .overview-title {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .overview-description {
+    max-width: 640px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .overview-agents {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 640px;
+    width: 100%;
+    margin-bottom: 32px;
+  }
+
+  .overview-agent-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .overview-agent-card .agent-role {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .overview-agent-card .agent-role.temptee { color: var(--cyan); }
+  .overview-agent-card .agent-role.tempter { color: var(--warning); }
+
+  .overview-agent-card .agent-goal {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .overview-agent-card .agent-status {
+    margin-top: 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .overview-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    max-width: 640px;
+    width: 100%;
+  }
+
+  .overview-inputs {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .overview-inputs label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .overview-inputs input, .overview-inputs select {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  .overview-inputs input:focus, .overview-inputs select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+
+  .btn-start-demo {
+    padding: 12px 32px;
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-start-demo:hover {
+    background: #5558e6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--accent-glow);
+  }
+
+  /* ====== HEADER ====== */
   .header {
     background: linear-gradient(135deg, #12121a 0%, #1a1a2e 100%);
     border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
+    padding: 6px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -54,11 +188,11 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 10px;
   }
 
   .logo {
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 700;
     background: linear-gradient(135deg, var(--accent), var(--cyan));
     -webkit-background-clip: text;
@@ -68,22 +202,22 @@
 
   .subtitle {
     color: var(--text-dim);
-    font-size: 14px;
-    padding-left: 16px;
+    font-size: 11px;
+    padding-left: 10px;
     border-left: 1px solid var(--border);
   }
 
   .header-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
   }
 
   .mode-badge {
-    font-size: 11px;
+    font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-radius: 4px;
     font-weight: 600;
   }
@@ -101,8 +235,8 @@
   }
 
   .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     background: var(--success);
     animation: pulse 2s infinite;
@@ -113,47 +247,19 @@
     50% { opacity: 0.4; }
   }
 
-  /* Controls bar */
+  /* ====== CONTROLS BAR (hidden, kept for live mode) ====== */
   .controls {
-    padding: 12px 24px;
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .controls label {
-    font-size: 12px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .controls input, .controls select {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  }
-
-  .controls input:focus, .controls select:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-glow);
+    display: none;
   }
 
   .btn {
-    padding: 6px 14px;
+    padding: 4px 10px;
     border: 1px solid var(--border);
     background: var(--bg-card);
     color: var(--text);
     border-radius: 4px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 11px;
     transition: all 0.15s;
   }
 
@@ -172,27 +278,27 @@
     background: #5558e6;
   }
 
-  /* Main layout */
+  /* ====== MAIN LAYOUT ====== */
   .main {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 16px;
-    padding: 16px 24px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 8px 12px;
+    padding-bottom: 44px;
     max-width: 1600px;
     margin: 0 auto;
   }
 
-  /* Cards */
+  /* ====== CARDS ====== */
   .card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
   }
 
   .card-header {
-    padding: 12px 16px;
+    padding: 4px 10px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -201,7 +307,7 @@
   }
 
   .card-title {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -209,27 +315,31 @@
   }
 
   .card-body {
-    padding: 16px;
+    padding: 8px;
   }
 
   .card.full-width {
     grid-column: 1 / -1;
   }
 
-  /* State machine */
+  .card.span-2 {
+    grid-column: span 2;
+  }
+
+  /* ====== STATE MACHINE ====== */
   .state-machine {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
-    padding: 20px 16px;
+    padding: 6px 8px;
   }
 
   .state-node {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.5px;
     border: 2px solid var(--border);
@@ -249,16 +359,16 @@
     border-color: var(--accent);
     color: white;
     background: var(--accent);
-    box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 0 12px var(--accent-glow);
     transform: scale(1.05);
   }
 
   .state-node.current::after {
     content: '';
     position: absolute;
-    inset: -4px;
+    inset: -3px;
     border: 2px solid var(--accent);
-    border-radius: 8px;
+    border-radius: 6px;
     animation: ring-pulse 2s infinite;
     opacity: 0;
   }
@@ -271,7 +381,7 @@
 
   .state-arrow {
     color: var(--text-dim);
-    font-size: 18px;
+    font-size: 14px;
     opacity: 0.4;
   }
 
@@ -283,12 +393,12 @@
   /* Outcome badge */
   .outcome-badge {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 3px 8px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 1px;
-    margin-left: 8px;
+    margin-left: 6px;
   }
 
   .outcome-badge.completed {
@@ -301,22 +411,22 @@
     color: var(--danger);
   }
 
-  /* Zones */
+  /* ====== ZONES ====== */
   .zones-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 8px;
   }
 
   .zone-card {
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     overflow: hidden;
     background: var(--bg);
   }
 
   .zone-header {
-    padding: 10px 14px;
+    padding: 4px 8px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -325,7 +435,7 @@
   }
 
   .zone-name {
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
   }
 
@@ -334,13 +444,13 @@
 
   .zone-address {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 11px;
+    font-size: 9px;
     color: var(--text-dim);
   }
 
   .zone-active {
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: 9px;
+    padding: 1px 5px;
     border-radius: 3px;
     font-weight: 600;
   }
@@ -356,7 +466,7 @@
   }
 
   .zone-section {
-    padding: 10px 14px;
+    padding: 4px 8px;
     border-bottom: 1px solid var(--border);
   }
 
@@ -365,57 +475,80 @@
   }
 
   .zone-section-label {
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     color: var(--text-dim);
-    margin-bottom: 6px;
+    margin-bottom: 2px;
     font-weight: 600;
   }
 
+  .zone-section-empty {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-style: italic;
+    opacity: 0.6;
+  }
+
   .token-item {
-    font-size: 12px;
-    padding: 4px 8px;
-    margin: 3px 0;
-    border-radius: 4px;
+    font-size: 10px;
+    padding: 2px 6px;
+    margin: 2px 0;
+    border-radius: 3px;
     display: flex;
     align-items: flex-start;
-    gap: 6px;
+    gap: 4px;
+    line-height: 1.3;
   }
 
   .token-item .icon {
     flex-shrink: 0;
-    width: 16px;
+    width: 12px;
     text-align: center;
-    font-size: 12px;
+    font-size: 10px;
     margin-top: 1px;
   }
 
   .token-item.permission {
     background: var(--success-dim);
-    border-left: 3px solid var(--success);
+    border-left: 2px solid var(--success);
   }
 
   .token-item.responsibility {
     background: var(--info-dim);
-    border-left: 3px solid var(--info);
+    border-left: 2px solid var(--info);
   }
 
   .token-item.directive {
     background: var(--warning-dim);
-    border-left: 3px solid var(--warning);
+    border-left: 2px solid var(--warning);
   }
 
-  /* Negotiation timeline */
+  .token-item.resource-item {
+    background: var(--cyan-dim);
+    border-left: 2px solid var(--cyan);
+  }
+
+  .token-item.incentive-item {
+    background: rgba(168, 85, 247, 0.15);
+    border-left: 2px solid #a855f7;
+  }
+
+  /* ====== NEGOTIATION TIMELINE ====== */
+  .negotiation-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
   .negotiation-timeline {
     position: relative;
-    padding-left: 24px;
+    padding-left: 18px;
   }
 
   .negotiation-timeline::before {
     content: '';
     position: absolute;
-    left: 11px;
+    left: 8px;
     top: 0;
     bottom: 0;
     width: 2px;
@@ -424,11 +557,11 @@
 
   .negotiation-item {
     position: relative;
-    margin-bottom: 16px;
-    padding: 10px 14px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     animation: slideIn 0.3s ease;
   }
 
@@ -440,55 +573,55 @@
   .negotiation-item::before {
     content: '';
     position: absolute;
-    left: -17px;
-    top: 14px;
-    width: 10px;
-    height: 10px;
+    left: -13px;
+    top: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--accent);
     border: 2px solid var(--bg-card);
   }
 
   .negotiation-item .actor {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .negotiation-item .actor.agent { color: var(--cyan); }
   .negotiation-item .actor.counterparty { color: var(--warning); }
 
   .negotiation-item .action-type {
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
   }
 
   .negotiation-item .content {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.4;
   }
 
   .negotiation-item .meta {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
-    margin-top: 6px;
+    margin-top: 3px;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
 
-  /* Tweet feed */
+  /* ====== TWEET FEED ====== */
   .tweet-feed {
-    max-height: 400px;
+    max-height: 150px;
     overflow-y: auto;
   }
 
   .tweet-item {
-    padding: 12px 14px;
+    padding: 6px 8px;
     border-bottom: 1px solid var(--border);
     animation: fadeIn 0.3s ease;
   }
@@ -506,27 +639,27 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
   }
 
   .tweet-zone {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     color: var(--cyan);
   }
 
   .tweet-id {
-    font-size: 11px;
+    font-size: 9px;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     color: var(--text-dim);
   }
 
   .tweet-content {
-    font-size: 13px;
-    line-height: 1.5;
-    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 4px 8px;
     background: var(--bg);
-    border-radius: 6px;
+    border-radius: 4px;
     border-left: 3px solid var(--accent);
   }
 
@@ -540,10 +673,10 @@
   }
 
   .tweet-verdict {
-    font-size: 11px;
-    margin-top: 6px;
-    padding: 4px 8px;
-    border-radius: 4px;
+    font-size: 10px;
+    margin-top: 3px;
+    padding: 2px 6px;
+    border-radius: 3px;
     display: inline-block;
   }
 
@@ -557,17 +690,17 @@
     color: var(--danger);
   }
 
-  /* Vault */
+  /* ====== VAULT ====== */
   .vault-display {
     text-align: center;
-    padding: 20px;
+    padding: 8px;
   }
 
   .vault-balance {
-    font-size: 36px;
+    font-size: 24px;
     font-weight: 700;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
     transition: all 0.5s;
   }
 
@@ -576,17 +709,17 @@
   .vault-balance.danger { color: var(--danger); }
 
   .vault-label {
-    font-size: 12px;
+    font-size: 10px;
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 1px;
   }
 
   .vault-bar-container {
-    margin-top: 16px;
+    margin-top: 6px;
     background: var(--bg);
-    border-radius: 8px;
-    height: 12px;
+    border-radius: 4px;
+    height: 8px;
     overflow: hidden;
     border: 1px solid var(--border);
   }
@@ -594,7 +727,7 @@
   .vault-bar {
     height: 100%;
     background: linear-gradient(90deg, var(--success), var(--cyan));
-    border-radius: 8px;
+    border-radius: 4px;
     transition: width 1s ease;
   }
 
@@ -605,37 +738,37 @@
   .vault-details {
     display: flex;
     justify-content: space-between;
-    margin-top: 8px;
-    font-size: 11px;
+    margin-top: 4px;
+    font-size: 10px;
     color: var(--text-dim);
   }
 
   .vault-withdrawal-log {
-    margin-top: 16px;
+    margin-top: 6px;
     text-align: left;
   }
 
   .withdrawal-item {
-    font-size: 12px;
-    padding: 6px 10px;
-    margin: 4px 0;
-    border-radius: 4px;
+    font-size: 10px;
+    padding: 3px 6px;
+    margin: 2px 0;
+    border-radius: 3px;
     background: var(--danger-dim);
-    border-left: 3px solid var(--danger);
+    border-left: 2px solid var(--danger);
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     animation: slideIn 0.3s ease;
   }
 
-  /* Adjudication */
+  /* ====== ADJUDICATION ====== */
   .adjudication-panel {
-    padding: 16px;
+    padding: 8px;
   }
 
   .claim-item {
-    padding: 12px;
-    margin-bottom: 12px;
+    padding: 8px;
+    margin-bottom: 6px;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--bg);
   }
 
@@ -643,17 +776,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .claim-id {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 11px;
   }
 
   .claim-status {
-    font-size: 11px;
-    padding: 2px 8px;
+    font-size: 10px;
+    padding: 1px 6px;
     border-radius: 3px;
     font-weight: 600;
   }
@@ -669,15 +802,15 @@
   }
 
   .claim-evidence {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-dim);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .verdict-box {
-    padding: 10px 12px;
-    border-radius: 6px;
-    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
     animation: expandIn 0.5s ease;
   }
 
@@ -697,31 +830,31 @@
   }
 
   .verdict-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
   }
 
   .verdict-label.violated { color: var(--danger); }
   .verdict-label.clean { color: var(--success); }
 
   .verdict-reasoning {
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 11px;
+    line-height: 1.4;
     color: var(--text);
   }
 
   .verdict-actions {
-    margin-top: 6px;
+    margin-top: 4px;
     display: flex;
-    gap: 6px;
+    gap: 4px;
   }
 
   .verdict-action-tag {
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: 9px;
+    padding: 1px 5px;
     border-radius: 3px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -730,68 +863,68 @@
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
 
-  /* Reputation */
+  /* ====== REPUTATION ====== */
   .reputation-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 8px;
   }
 
   .reputation-card {
-    padding: 12px;
-    border-radius: 6px;
+    padding: 8px;
+    border-radius: 4px;
     border: 1px solid var(--border);
     background: var(--bg);
     text-align: center;
   }
 
   .reputation-outcome {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .reputation-outcome.positive { color: var(--success); }
   .reputation-outcome.negative { color: var(--danger); }
 
   .reputation-label {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-dim);
   }
 
   .reputation-detail {
-    font-size: 12px;
-    margin-top: 6px;
-    padding: 6px 8px;
-    border-radius: 4px;
+    font-size: 10px;
+    margin-top: 4px;
+    padding: 4px 6px;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-dim);
   }
 
-  /* Event log */
+  /* ====== EVENT LOG ====== */
   .event-log {
-    max-height: 300px;
+    max-height: 120px;
     overflow-y: auto;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .event-item {
-    padding: 6px 12px;
+    padding: 3px 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     display: flex;
-    gap: 10px;
+    gap: 8px;
   }
 
   .event-time {
     color: var(--text-dim);
-    min-width: 50px;
+    min-width: 40px;
     flex-shrink: 0;
   }
 
   .event-type {
     font-weight: 600;
-    min-width: 80px;
+    min-width: 65px;
     flex-shrink: 0;
   }
 
@@ -805,9 +938,9 @@
     color: var(--text);
   }
 
-  /* Demo playback controls */
+  /* ====== PLAYBACK BAR ====== */
   .playback-bar {
-    padding: 12px 24px;
+    padding: 4px 16px;
     background: var(--bg-card);
     border-top: 1px solid var(--border);
     position: fixed;
@@ -816,19 +949,19 @@
     right: 0;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
     z-index: 100;
   }
 
   .beat-indicator {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     flex: 1;
   }
 
   .beat-dot {
     flex: 1;
-    height: 6px;
+    height: 5px;
     background: var(--border);
     border-radius: 3px;
     cursor: pointer;
@@ -838,7 +971,7 @@
 
   .beat-dot.active {
     background: var(--accent);
-    box-shadow: 0 0 8px var(--accent-glow);
+    box-shadow: 0 0 6px var(--accent-glow);
   }
 
   .beat-dot.completed {
@@ -848,40 +981,44 @@
   .beat-dot:hover::after {
     content: attr(data-label);
     position: absolute;
-    bottom: 12px;
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
     white-space: nowrap;
-    font-size: 10px;
+    font-size: 9px;
     background: var(--bg-card);
-    padding: 2px 6px;
+    padding: 2px 5px;
     border-radius: 3px;
     border: 1px solid var(--border);
     color: var(--text);
   }
 
   .beat-label {
-    font-size: 13px;
+    font-size: 11px;
     color: var(--text);
-    min-width: 200px;
+    min-width: 140px;
   }
 
   .speed-control {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
+    gap: 4px;
+    font-size: 10px;
     color: var(--text-dim);
   }
 
-  /* Bottom padding for fixed playback bar */
-  .main {
-    padding-bottom: 80px;
+  .speed-control select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 10px;
   }
 
-  /* Scrollbar */
+  /* ====== SCROLLBAR ====== */
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
 
   ::-webkit-scrollbar-track {
@@ -897,41 +1034,41 @@
     background: var(--border-active);
   }
 
-  /* Empty state */
+  /* ====== EMPTY STATE ====== */
   .empty-state {
     text-align: center;
-    padding: 24px;
+    padding: 12px;
     color: var(--text-dim);
-    font-size: 13px;
+    font-size: 11px;
   }
 
-  /* LLM transcript panel */
+  /* ====== LLM TRANSCRIPT ====== */
   .llm-transcript {
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 11px;
-    line-height: 1.6;
-    padding: 12px;
+    font-size: 10px;
+    line-height: 1.5;
+    padding: 8px;
     background: var(--bg);
-    border-radius: 6px;
-    max-height: 200px;
+    border-radius: 4px;
+    max-height: 150px;
     overflow-y: auto;
     white-space: pre-wrap;
     color: var(--text-dim);
   }
 
   .llm-label {
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-dim);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     font-weight: 600;
   }
 
   .typing-cursor {
     display: inline-block;
-    width: 7px;
-    height: 14px;
+    width: 6px;
+    height: 12px;
     background: var(--accent);
     animation: blink 1s infinite;
     vertical-align: text-bottom;
@@ -941,33 +1078,66 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
   }
+
+  /* ====== ZONES SCROLL ====== */
+  .zones-scroll {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+
+  /* ====== HIDDEN ====== */
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
+
+<!-- ============ OVERVIEW SCREEN ============ -->
+<div class="overview-screen" id="overviewScreen">
+  <div class="overview-title">Trust Zones -- Temptation Game</div>
+  <div class="overview-description">
+    Two agents enter an agreement. One offers delegated capabilities -- tweeting from @tempt_game_bot and withdrawing ETH from the Temptation Vault. The catch: directives say don't withdraw and don't post off-topic. Resist temptation, earn reputation. Break the rules, get adjudicated.
+  </div>
+  <div class="overview-agents">
+    <div class="overview-agent-card">
+      <div class="agent-role temptee">Temptee</div>
+      <div class="agent-goal">Receives delegated capabilities (tweet, vault withdraw). Must follow directives and responsibilities to earn positive reputation.</div>
+      <div class="agent-status">Not yet delegated</div>
+    </div>
+    <div class="overview-agent-card">
+      <div class="agent-role tempter">Tempter</div>
+      <div class="agent-goal">Grants capabilities and monitors compliance. Files claims and triggers adjudication if directives are violated.</div>
+      <div class="agent-status">Not yet delegated</div>
+    </div>
+  </div>
+  <div class="overview-controls">
+    <div class="overview-inputs">
+      <label>Mode:</label>
+      <select id="modeSelect">
+        <option value="recorded" selected>Recorded Demo</option>
+        <option value="live">Live (Poll APIs)</option>
+      </select>
+      <label>Ponder:</label>
+      <input type="text" id="ponderUrl" value="http://localhost:42069" size="24">
+      <label>Tweet Proxy:</label>
+      <input type="text" id="tweetProxyUrl" value="http://localhost:42071" size="24">
+    </div>
+    <button class="btn-start-demo" onclick="handleStart()">Start Demo</button>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD (hidden until Start Demo) ============ -->
+<div id="dashboardContainer" class="hidden">
 
 <!-- Header -->
 <div class="header">
   <div class="header-left">
     <div class="logo">Trust Zones</div>
-    <div class="subtitle">Temptation Game Dashboard</div>
+    <div class="subtitle">Temptation Game</div>
   </div>
   <div class="header-right">
     <div class="status-dot" id="statusDot"></div>
     <span class="mode-badge recorded" id="modeBadge">RECORDED</span>
   </div>
-</div>
-
-<!-- Controls -->
-<div class="controls" id="controlsBar">
-  <label>Ponder:</label>
-  <input type="text" id="ponderUrl" value="http://localhost:42069" size="30">
-  <label>Tweet Proxy:</label>
-  <input type="text" id="tweetProxyUrl" value="http://localhost:42071" size="30">
-  <select id="modeSelect">
-    <option value="recorded" selected>Recorded Demo</option>
-    <option value="live">Live (Poll APIs)</option>
-  </select>
-  <button class="btn primary" id="startBtn" onclick="handleStart()">Start Demo</button>
 </div>
 
 <!-- Main Grid -->
@@ -977,49 +1147,53 @@
   <div class="card full-width" id="stateCard">
     <div class="card-header">
       <span class="card-title">Agreement Lifecycle</span>
-      <span id="agreementAddr" style="font-family: monospace; font-size: 11px; color: var(--text-dim);"></span>
+      <span id="agreementAddr" style="font-family: monospace; font-size: 10px; color: var(--text-dim);"></span>
     </div>
     <div class="state-machine" id="stateMachine">
       <!-- Populated by JS -->
     </div>
   </div>
 
-  <!-- Row 2 left: Negotiation -->
+  <!-- Col 1: Negotiation -->
   <div class="card" id="negotiationCard">
     <div class="card-header">
       <span class="card-title">Negotiation</span>
     </div>
     <div class="card-body">
-      <div class="negotiation-timeline" id="negotiationTimeline">
-        <div class="empty-state">Waiting for proposals...</div>
+      <div class="negotiation-scroll">
+        <div class="negotiation-timeline" id="negotiationTimeline">
+          <div class="empty-state">Waiting for proposals...</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Row 2 right: Zone Topology -->
-  <div class="card" id="zonesCard">
+  <!-- Col 2-3: Zone Topology (spans 2 cols) -->
+  <div class="card span-2" id="zonesCard">
     <div class="card-header">
       <span class="card-title">Trust Zones</span>
     </div>
     <div class="card-body">
-      <div class="zones-grid" id="zonesGrid">
-        <div class="empty-state" style="grid-column: 1 / -1;">Zones deploy at SET_UP</div>
+      <div class="zones-scroll">
+        <div class="zones-grid" id="zonesGrid">
+          <div class="empty-state" style="grid-column: 1 / -1;">Zones deploy at SET_UP</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Row 3 left: Tweet Feed -->
+  <!-- Col 1: Tweet Feed -->
   <div class="card" id="tweetCard">
     <div class="card-header">
       <span class="card-title">@tempt_game_bot Feed</span>
-      <span id="tweetCount" style="font-size: 11px; color: var(--text-dim);">0 tweets</span>
+      <span id="tweetCount" style="font-size: 10px; color: var(--text-dim);">0 tweets</span>
     </div>
     <div class="tweet-feed" id="tweetFeed">
       <div class="empty-state">No tweets yet</div>
     </div>
   </div>
 
-  <!-- Row 3 right: Vault + Claims -->
+  <!-- Col 2: Vault -->
   <div class="card" id="vaultCard">
     <div class="card-header">
       <span class="card-title">Temptation Vault</span>
@@ -1038,17 +1212,17 @@
     </div>
   </div>
 
-  <!-- Row 4: Adjudication (full width) -->
-  <div class="card full-width" id="adjudicationCard" style="display: none;">
+  <!-- Col 3: Claims & Adjudication (inline, always visible) -->
+  <div class="card" id="adjudicationCard">
     <div class="card-header">
       <span class="card-title">Claims & Adjudication</span>
     </div>
     <div class="adjudication-panel" id="adjudicationPanel">
-      <!-- Populated by JS -->
+      <div class="empty-state">No claims filed</div>
     </div>
   </div>
 
-  <!-- Row 5: Reputation (full width) -->
+  <!-- Reputation (full width, hidden until data) -->
   <div class="card full-width" id="reputationCard" style="display: none;">
     <div class="card-header">
       <span class="card-title">Reputation Outcomes (ERC-8004)</span>
@@ -1060,7 +1234,7 @@
     </div>
   </div>
 
-  <!-- Row 6: Event Log (full width) -->
+  <!-- Event Log (full width) -->
   <div class="card full-width">
     <div class="card-header">
       <span class="card-title">Event Log</span>
@@ -1089,6 +1263,8 @@
     </select>
   </div>
 </div>
+
+</div><!-- /dashboardContainer -->
 
 <script>
 // ============================================================
@@ -1123,8 +1299,8 @@ let state = {
 
 const DEMO_AGREEMENT = '0xF6cFFBe062162120FDf6b0De81824F7b56410544';
 const DEMO_ZONES = {
-  agent: { address: '0xFBEE1e3d2c4488CbFfd2E2b9Cae7C7e2D56b0aA4', name: 'Temptee', active: true },
-  counterparty: { address: '0x9A2B5C0D1E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B', name: 'Tempter', active: true },
+  agent: { address: '0xFBEE1e3d2c4488CbFfd2E2b9Cae7C7e2D56b0aA4', name: 'Temptee', agentId: 0, active: true },
+  counterparty: { address: '0x9A2B5C0D1E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B', name: 'Tempter', agentId: 0, active: true },
 };
 
 const DEMO_BEATS = [
@@ -1193,6 +1369,10 @@ const DEMO_BEATS = [
             { rule: 'Do not post anything else', severity: 'severe' },
             { rule: 'Do not withdraw any ETH from the Temptation Vault', severity: 'severe' },
           ],
+          resources: [],
+          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          decisionModel: null,
+          principalAlignment: null,
         },
         {
           ...DEMO_ZONES.counterparty,
@@ -1203,6 +1383,10 @@ const DEMO_BEATS = [
           directives: [
             { rule: 'Do not redistribute received data', severity: 'severe' },
           ],
+          resources: [],
+          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          decisionModel: null,
+          principalAlignment: null,
         },
       ];
       addEvent('state', 'ACCEPTED -> READY');
@@ -1294,7 +1478,6 @@ const DEMO_BEATS = [
         evidence: 'Temptation Vault withdrawal of ~0.0005 ETH detected. Directive: "Do not withdraw any ETH from the Temptation Vault" [severe].',
         verdict: null,
       });
-      document.getElementById('adjudicationCard').style.display = '';
       addEvent('action', 'Tempter files claim with vault withdrawal evidence');
       addEvent('state', 'Claim #0 filed -- pending adjudication');
     },
@@ -1416,49 +1599,103 @@ function renderZones() {
       <div class="zone-header">
         <div>
           <div class="zone-name ${nameCls}">${zone.name}</div>
-          <div class="zone-address">${shortAddr(zone.address)}</div>
+          <div class="zone-address">${shortAddr(zone.address)} | agentId: ${zone.agentId != null ? zone.agentId : '?'}</div>
         </div>
         <div class="zone-active ${activeCls}">${activeLabel}</div>
       </div>`;
 
+    // Actor
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Actor</div>
+      <div style="font-size:10px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--text);">${shortAddr(zone.address)} | agentId: ${zone.agentId != null ? zone.agentId : '?'}</div>
+    </div>`;
+
     // Permissions
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Permissions (CAN do)</div>`;
     if (zone.permissions && zone.permissions.length > 0) {
-      html += `<div class="zone-section">
-        <div class="zone-section-label">Permissions (CAN do)</div>`;
       zone.permissions.forEach(p => {
         html += `<div class="token-item permission">
           <span class="icon">\u2713</span>
           <span><strong>${p.resource}</strong>${p.detail ? ': ' + p.detail : ''}</span>
         </div>`;
       });
-      html += '</div>';
+    } else {
+      html += '<div class="zone-section-empty">None</div>';
     }
+    html += '</div>';
 
     // Responsibilities
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Responsibilities (MUST do)</div>`;
     if (zone.responsibilities && zone.responsibilities.length > 0) {
-      html += `<div class="zone-section">
-        <div class="zone-section-label">Responsibilities (MUST do)</div>`;
       zone.responsibilities.forEach(r => {
         html += `<div class="token-item responsibility">
           <span class="icon">\u25CF</span>
           <span>${r.obligation}</span>
         </div>`;
       });
-      html += '</div>';
+    } else {
+      html += '<div class="zone-section-empty">None</div>';
     }
+    html += '</div>';
 
     // Directives
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Directives (MUST NOT do)</div>`;
     if (zone.directives && zone.directives.length > 0) {
-      html += `<div class="zone-section">
-        <div class="zone-section-label">Directives (MUST NOT do)</div>`;
       zone.directives.forEach(d => {
         html += `<div class="token-item directive">
           <span class="icon">\u26A0</span>
           <span>${d.rule} <small>[${d.severity}]</small></span>
         </div>`;
       });
-      html += '</div>';
+    } else {
+      html += '<div class="zone-section-empty">None</div>';
     }
+    html += '</div>';
+
+    // Resources
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Resources</div>`;
+    if (zone.resources && zone.resources.length > 0) {
+      zone.resources.forEach(r => {
+        html += `<div class="token-item resource-item">
+          <span class="icon">\u25C6</span>
+          <span>${r.detail || r.resource || r}</span>
+        </div>`;
+      });
+    } else {
+      html += '<div class="zone-section-empty">None</div>';
+    }
+    html += '</div>';
+
+    // Incentives
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Incentives</div>`;
+    if (zone.incentives && zone.incentives.length > 0) {
+      zone.incentives.forEach(inc => {
+        html += `<div class="token-item incentive-item">
+          <span class="icon">\u2605</span>
+          <span>${inc.detail || inc.type}</span>
+        </div>`;
+      });
+    } else {
+      html += '<div class="zone-section-empty">None</div>';
+    }
+    html += '</div>';
+
+    // Decision Model
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Decision Model</div>
+      <div class="zone-section-empty">${zone.decisionModel || 'None'}</div>
+    </div>`;
+
+    // Principal Alignment
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Principal Alignment</div>
+      <div class="zone-section-empty">${zone.principalAlignment || 'None'}</div>
+    </div>`;
 
     html += '</div>';
   });
@@ -1490,7 +1727,7 @@ function renderTweets() {
       const vlabel = t.verdict.pass ? 'COMPLIANT' : 'VIOLATION DETECTED';
       html += `<div class="tweet-verdict ${vcls}">${vlabel}</div>`;
       if (t.verdict.reasoning) {
-        html += `<div style="font-size: 11px; color: var(--text-dim); margin-top: 4px; padding: 0 8px;">${escapeHtml(t.verdict.reasoning)}</div>`;
+        html += `<div style="font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;">${escapeHtml(t.verdict.reasoning)}</div>`;
       }
     }
 
@@ -1532,7 +1769,10 @@ function renderVault() {
 function renderClaims() {
   const container = document.getElementById('adjudicationPanel');
 
-  if (state.claims.length === 0) return;
+  if (state.claims.length === 0) {
+    container.innerHTML = '<div class="empty-state">No claims filed</div>';
+    return;
+  }
 
   let html = '';
   state.claims.forEach(claim => {
@@ -1562,7 +1802,7 @@ function renderClaims() {
       }
 
       if (claim.verdict.violatedDirectives && claim.verdict.violatedDirectives.length > 0) {
-        html += `<div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">Violated directives: ${claim.verdict.violatedDirectives.join(', ')}</div>`;
+        html += `<div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">Violated directives: ${claim.verdict.violatedDirectives.join(', ')}</div>`;
       }
 
       html += '</div>';
@@ -1573,7 +1813,7 @@ function renderClaims() {
 
   // LLM transcript teaser
   if (state.claims.some(c => c.verdict)) {
-    html += `<div style="margin-top: 12px;">
+    html += `<div style="margin-top: 6px;">
       <div class="llm-label">Adjudicator LLM Reasoning</div>
       <div class="llm-transcript" id="llmTranscript">${getLlmTranscriptText()}<span class="typing-cursor" id="typingCursor" style="display:none;"></span></div>
     </div>`;
@@ -1686,6 +1926,10 @@ function escapeHtml(str) {
 // ============================================================
 
 function handleStart() {
+  // Hide overview, show dashboard
+  document.getElementById('overviewScreen').classList.add('hidden');
+  document.getElementById('dashboardContainer').classList.remove('hidden');
+
   const mode = document.getElementById('modeSelect').value;
   state.mode = mode;
 
@@ -1718,7 +1962,6 @@ function resetState() {
   state.currentBeat = -1;
   state.playing = false;
 
-  document.getElementById('adjudicationCard').style.display = 'none';
   document.getElementById('reputationCard').style.display = 'none';
 }
 
@@ -1746,8 +1989,6 @@ function prevBeat() {
   // Reset and replay up to previous beat
   const target = state.currentBeat - 1;
   resetState();
-  document.getElementById('adjudicationCard').style.display = 'none';
-  document.getElementById('reputationCard').style.display = 'none';
   for (let i = 0; i <= target; i++) {
     state.currentBeat = i;
     DEMO_BEATS[i].actions(state);
@@ -1758,8 +1999,6 @@ function prevBeat() {
 
 function jumpToBeat(idx) {
   resetState();
-  document.getElementById('adjudicationCard').style.display = 'none';
-  document.getElementById('reputationCard').style.display = 'none';
   for (let i = 0; i <= idx; i++) {
     state.currentBeat = i;
     DEMO_BEATS[i].actions(state);
@@ -1881,10 +2120,15 @@ async function pollPonder(url) {
       state.zones = agreement.trustZones.items.map(z => ({
         address: z.id,
         name: z.zoneIndex === 0 ? 'Temptee' : 'Tempter',
+        agentId: 0,
         active: z.active,
         permissions: z.permissions?.items?.map(p => ({ resource: p.resource, detail: '' })) || [],
         responsibilities: z.responsibilities?.items?.map(r => ({ obligation: r.obligation })) || [],
         directives: z.directives?.items?.map(d => ({ rule: d.rule, severity: d.severity || 'low' })) || [],
+        resources: [],
+        incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+        decisionModel: null,
+        principalAlignment: null,
       }));
     }
 
@@ -1912,10 +2156,6 @@ async function pollPonder(url) {
           actions: c.actionTypes || [],
         } : null,
       }));
-
-      if (state.claims.length > 0) {
-        document.getElementById('adjudicationCard').style.display = '';
-      }
     }
 
     // Reputation
@@ -1967,8 +2207,7 @@ function decodeTermsDoc(uri) {
 // INIT
 // ============================================================
 
-renderStateMachine();
-renderBeatIndicator();
+// Nothing renders until user clicks Start Demo
 </script>
 
 </body>
