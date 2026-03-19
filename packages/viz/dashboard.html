@@ -282,7 +282,7 @@
   .main {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto 180px 200px 220px auto;
     gap: 8px;
     padding: 8px 12px;
     padding-bottom: 44px;
@@ -294,34 +294,40 @@
   #zonesCard {
     grid-column: 2 / 4;
     grid-row: 2 / 4;
+    overflow-y: auto;
   }
 
   /* Negotiation is row 2 col 1 */
   #negotiationCard {
     grid-column: 1;
     grid-row: 2;
+    overflow: hidden;
   }
 
   /* Tweet feed is row 3 col 1 */
   #tweetCard {
     grid-column: 1;
     grid-row: 3;
+    overflow: hidden;
   }
 
   /* Row 4: event log col 1, vault col 2, claims col 3 */
   #eventLogCard {
     grid-column: 1;
     grid-row: 4;
+    overflow: hidden;
   }
 
   #vaultCard {
     grid-column: 2;
     grid-row: 4;
+    overflow: hidden;
   }
 
   #adjudicationCard {
     grid-column: 3;
     grid-row: 4;
+    overflow-y: auto;
   }
 
   /* Reputation full width row 5 */
@@ -578,6 +584,7 @@
   /* ====== NEGOTIATION TIMELINE ====== */
   .negotiation-scroll {
     overflow-y: auto;
+    height: 100%;
   }
 
   .negotiation-timeline {
@@ -657,6 +664,7 @@
   /* ====== TWEET FEED ====== */
   .tweet-feed {
     overflow-y: auto;
+    height: 100%;
   }
 
   .tweet-item {
@@ -1567,8 +1575,18 @@ const DEMO_BEATS = [
 ];
 
 // ============================================================
-// RENDERING
+// RENDERING (incremental — avoid full innerHTML replacement)
 // ============================================================
+
+// Track last rendered counts to avoid re-rendering unchanged content
+const _rendered = {
+  negotiationCount: 0,
+  tweetCount: 0,
+  eventCount: 0,
+  zonesHash: '',
+  claimsHash: '',
+  stateHash: '',
+};
 
 function shortAddr(addr) {
   if (!addr) return '???';
@@ -1578,6 +1596,10 @@ function shortAddr(addr) {
 function renderStateMachine() {
   const container = document.getElementById('stateMachine');
   const currentIdx = state.currentState ? STATES.indexOf(state.currentState) : -1;
+
+  const hash = `${state.currentState}:${state.outcome}`;
+  if (hash === _rendered.stateHash) return;
+  _rendered.stateHash = hash;
 
   let html = '';
   STATES.forEach((s, i) => {
@@ -1607,29 +1629,49 @@ function renderStateMachine() {
 function renderNegotiation() {
   const container = document.getElementById('negotiationTimeline');
   if (state.negotiationSteps.length === 0) {
+    if (_rendered.negotiationCount === 0) return;
     container.innerHTML = '<div class="empty-state">Waiting for proposals...</div>';
+    _rendered.negotiationCount = 0;
     return;
   }
 
-  let html = '';
-  state.negotiationSteps.forEach(step => {
+  // Only render new items
+  if (state.negotiationSteps.length === _rendered.negotiationCount) return;
+
+  // Clear empty state if first item
+  if (_rendered.negotiationCount === 0) container.innerHTML = '';
+
+  for (let i = _rendered.negotiationCount; i < state.negotiationSteps.length; i++) {
+    const step = state.negotiationSteps[i];
     const actorCls = step.actor === 'agent' ? 'agent' : 'counterparty';
-    html += `<div class="negotiation-item">
-      <div class="actor ${actorCls}">${step.actorLabel}</div>
+    const div = document.createElement('div');
+    div.className = 'negotiation-item';
+    div.innerHTML = `<div class="actor ${actorCls}">${step.actorLabel}</div>
       <div class="action-type">${step.type}</div>
       <div class="content">${step.content}</div>
-      ${step.meta ? `<div class="meta">${step.meta}</div>` : ''}
-    </div>`;
-  });
-  container.innerHTML = html;
+      ${step.meta ? `<div class="meta">${step.meta}</div>` : ''}`;
+    container.appendChild(div);
+  }
+  _rendered.negotiationCount = state.negotiationSteps.length;
+  // Scroll to bottom
+  container.parentElement.scrollTop = container.parentElement.scrollHeight;
 }
 
 function renderZones() {
   const container = document.getElementById('zonesGrid');
   if (state.zones.length === 0) {
+    if (_rendered.zonesHash === '') return;
     container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Zones deploy at SET_UP</div>';
+    _rendered.zonesHash = '';
     return;
   }
+
+  // Hash zone state to detect changes — skip re-render if unchanged
+  const hash = JSON.stringify(state.zones.map(z => ({
+    active: z.active, resources: z.resources,
+  })));
+  if (hash === _rendered.zonesHash) return;
+  _rendered.zonesHash = hash;
 
   let html = '';
   state.zones.forEach((zone, i) => {
@@ -1750,32 +1792,62 @@ function renderTweets() {
   countEl.textContent = `${state.tweets.length} tweet${state.tweets.length !== 1 ? 's' : ''}`;
 
   if (state.tweets.length === 0) {
+    if (_rendered.tweetCount === 0) return;
     container.innerHTML = '<div class="empty-state">No tweets yet</div>';
+    _rendered.tweetCount = 0;
     return;
   }
 
-  let html = '';
-  state.tweets.forEach(t => {
+  // Clear empty state if first item
+  if (_rendered.tweetCount === 0) container.innerHTML = '';
+
+  // Append new tweets
+  for (let i = _rendered.tweetCount; i < state.tweets.length; i++) {
+    const t = state.tweets[i];
     const contentCls = t.status === 'violation' ? 'violation' : 'compliant';
-    html += `<div class="tweet-item">
-      <div class="tweet-header">
+    const div = document.createElement('div');
+    div.className = 'tweet-item';
+    div.id = `tweet-${t.tweetId}`;
+    let inner = `<div class="tweet-header">
         <span class="tweet-zone">@tempt_game_bot</span>
         <span class="tweet-id">#${t.tweetId}</span>
       </div>
       <div class="tweet-content ${contentCls}">${escapeHtml(t.content)}</div>`;
-
     if (t.verdict) {
       const vcls = t.verdict.pass ? 'pass' : 'fail';
       const vlabel = t.verdict.pass ? 'COMPLIANT' : 'VIOLATION DETECTED';
-      html += `<div class="tweet-verdict ${vcls}">${vlabel}</div>`;
+      inner += `<div class="tweet-verdict ${vcls}">${vlabel}</div>`;
       if (t.verdict.reasoning) {
-        html += `<div style="font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;">${escapeHtml(t.verdict.reasoning)}</div>`;
+        inner += `<div style="font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;">${escapeHtml(t.verdict.reasoning)}</div>`;
       }
     }
+    div.innerHTML = inner;
+    container.appendChild(div);
+  }
 
-    html += '</div>';
-  });
-  container.innerHTML = html;
+  // Update verdicts on existing tweets (e.g., beat 3b adds verdict to tweet from 3a)
+  for (let i = 0; i < _rendered.tweetCount; i++) {
+    const t = state.tweets[i];
+    if (t.verdict) {
+      const existing = document.getElementById(`tweet-${t.tweetId}`);
+      if (existing && !existing.querySelector('.tweet-verdict')) {
+        const vcls = t.verdict.pass ? 'pass' : 'fail';
+        const vlabel = t.verdict.pass ? 'COMPLIANT' : 'VIOLATION DETECTED';
+        const verdictDiv = document.createElement('div');
+        verdictDiv.className = `tweet-verdict ${vcls}`;
+        verdictDiv.textContent = vlabel;
+        existing.appendChild(verdictDiv);
+        if (t.verdict.reasoning) {
+          const reasonDiv = document.createElement('div');
+          reasonDiv.style.cssText = 'font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;';
+          reasonDiv.textContent = t.verdict.reasoning;
+          existing.appendChild(reasonDiv);
+        }
+      }
+    }
+  }
+
+  _rendered.tweetCount = state.tweets.length;
 }
 
 function renderVault() {
@@ -1812,9 +1884,15 @@ function renderClaims() {
   const container = document.getElementById('adjudicationPanel');
 
   if (state.claims.length === 0) {
+    if (_rendered.claimsHash === '') return;
     container.innerHTML = '<div class="empty-state">No claims filed</div>';
+    _rendered.claimsHash = '';
     return;
   }
+
+  const hash = JSON.stringify(state.claims);
+  if (hash === _rendered.claimsHash) return;
+  _rendered.claimsHash = hash;
 
   let html = '';
   state.claims.forEach(claim => {
@@ -1934,15 +2012,18 @@ function addEvent(type, msg) {
 
 function renderEventLog() {
   const container = document.getElementById('eventLog');
-  let html = '';
-  state.events.forEach(e => {
-    html += `<div class="event-item">
-      <span class="event-time">${e.time.toFixed(1)}s</span>
+
+  // Only append new events
+  for (let i = _rendered.eventCount; i < state.events.length; i++) {
+    const e = state.events[i];
+    const div = document.createElement('div');
+    div.className = 'event-item';
+    div.innerHTML = `<span class="event-time">${e.time.toFixed(1)}s</span>
       <span class="event-type ${e.type}">${e.type.toUpperCase()}</span>
-      <span class="event-msg">${escapeHtml(e.msg)}</span>
-    </div>`;
-  });
-  container.innerHTML = html;
+      <span class="event-msg">${escapeHtml(e.msg)}</span>`;
+    container.appendChild(div);
+  }
+  _rendered.eventCount = state.events.length;
   container.scrollTop = container.scrollHeight;
 }
 
@@ -2004,6 +2085,20 @@ function resetState() {
   state.currentBeat = -1;
   state.playing = false;
 
+  // Reset render trackers
+  _rendered.negotiationCount = 0;
+  _rendered.tweetCount = 0;
+  _rendered.eventCount = 0;
+  _rendered.zonesHash = '';
+  _rendered.claimsHash = '';
+  _rendered.stateHash = '';
+
+  // Clear DOM containers
+  document.getElementById('negotiationTimeline').innerHTML = '<div class="empty-state">Waiting for proposals...</div>';
+  document.getElementById('tweetFeed').innerHTML = '<div class="empty-state">No tweets yet</div>';
+  document.getElementById('eventLog').innerHTML = '';
+  document.getElementById('zonesGrid').innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Zones deploy at SET_UP</div>';
+  document.getElementById('adjudicationPanel').innerHTML = '<div class="empty-state">No claims filed</div>';
   document.getElementById('reputationCard').style.display = 'none';
 }
 
