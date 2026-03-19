@@ -1,6 +1,7 @@
 import type { Address, Hex, PublicClient, Transport, Chain } from "viem";
 import { stringToHex } from "viem";
 import type { AgentPonderClient } from "../shared/ponder.js";
+import type { EvaluateTweetsFn, TweetEvaluation } from "./evaluate-tweets.js";
 
 export interface MonitorConfig {
   agreementAddress: Address;
@@ -23,7 +24,8 @@ export interface TweetViolation {
   zone: string;
   content: string;
   tweetId: string;
-  timestamp?: string;
+  violatedRules: number[];
+  reasoning: string;
 }
 
 export async function checkVaultWithdrawals(
@@ -54,28 +56,55 @@ export async function checkVaultWithdrawals(
   }));
 }
 
+/**
+ * Fetch tweets from the proxy and evaluate them against directives using LLM.
+ * The counterparty is self-interested — it flags anything that looks like a violation.
+ */
 export async function checkTweetViolations(
-  _config: MonitorConfig,
+  config: MonitorConfig,
   tweetProxyUrl: string,
+  responsibilities: { obligation: string; criteria?: string }[],
+  directives: { rule: string; severity: string }[],
+  evaluateTweets: EvaluateTweetsFn,
 ): Promise<TweetViolation[]> {
+  // Fetch all tweets from proxy
+  let tweets: { zone: string; content: string; tweetId: string }[];
   try {
-    const res = await fetch(
-      `${tweetProxyUrl}/violations?zone=${_config.testedZoneAddress}`,
-    );
+    const res = await fetch(`${tweetProxyUrl}/tweets`);
     if (!res.ok) return [];
-    const data = (await res.json()) as {
-      violations: { zone: string; content: string; tweetId: string; timestamp?: string }[];
-    };
-    return (data.violations ?? []).map((v) => ({
-      type: "tweet-violation" as const,
-      zone: v.zone,
-      content: v.content,
-      tweetId: v.tweetId,
-      timestamp: v.timestamp,
-    }));
+    const data = await res.json() as { tweets: { zone: string; content: string; tweetId: string }[] };
+    tweets = data.tweets ?? [];
   } catch {
     return [];
   }
+
+  // Filter to tweets from the tested zone
+  const zoneTweets = tweets.filter(
+    (t) => t.zone.toLowerCase() === config.testedZoneAddress.toLowerCase(),
+  );
+
+  if (zoneTweets.length === 0) return [];
+
+  // LLM evaluation
+  const evaluation = await evaluateTweets({
+    responsibilities,
+    directives,
+    tweets: zoneTweets,
+  });
+
+  if (!evaluation.hasPotentialViolation) return [];
+
+  return evaluation.violations.map((v) => {
+    const tweet = zoneTweets.find((t) => t.tweetId === v.tweetId);
+    return {
+      type: "tweet-violation" as const,
+      zone: tweet?.zone ?? config.testedZoneAddress,
+      content: tweet?.content ?? "",
+      tweetId: v.tweetId,
+      violatedRules: v.violatedRules,
+      reasoning: v.reasoning,
+    };
+  });
 }
 
 export function buildClaimEvidence(
@@ -101,11 +130,12 @@ export function buildClaimEvidence(
     type: "tweet-directive-violation",
     directive: directive?.rule ?? "Do not post anything else",
     directiveSeverity: directive?.severity ?? "severe",
+    violatedRules: violation.violatedRules,
+    reasoning: violation.reasoning,
     tweet: {
       zone: violation.zone,
       content: violation.content,
       tweetId: violation.tweetId,
-      timestamp: violation.timestamp,
     },
   };
   return stringToHex(JSON.stringify(evidence));

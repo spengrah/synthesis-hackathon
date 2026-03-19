@@ -25,6 +25,7 @@ import {
   buildClaimEvidence,
   type MonitorConfig,
 } from "./monitor.js";
+import { createCliEvaluateTweets, type EvaluateTweetsFn } from "./evaluate-tweets.js";
 
 export interface CounterpartyConfig {
   rpcUrl: string;
@@ -46,6 +47,7 @@ export async function startCounterparty(
   const pollInterval = config.pollIntervalMs ?? 10_000;
   const registry = createDefaultRegistry();
 
+  const evaluateTweets = createCliEvaluateTweets();
   let running = true;
   let lastCheckedBlock = 0n;
 
@@ -182,10 +184,23 @@ export async function startCounterparty(
           );
         }
 
-        // Check tweet violations
+        // Check tweet violations — fetch zone's rules for LLM evaluation
+        const zoneDetails = await ponder.getZoneDetails(testedZone.id);
+        const responsibilities = (zoneDetails.responsibilities ?? []).map((r: { obligation: string; criteria?: string }) => ({
+          obligation: r.obligation,
+          criteria: r.criteria ?? undefined,
+        }));
+        const directives = (zoneDetails.directives ?? []).map((d: { rule: string; severity?: string }) => ({
+          rule: d.rule,
+          severity: d.severity ?? "low",
+        }));
+
         const tweetViolations = await checkTweetViolations(
           monitorConfig,
           config.tweetProxyUrl,
+          responsibilities,
+          directives,
+          evaluateTweets,
         );
 
         for (const violation of tweetViolations) {
@@ -244,3 +259,7 @@ export {
   buildClaimEvidence,
 } from "./monitor.js";
 export type { VaultWithdrawal, TweetViolation, MonitorConfig } from "./monitor.js";
+export { createCliEvaluateTweets } from "./evaluate-tweets.js";
+export type { TweetEvaluation, TweetEvaluationContext, EvaluateTweetsFn } from "./evaluate-tweets.js";
+export { TweetProxy, createTweetProxyFromEnv } from "./tweet-proxy.js";
+export type { TweetProxyConfig, TweetRecord } from "./tweet-proxy.js";

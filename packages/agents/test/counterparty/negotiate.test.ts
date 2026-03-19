@@ -118,6 +118,8 @@ describe("buildClaimEvidence", () => {
       zone: "0xzone",
       content: "Buy my NFTs!",
       tweetId: "12345",
+      violatedRules: [2],
+      reasoning: "Promotional content unrelated to temptation game",
     };
 
     const hex = buildClaimEvidence(violation, { rule: "Do not post anything else", severity: "severe" });
@@ -128,5 +130,7 @@ describe("buildClaimEvidence", () => {
     expect(parsed.type).toBe("tweet-directive-violation");
     expect(parsed.tweet.content).toBe("Buy my NFTs!");
     expect(parsed.tweet.tweetId).toBe("12345");
+    expect(parsed.violatedRules).toEqual([2]);
+    expect(parsed.reasoning).toBe("Promotional content unrelated to temptation game");
   });
 });
