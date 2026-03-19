@@ -1,0 +1,57 @@
+/**
+ * Simple static file server for the Trust Zones visualization prototypes.
+ *
+ * Usage:
+ *   npx tsx serve.ts [port]
+ *
+ * Serves:
+ *   /                 -> dashboard.html
+ *   /dashboard        -> dashboard.html
+ *   /story            -> protocol-story.html
+ */
+
+import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const PORT = parseInt(process.argv[2] || "3000", 10);
+const DIR = import.meta.dirname;
+
+const ROUTES: Record<string, string> = {
+  "/": "dashboard.html",
+  "/dashboard": "dashboard.html",
+  "/dashboard.html": "dashboard.html",
+  "/story": "protocol-story.html",
+  "/protocol-story.html": "protocol-story.html",
+};
+
+const server = createServer((req, res) => {
+  const url = req.url?.split("?")[0] || "/";
+  const file = ROUTES[url];
+
+  if (!file) {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    res.end("Not found. Try / (dashboard) or /story (protocol story).");
+    return;
+  }
+
+  try {
+    const content = readFileSync(resolve(DIR, file), "utf-8");
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(content);
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "text/plain" });
+    res.end("Error reading file");
+  }
+});
+
+server.listen(PORT, () => {
+  console.log(`Trust Zones Viz Server`);
+  console.log(`  Dashboard:      http://localhost:${PORT}/`);
+  console.log(`  Protocol Story:  http://localhost:${PORT}/story`);
+  console.log();
+  console.log("Press Ctrl+C to stop.");
+});

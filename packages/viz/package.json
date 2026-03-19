@@ -1,0 +1,10 @@
+{
+  "name": "@trust-zones/viz",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "npx tsx serve.ts",
+    "serve:3000": "npx tsx serve.ts 3000"
+  }
+}
