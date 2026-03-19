@@ -8,7 +8,8 @@ export type { AdjudicatorConfig } from "./adjudicator/index.js";
 
 export { startCounterparty } from "./counterparty/index.js";
 export { buildCounterProposal, determineWithdrawalLimit } from "./counterparty/negotiate.js";
-export { buildClaimEvidence } from "./counterparty/monitor.js";
+export { buildClaimEvidence, checkVaultWithdrawals } from "./counterparty/monitor.js";
+export type { MonitorConfig } from "./counterparty/monitor.js";
 export type { CounterpartyConfig } from "./counterparty/index.js";
 export type { VaultWithdrawal, TweetViolation } from "./counterparty/monitor.js";
 

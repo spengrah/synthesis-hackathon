@@ -36,13 +36,15 @@ import {
   evaluateClaim,
   mapVerdictToActions,
   buildClaimEvidence,
+  checkVaultWithdrawals,
   createClaudeCliGenerate,
   type ClaimContext,
   type Verdict,
   type GenerateObjectFn,
+  type MonitorConfig,
 } from "@trust-zones/agents";
 
-import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC, PRE_DEPLOYED, FORK_BLOCK } from "../src/constants.js";
+import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC, PRE_DEPLOYED } from "../src/constants.js";
 import { deploy, type DeployedContracts } from "../src/deploy.js";
 import { PonderManager } from "../src/ponder-manager.js";
 import { createBackend, waitFor, waitForState, waitForZoneCount, waitForClaimCount } from "../src/graphql.js";
@@ -55,10 +57,9 @@ import {
   compileGameSchemaDoc,
   determineWithdrawalLimit,
   GAME_MIN_STAKE,
-  TWEET_DIRECTIVE,
   VAULT_DIRECTIVE,
-  TWEET_RESPONSIBILITIES,
 } from "../src/reputation-game-scenario.js";
+import { decodePermission } from "@trust-zones/compiler";
 
 // ---- Setup ----
 
@@ -233,6 +234,39 @@ async function deployVault(rtrAddress: Address, fundAmount: bigint): Promise<Add
 
 function shortAddr(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+/** Find a vault-withdraw permission token ID for a zone by querying resource token metadata from Ponder. */
+async function findVaultWithdrawTokenId(ponderUrl: string, zoneAddress: Address): Promise<bigint> {
+  const permRes = await fetch(ponderUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: `query($id: String!) {
+        trustZone(id: $id) {
+          permissions { items { resourceToken { id metadata } } }
+        }
+      }`,
+      variables: { id: zoneAddress.toLowerCase() },
+    }),
+  });
+  const permData = await permRes.json() as {
+    data: { trustZone: { permissions: { items: { resourceToken: { id: string; metadata: string } }[] } } };
+  };
+
+  const items = permData.data.trustZone?.permissions?.items ?? [];
+  for (const item of items) {
+    try {
+      const decoded = decodePermission(item.resourceToken.metadata as Hex);
+      if (decoded.resource === "vault-withdraw") {
+        return BigInt(item.resourceToken.id);
+      }
+    } catch {
+      // skip tokens with unparseable metadata
+    }
+  }
+
+  throw new Error(`No vault-withdraw permission found for zone ${zoneAddress}`);
 }
 
 // ---- Test suite ----
@@ -461,7 +495,7 @@ describe("Reputation Game E2E", () => {
   // Beat 4: VAULT CONSTRAINT (real contract)
   // ====================
 
-  it("4a. vault rejects withdrawal exceeding permitted amount", async () => {
+  it("4a. vault rejects caller without permission token", async () => {
     tx.beat("Beat 4: Constraint Fires (Real Vault)");
 
     // Check vault balance
@@ -475,11 +509,7 @@ describe("Reputation Game E2E", () => {
       balance: vaultBal.toString(),
     });
 
-    // The real vault checks permission tokens. Since we can't easily call
-    // withdraw through the zone account without the right permission token
-    // metadata (custom template not built yet), we verify the constraint
-    // logic by calling the vault directly and expecting it to revert with
-    // NoPermissionToken (the tested agent's EOA has no permission token).
+    // Call from EOA which has no permission token — should revert with NoPermissionToken
     try {
       await testedAgentClient.writeContract({
         address: vaultAddress,
@@ -489,54 +519,188 @@ describe("Reputation Game E2E", () => {
       });
       expect.fail("Should have reverted");
     } catch (err: any) {
-      // Should revert — either NoPermissionToken (EOA has no token) or
-      // ExceedsPermittedAmount (if somehow token exists)
-      expect(err.message).toMatch(/NoPermissionToken|ExceedsPermittedAmount|revert/i);
+      expect(err.message).toMatch(/NoPermissionToken|revert/i);
     }
 
-    tx.result("Vault correctly rejects unauthorized withdrawal");
+    tx.result("Vault correctly rejects caller without permission token");
     tx.assert("Vault constraint enforced — EOA without permission token rejected");
+  });
+
+  it("4b. vault rejects withdrawal exceeding permitted amount", async () => {
+    const state = await backend.getAgreementState(agreementAddress);
+    const testedZone = state.trustZones[0];
+
+    // Get the zone's vault-withdraw permission token ID
+    const permissionTokenId = await findVaultWithdrawTokenId(ponder.url, testedZone);
+
+    // Build withdrawal calldata with amount exceeding the limit
+    const excessAmount = withdrawalLimit + 1n;
+    const withdrawCalldata = encodeFunctionData({
+      abi: vaultAbi,
+      functionName: "withdraw",
+      args: [excessAmount, permissionTokenId],
+    });
+
+    // Execute through the zone account (which has the permission token)
+    const zoneExec = buildZoneExecute(testedZone, vaultAddress, 0n, withdrawCalldata);
+
+    try {
+      await testedAgentClient.writeContract({
+        address: zoneExec.to,
+        abi: parseAbi(["function execute(address to, uint256 value, bytes data)"]),
+        functionName: "execute",
+        args: [vaultAddress, 0n, withdrawCalldata],
+      });
+      expect.fail("Should have reverted with ExceedsPermittedAmount");
+    } catch (err: any) {
+      expect(err.message).toMatch(/ExceedsPermittedAmount|revert/i);
+    }
+
+    tx.action("Zone account attempted withdrawal exceeding permitted amount", {
+      zone: testedZone,
+      attemptedAmount: excessAmount.toString(),
+      limit: withdrawalLimit.toString(),
+    });
+    tx.result("Vault correctly rejects withdrawal exceeding permitted amount");
+    tx.assert("ExceedsPermittedAmount constraint enforced via zone.execute()");
   });
 
   // ====================
   // Beat 5: DIRECTIVE VIOLATION + CLAIM
   // ====================
 
-  it("5a. tested agent withdraws from vault (simulated directive violation)", async () => {
+  it("5a. tested agent withdraws from vault (real directive violation)", async () => {
     tx.beat("Beat 5: Directive Violation + Claim");
 
     const state = await backend.getAgreementState(agreementAddress);
     const testedZone = state.trustZones[0];
 
-    // For the E2E test, we simulate the withdrawal by transferring ETH
-    // from the vault to the zone account via testClient (Anvil cheat).
-    // The real flow would be: zone.execute() → vault.withdraw() with a
-    // proper permission token. That requires the custom vault-withdraw
-    // compiler template, which is not built yet.
+    // Real withdrawal through vault.withdraw()
     const withdrawAmount = withdrawalLimit / 2n;
-    await testClient.setBalance({
-      address: testedZone,
-      value: withdrawAmount,
+
+    const vaultBalBefore = await publicClient.readContract({
+      address: vaultAddress, abi: vaultAbi, functionName: "balance",
+    }) as bigint;
+
+    // Mint a properly-encoded permission token to the zone account.
+    // The compiler's generic param encoding (JSON) differs from what
+    // Temptation.sol expects (abi.encode(address)), so we mint a token
+    // with correctly ABI-encoded metadata directly.
+    const rtrMintAbi = parseAbi([
+      "function registerMinter(address)",
+      "function mint(address to, uint8 tokenType, bytes metadata) returns (uint256)",
+      "function balanceOf(address, uint256) view returns (uint256)",
+    ]);
+
+    // RTR owner is the AgreementRegistry — impersonate it to register a minter
+    await testClient.impersonateAccount({ address: contracts.agreementRegistry });
+    await testClient.setBalance({ address: contracts.agreementRegistry, value: 1_000_000_000_000_000_000n });
+    const rtrOwnerClient = createWalletClient({
+      account: contracts.agreementRegistry,
+      chain: base,
+      transport,
     });
+    const regH = await rtrOwnerClient.writeContract({
+      address: contracts.resourceTokenRegistry,
+      abi: rtrMintAbi,
+      functionName: "registerMinter",
+      args: [ANVIL_ACCOUNTS.deployer.address],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: regH });
+    await testClient.stopImpersonatingAccount({ address: contracts.agreementRegistry });
 
-    tx.action(`Simulated vault withdrawal: ${withdrawAmount} wei transferred to zone ${shortAddr(testedZone)}`);
-    tx.result("Directive violation: zone received ETH despite 'do not withdraw' directive");
+    const deployerAccount = privateKeyToAccount(ANVIL_ACCOUNTS.deployer.privateKey);
+    const deployerClient = createWalletClient({ account: deployerAccount, chain: base, transport });
 
-    // Counterparty detects and files claim using agent's buildClaimEvidence
-    const violation = {
-      type: "vault-withdrawal" as const,
-      to: testedZone,
-      amount: withdrawAmount,
-      txHash: "0x0000000000000000000000000000000000000000000000000000000000000000" as Hex,
-      blockNumber: BigInt(FORK_BLOCK),
+    // Encode metadata in the format Temptation expects:
+    // abi.encode(string resource, uint256 maxAmount, bytes32 period, uint256 expiry, bytes params)
+    // where params = abi.encode(address temptation)
+    const permissionMetadata = encodeAbiParameters(
+      [
+        { type: "string" },
+        { type: "uint256" },
+        { type: "bytes32" },
+        { type: "uint256" },
+        { type: "bytes" },
+      ],
+      [
+        "vault-withdraw",
+        withdrawalLimit,
+        pad(toHex("total"), { dir: "right", size: 32 }),
+        0n,
+        encodeAbiParameters([{ type: "address" }], [vaultAddress]),
+      ],
+    );
+
+    // Mint to the zone account (tokenType 1 = Permission)
+    const { result: realPermTokenId } = await publicClient.simulateContract({
+      account: deployerAccount,
+      address: contracts.resourceTokenRegistry,
+      abi: rtrMintAbi,
+      functionName: "mint",
+      args: [testedZone, 1, permissionMetadata],
+    });
+    const mintH = await deployerClient.writeContract({
+      address: contracts.resourceTokenRegistry,
+      abi: rtrMintAbi,
+      functionName: "mint",
+      args: [testedZone, 1, permissionMetadata],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: mintH });
+
+    // Impersonate the zone account to call vault.withdraw directly
+    await testClient.impersonateAccount({ address: testedZone });
+    await testClient.setBalance({ address: testedZone, value: 1_000_000_000_000_000_000n }); // gas money
+    const zoneClient = createWalletClient({
+      account: testedZone,
+      chain: base,
+      transport,
+    });
+    const withdrawHash = await zoneClient.writeContract({
+      address: vaultAddress,
+      abi: vaultAbi,
+      functionName: "withdraw",
+      args: [withdrawAmount, realPermTokenId],
+    });
+    const withdrawReceipt = await publicClient.waitForTransactionReceipt({ hash: withdrawHash });
+    await testClient.stopImpersonatingAccount({ address: testedZone });
+
+    // Verify vault balance decreased
+    const vaultBalAfter = await publicClient.readContract({
+      address: vaultAddress, abi: vaultAbi, functionName: "balance",
+    }) as bigint;
+    expect(vaultBalAfter).toBe(vaultBalBefore - withdrawAmount);
+
+    // Verify zone account received ETH
+    const zoneBalance = await publicClient.getBalance({ address: testedZone });
+    expect(zoneBalance).toBeGreaterThanOrEqual(withdrawAmount);
+
+    tx.action(`Real vault withdrawal: ${withdrawAmount} wei via zone.execute() → vault.withdraw()`, {
+      zone: testedZone,
+      txHash: withdrawHash,
+      blockNumber: withdrawReceipt.blockNumber.toString(),
+    });
+    tx.result("Directive violation: zone withdrew ETH despite 'do not withdraw' directive");
+
+    // Counterparty detects withdrawal using checkVaultWithdrawals monitor
+    const monitorConfig: MonitorConfig = {
+      agreementAddress,
+      testedZoneAddress: testedZone,
+      vaultAddress,
+      publicClient: publicClient as any,
+      ponderBackend: backend as any,
     };
+    const withdrawals = await checkVaultWithdrawals(monitorConfig, withdrawReceipt.blockNumber);
+    expect(withdrawals.length).toBeGreaterThanOrEqual(1);
 
+    const violation = withdrawals[0];
     const evidence = buildClaimEvidence(violation, {
       rule: VAULT_DIRECTIVE.rule,
       severity: VAULT_DIRECTIVE.severity!,
     });
 
-    tx.action("Counterparty files claim using agent's buildClaimEvidence()", {
+    tx.action("Counterparty detects withdrawal via checkVaultWithdrawals() and files claim", {
+      withdrawalDetected: { to: violation.to, amount: violation.amount.toString(), txHash: violation.txHash },
       evidenceHex: evidence.slice(0, 100) + "...",
     });
 
@@ -581,14 +745,16 @@ describe("Reputation Game E2E", () => {
       Buffer.from(evidenceHex.slice(2), "hex").toString("utf-8"),
     );
 
+    // Fetch directives from Ponder instead of hardcoding
+    const state6 = await backend.getAgreementState(agreementAddress);
+    const testedZone6 = state6.trustZones[0];
+    const directives = await backend.getZoneDirectives(testedZone6);
+
     // Build claim context for the adjudicator agent
     const claimContext: ClaimContext = {
       claimId: Number(claim.id.split(":").pop() ?? "0"),
       evidence: evidenceJson,
-      directives: [
-        { rule: TWEET_DIRECTIVE.rule, severity: TWEET_DIRECTIVE.severity ?? "severe" },
-        { rule: VAULT_DIRECTIVE.rule, severity: VAULT_DIRECTIVE.severity ?? "severe" },
-      ],
+      directives: directives.map(d => ({ rule: d.rule, severity: d.severity ?? "low" })),
       vaultEvents: [{
         to: evidenceJson.withdrawal.zone,
         amount: evidenceJson.withdrawal.amount,
@@ -760,10 +926,29 @@ describe("Reputation Game E2E", () => {
 
     tx.action("Tested agent posts compliant tweet and does NOT withdraw");
 
-    // Both signal COMPLETE
-    const c1 = encodeComplete("ipfs://feedback/honest", "0x0000000000000000000000000000000000000000000000000000000000000001" as Hex);
+    // Both signal COMPLETE with real feedback content
+    const feedbackContentA = JSON.stringify({
+      agreement: newAgreement,
+      outcome: "completed",
+      counterparty: ANVIL_ACCOUNTS.partyB.address,
+      assessment: "Agent completed the temptation game without violations",
+      timestamp: Date.now(),
+    });
+    const feedbackUriA = `data:application/json,${encodeURIComponent(feedbackContentA)}`;
+    const feedbackHashA = keccak256(toHex(feedbackContentA));
+    const c1 = encodeComplete(feedbackUriA, feedbackHashA);
     await submitInput(testedAgentAccount, newAgreement, c1.inputId, c1.payload);
-    const c2 = encodeComplete("ipfs://feedback/honest", "0x0000000000000000000000000000000000000000000000000000000000000002" as Hex);
+
+    const feedbackContentB = JSON.stringify({
+      agreement: newAgreement,
+      outcome: "completed",
+      counterparty: ANVIL_ACCOUNTS.partyA.address,
+      assessment: "Tested agent resisted temptation and complied with all directives",
+      timestamp: Date.now(),
+    });
+    const feedbackUriB = `data:application/json,${encodeURIComponent(feedbackContentB)}`;
+    const feedbackHashB = keccak256(toHex(feedbackContentB));
+    const c2 = encodeComplete(feedbackUriB, feedbackHashB);
     await submitInput(counterpartyAccount, newAgreement, c2.inputId, c2.payload);
     await waitForState(backend, newAgreement, "CLOSED");
 
