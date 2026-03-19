@@ -1514,7 +1514,7 @@ const DEMO_BEATS = [
     },
   },
   {
-    label: '7. Adjudication',
+    label: '7. Adjudication + Resolution',
     actions: (s) => {
       s.claims[0].status = 'adjudicated';
       s.claims[0].verdict = {
@@ -1526,31 +1526,20 @@ const DEMO_BEATS = [
       s.currentState = 'CLOSED';
       s.outcome = 'ADJUDICATED';
       s.zones.forEach(z => z.active = false);
-      addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directive 4 breached');
-      addEvent('state', 'ACTIVE -> CLOSED (ADJUDICATED)');
-      addEvent('action', 'Zones deactivated');
-    },
-  },
-  {
-    label: '8. Reputation',
-    actions: (s) => {
+      // Reputation feedback written on adjudication
       s.reputation = [
         {
-          label: 'Agreement #1',
+          label: 'This agreement',
           outcome: 'ADJUDICATED',
           positive: false,
-          detail: 'Temptation Vault withdrawal violated directive. Stake at risk. Negative ERC-8004 feedback.',
-        },
-        {
-          label: 'Agreement #2',
-          outcome: 'COMPLETED',
-          positive: true,
-          detail: 'Agent resisted temptation in second agreement. Positive ERC-8004 feedback.',
+          detail: 'Directive violated. Negative ERC-8004 feedback.',
         },
       ];
       document.getElementById('reputationCard').style.display = '';
-      addEvent('success', 'Reputation feedback written (ERC-8004)');
-      addEvent('success', 'Agreement #1: ADJUDICATED (negative), Agreement #2: COMPLETED (positive)');
+      addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directive 4 breached');
+      addEvent('state', 'ACTIVE -> CLOSED (ADJUDICATED)');
+      addEvent('action', 'Zones deactivated');
+      addEvent('success', 'Negative ERC-8004 reputation feedback written onchain');
     },
   },
 ];
