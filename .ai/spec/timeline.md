@@ -114,11 +114,9 @@ Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go awa
 - `@x402/express` middleware, USDC on Base
 - Deploy to Railway alongside other services
 
-**CLI + Skill** (`packages/tz-cli/`):
-- Small CLI wrapping x402 API calls: `tz compile`, `tz encode propose`, `tz explain`, etc.
-- Handles x402 payment flow (wallet config, USDC approval)
-- Associated Claude Code skill (SKILL.md) so agents can install and use via `/trust-zones`
-- Skill provides tool descriptions + example flows for negotiation, zone setup, monitoring
+**Skills** (`packages/skill/`):
+- `trust-zones/SKILL.md` — protocol skill: MCP server tools, mechanism templates, example flows
+- `temptation-game/SKILL.md` — game skill: how to enter, requirements, rules, links
 
 ### Day 5 (March 20): Integration + Live Demo
 
