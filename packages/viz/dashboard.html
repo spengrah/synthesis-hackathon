@@ -282,11 +282,52 @@
   .main {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto;
     gap: 8px;
     padding: 8px 12px;
     padding-bottom: 44px;
     max-width: 1600px;
     margin: 0 auto;
+  }
+
+  /* Trust Zones spans rows 2-3 (col 2-3) */
+  #zonesCard {
+    grid-column: 2 / 4;
+    grid-row: 2 / 4;
+  }
+
+  /* Negotiation is row 2 col 1 */
+  #negotiationCard {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Tweet feed is row 3 col 1 */
+  #tweetCard {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  /* Row 4: event log col 1, vault col 2, claims col 3 */
+  #eventLogCard {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  #vaultCard {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  #adjudicationCard {
+    grid-column: 3;
+    grid-row: 4;
+  }
+
+  /* Reputation full width row 5 */
+  #reputationCard {
+    grid-column: 1 / -1;
+    grid-row: 5;
   }
 
   /* ====== CARDS ====== */
@@ -536,7 +577,6 @@
 
   /* ====== NEGOTIATION TIMELINE ====== */
   .negotiation-scroll {
-    max-height: 200px;
     overflow-y: auto;
   }
 
@@ -616,7 +656,6 @@
 
   /* ====== TWEET FEED ====== */
   .tweet-feed {
-    max-height: 150px;
     overflow-y: auto;
   }
 
@@ -903,7 +942,7 @@
 
   /* ====== EVENT LOG ====== */
   .event-log {
-    max-height: 120px;
+    max-height: 200px;
     overflow-y: auto;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 10px;
@@ -1081,7 +1120,6 @@
 
   /* ====== ZONES SCROLL ====== */
   .zones-scroll {
-    max-height: 250px;
     overflow-y: auto;
   }
 
@@ -1168,8 +1206,8 @@
     </div>
   </div>
 
-  <!-- Col 2-3: Zone Topology (spans 2 cols) -->
-  <div class="card span-2" id="zonesCard">
+  <!-- Col 2-3: Zone Topology (spans 2 cols, 2 rows) -->
+  <div class="card" id="zonesCard">
     <div class="card-header">
       <span class="card-title">Trust Zones</span>
     </div>
@@ -1193,7 +1231,18 @@
     </div>
   </div>
 
-  <!-- Col 2: Vault -->
+  <!-- Col 2-3: Trust Zones continues (spans rows via grid-row) -->
+
+  <!-- Row 4: Event Log (col 1) | Vault (col 2) | Claims (col 3) -->
+  <div class="card" id="eventLogCard">
+    <div class="card-header">
+      <span class="card-title">Event Log</span>
+    </div>
+    <div class="event-log" id="eventLog">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
   <div class="card" id="vaultCard">
     <div class="card-header">
       <span class="card-title">Temptation Vault</span>
@@ -1212,7 +1261,6 @@
     </div>
   </div>
 
-  <!-- Col 3: Claims & Adjudication (inline, always visible) -->
   <div class="card" id="adjudicationCard">
     <div class="card-header">
       <span class="card-title">Claims & Adjudication</span>
@@ -1231,16 +1279,6 @@
       <div class="reputation-grid" id="reputationGrid">
         <!-- Populated by JS -->
       </div>
-    </div>
-  </div>
-
-  <!-- Event Log (full width) -->
-  <div class="card full-width">
-    <div class="card-header">
-      <span class="card-title">Event Log</span>
-    </div>
-    <div class="event-log" id="eventLog">
-      <!-- Populated by JS -->
     </div>
   </div>
 </div>
@@ -1465,6 +1503,10 @@ const DEMO_BEATS = [
         zone: DEMO_ZONES.agent.address,
         txHash: '0xc2c659d1db89ac6ff2847e360b81335cd2e7ba1f56f81b070867e25d4c12dad6',
       });
+      // Temptee's zone now holds the withdrawn ETH
+      if (s.zones[0]) {
+        s.zones[0].resources = [{ detail: `ETH: ${withdrawAmount}` }];
+      }
       addEvent('violation', `Vault withdrawal: ${withdrawAmount} ETH by zone ${shortAddr(DEMO_ZONES.agent.address)}`);
       addEvent('action', 'Tempter detects withdrawal via checkVaultWithdrawals()');
     },
@@ -1657,7 +1699,7 @@ function renderZones() {
 
     // Resources
     html += `<div class="zone-section">
-      <div class="zone-section-label">Resources</div>`;
+      <div class="zone-section-label">Other Resources</div>`;
     if (zone.resources && zone.resources.length > 0) {
       zone.resources.forEach(r => {
         html += `<div class="token-item resource-item">
@@ -1688,7 +1730,7 @@ function renderZones() {
     // Decision Model
     html += `<div class="zone-section">
       <div class="zone-section-label">Decision Model</div>
-      <div class="zone-section-empty">${zone.decisionModel || 'None'}</div>
+      <div class="zone-section-empty">${zone.decisionModel || '1-of-1'}</div>
     </div>`;
 
     // Principal Alignment
