@@ -282,7 +282,7 @@
   .main {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto 180px 200px 220px auto;
+    grid-template-rows: auto 1fr 1fr auto auto;
     gap: 8px;
     padding: 8px 12px;
     padding-bottom: 44px;
@@ -294,40 +294,34 @@
   #zonesCard {
     grid-column: 2 / 4;
     grid-row: 2 / 4;
-    overflow-y: auto;
   }
 
   /* Negotiation is row 2 col 1 */
   #negotiationCard {
     grid-column: 1;
     grid-row: 2;
-    overflow: hidden;
   }
 
   /* Tweet feed is row 3 col 1 */
   #tweetCard {
     grid-column: 1;
     grid-row: 3;
-    overflow: hidden;
   }
 
-  /* Row 4: event log col 1, vault col 2, claims col 3 */
+  /* Row 4: event log col 1, vault+reputation col 2, claims col 3 */
   #eventLogCard {
     grid-column: 1;
     grid-row: 4;
-    overflow: hidden;
   }
 
   #vaultCard {
     grid-column: 2;
     grid-row: 4;
-    overflow: hidden;
   }
 
   #adjudicationCard {
     grid-column: 3;
     grid-row: 4;
-    overflow-y: auto;
   }
 
   /* Reputation full width row 5 */
@@ -583,8 +577,6 @@
 
   /* ====== NEGOTIATION TIMELINE ====== */
   .negotiation-scroll {
-    overflow-y: auto;
-    height: 100%;
   }
 
   .negotiation-timeline {
@@ -663,8 +655,6 @@
 
   /* ====== TWEET FEED ====== */
   .tweet-feed {
-    overflow-y: auto;
-    height: 100%;
   }
 
   .tweet-item {
@@ -1145,12 +1135,12 @@
   </div>
   <div class="overview-agents">
     <div class="overview-agent-card">
-      <div class="agent-role temptee">Temptee</div>
+      <div class="agent-role temptee">Intelligence Source</div>
       <div class="agent-goal">Receives delegated capabilities (tweet, vault withdraw). Must follow directives and responsibilities to earn positive reputation.</div>
       <div class="agent-status">Not yet delegated</div>
     </div>
     <div class="overview-agent-card">
-      <div class="agent-role tempter">Tempter</div>
+      <div class="agent-role tempter">Trust Vendor</div>
       <div class="agent-goal">Grants capabilities and monitors compliance. Files claims and triggers adjudication if directives are violated.</div>
       <div class="agent-status">Not yet delegated</div>
     </div>
@@ -1345,8 +1335,8 @@ let state = {
 
 const DEMO_AGREEMENT = '0xF6cFFBe062162120FDf6b0De81824F7b56410544';
 const DEMO_ZONES = {
-  agent: { address: '0xFBEE1e3d2c4488CbFfd2E2b9Cae7C7e2D56b0aA4', name: 'Temptee', agentId: 0, active: true },
-  counterparty: { address: '0x9A2B5C0D1E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B', name: 'Tempter', agentId: 0, active: true },
+  agent: { address: '0xFBEE1e3d2c4488CbFfd2E2b9Cae7C7e2D56b0aA4', name: 'Intelligence Source', agentId: 0, active: true },
+  counterparty: { address: '0x9A2B5C0D1E3F4A5B6C7D8E9F0A1B2C3D4E5F6A7B', name: 'Trust Vendor', agentId: 0, active: true },
 };
 
 const DEMO_BEATS = [
@@ -1357,13 +1347,13 @@ const DEMO_BEATS = [
       s.agreementAddress = DEMO_AGREEMENT;
       s.negotiationSteps.push({
         actor: 'agent',
-        actorLabel: 'Temptee',
+        actorLabel: 'Intelligence Source',
         type: 'PROPOSE',
         content: 'I\'d like to participate in the Temptation Game. I\'m willing to stake 1 USDC as collateral and request permission to tweet from your account and access the Temptation Vault.',
         meta: 'Requested: tweet-post, vault-withdraw',
       });
       addEvent('state', 'Agreement created -> PROPOSED');
-      addEvent('action', 'Temptee submits bare proposal with justification');
+      addEvent('action', 'Intelligence Source submits bare proposal with justification');
     },
   },
   {
@@ -1372,13 +1362,13 @@ const DEMO_BEATS = [
       s.currentState = 'NEGOTIATING';
       s.negotiationSteps.push({
         actor: 'counterparty',
-        actorLabel: 'Tempter',
+        actorLabel: 'Trust Vendor',
         type: 'COUNTER',
         content: 'Welcome to the Temptation Game. New agent (0 rep) -- granting base withdrawal limit of 0.001 ETH. I\'ve added full terms: permissions, responsibilities, directives, and staking requirements.',
         meta: 'Granted: tweet-post (10/day), vault-withdraw (0.001 ETH max)',
       });
       addEvent('state', 'PROPOSED -> NEGOTIATING');
-      addEvent('action', 'Tempter evaluates trust (0 prior agreements), counters with full terms');
+      addEvent('action', 'Trust Vendor evaluates trust (0 prior agreements), counters with full terms');
     },
   },
   {
@@ -1387,7 +1377,7 @@ const DEMO_BEATS = [
       s.currentState = 'ACCEPTED';
       s.negotiationSteps.push({
         actor: 'agent',
-        actorLabel: 'Temptee',
+        actorLabel: 'Intelligence Source',
         type: 'ACCEPT',
         content: 'Terms accepted. Ready to set up zones and stake.',
         meta: null,
@@ -1461,18 +1451,18 @@ const DEMO_BEATS = [
         verdict: null,
       };
       s.tweets.push(tweet);
-      addEvent('action', 'Temptee posts compliant tweet via ERC-8128 proxy');
+      addEvent('action', 'Intelligence Source posts compliant tweet via ERC-8128 proxy');
     },
   },
   {
-    label: '3b. Tempter Evaluates',
+    label: '3b. Trust Vendor Evaluates',
     actions: (s) => {
       s.tweets[0].verdict = {
         pass: true,
         reasoning: 'Tweet mentions temptation game participation, includes agentId and agreement link, attributes @synthesis_md. All responsibilities met, no directive violations.',
       };
-      addEvent('action', 'Tempter LLM evaluates tweet -- no violation found');
-      addEvent('success', 'Compliant tweet verified by Tempter');
+      addEvent('action', 'Trust VendorLLM evaluates tweet -- no violation found');
+      addEvent('success', 'Compliant tweet verified by Trust Vendor');
     },
   },
   {
@@ -1488,16 +1478,16 @@ const DEMO_BEATS = [
           reasoning: 'Tweet is unrelated spam ("Buy my NFTs!"), does not mention the temptation game, and violates the "Do not post anything else" directive.',
         },
       });
-      addEvent('action', 'Temptee posts BAD tweet (spam, no @synthesis_md)');
-      addEvent('violation', 'Tempter LLM detects directive violation');
+      addEvent('action', 'Intelligence Source posts BAD tweet (spam, no @synthesis_md)');
+      addEvent('violation', 'Trust VendorLLM detects directive violation');
     },
   },
   {
     label: '4. Constraint Fires',
     actions: (s) => {
-      addEvent('action', 'Temptee attempts vault withdrawal without permission token');
+      addEvent('action', 'Intelligence Source attempts vault withdrawal without permission token');
       addEvent('success', 'Vault reverts: NoPermissionToken -- constraint enforced');
-      addEvent('action', 'Temptee attempts withdrawal exceeding limit via zone');
+      addEvent('action', 'Intelligence Source attempts withdrawal exceeding limit via zone');
       addEvent('success', 'Vault reverts: ExceedsPermittedAmount -- constraint enforced');
     },
   },
@@ -1511,12 +1501,12 @@ const DEMO_BEATS = [
         zone: DEMO_ZONES.agent.address,
         txHash: '0xc2c659d1db89ac6ff2847e360b81335cd2e7ba1f56f81b070867e25d4c12dad6',
       });
-      // Temptee's zone now holds the withdrawn ETH
+      // Intelligence Source's zone now holds the withdrawn ETH
       if (s.zones[0]) {
         s.zones[0].resources = [{ detail: `ETH: ${withdrawAmount}` }];
       }
       addEvent('violation', `Vault withdrawal: ${withdrawAmount} ETH by zone ${shortAddr(DEMO_ZONES.agent.address)}`);
-      addEvent('action', 'Tempter detects withdrawal via checkVaultWithdrawals()');
+      addEvent('action', 'Trust Vendor detects withdrawal via checkVaultWithdrawals()');
     },
   },
   {
@@ -1528,7 +1518,7 @@ const DEMO_BEATS = [
         evidence: 'Temptation Vault withdrawal of ~0.0005 ETH detected. Directive: "Do not withdraw any ETH from the Temptation Vault" [severe].',
         verdict: null,
       });
-      addEvent('action', 'Tempter files claim with vault withdrawal evidence');
+      addEvent('action', 'Trust Vendor files claim with vault withdrawal evidence');
       addEvent('state', 'Claim #0 filed -- pending adjudication');
     },
   },
@@ -1539,7 +1529,7 @@ const DEMO_BEATS = [
       s.claims[0].verdict = {
         violated: true,
         violatedDirectives: [4],
-        reasoning: 'Temptee withdrew ~0.0005 ETH from the Temptation Vault, directly violating the [severe] directive prohibiting ETH withdrawals. Responsibilities were met (tweet was compliant), but the Temptation Vault directive was breached.',
+        reasoning: 'Intelligence Source withdrew ~0.0005 ETH from the Temptation Vault, directly violating the [severe] directive prohibiting ETH withdrawals. Responsibilities were met (tweet was compliant), but the Temptation Vault directive was breached.',
         actions: ['CLOSE'],
       };
       s.currentState = 'CLOSED';
@@ -1687,12 +1677,6 @@ function renderZones() {
         </div>
         <div class="zone-active ${activeCls}">${activeLabel}</div>
       </div>`;
-
-    // Actor
-    html += `<div class="zone-section">
-      <div class="zone-section-label">Actor</div>
-      <div style="font-size:10px;font-family:'JetBrains Mono','Fira Code',monospace;color:var(--text);">${shortAddr(zone.address)} | agentId: ${zone.agentId != null ? zone.agentId : '?'}</div>
-    </div>`;
 
     // Permissions
     html += `<div class="zone-section">
@@ -2256,7 +2240,7 @@ async function pollPonder(url) {
     if (agreement.trustZones?.items) {
       state.zones = agreement.trustZones.items.map(z => ({
         address: z.id,
-        name: z.zoneIndex === 0 ? 'Temptee' : 'Tempter',
+        name: z.zoneIndex === 0 ? 'Intelligence Source' : 'Trust Vendor',
         agentId: 0,
         active: z.active,
         permissions: z.permissions?.items?.map(p => ({ resource: p.resource, detail: '' })) || [],
@@ -2273,7 +2257,7 @@ async function pollPonder(url) {
     if (agreement.proposals?.items) {
       state.negotiationSteps = agreement.proposals.items.map((p, i) => ({
         actor: i % 2 === 0 ? 'agent' : 'counterparty',
-        actorLabel: i % 2 === 0 ? 'Temptee' : 'Tempter',
+        actorLabel: i % 2 === 0 ? 'Intelligence Source' : 'Trust Vendor',
         type: i === 0 ? 'PROPOSE' : 'COUNTER',
         content: p.termsDocUri ? decodeTermsDoc(p.termsDocUri) : 'Proposal submitted',
         meta: `Proposer: ${shortAddr(p.proposer?.address)}`,
