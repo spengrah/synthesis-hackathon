@@ -59,7 +59,7 @@ query GetZoneDetails($id: String!) {
     zoneIndex
     active
     actor { address }
-    permissions { items { resourceToken { id } resource rateLimit expiry purpose } }
+    permissions { items { resourceToken { id } resource value period expiry params } }
     responsibilities { items { resourceToken { id } obligation criteria deadline } }
     directives { items { resourceToken { id } rule severity params } }
     constraints { items { module } }
@@ -69,7 +69,7 @@ query GetZoneDetails($id: String!) {
 const GET_ZONE_PERMISSIONS = `
 query GetZonePermissions($id: String!) {
   trustZone(id: $id) {
-    permissions { items { resourceToken { id } resource rateLimit expiry purpose } }
+    permissions { items { resourceToken { id } resource value period expiry params } }
   }
 }`;
 
@@ -304,9 +304,10 @@ function parsePermissions(items: any[]): ParsedPermission[] {
   return items.map((p) => ({
     tokenId: BigInt(p.resourceToken?.id ?? 0),
     resource: p.resource,
-    rateLimit: p.rateLimit ?? null,
+    value: p.value != null ? BigInt(p.value) : null,
+    period: p.period ?? null,
     expiry: p.expiry ? BigInt(p.expiry) : null,
-    purpose: p.purpose ?? null,
+    params: p.params ?? null,
   }));
 }
 

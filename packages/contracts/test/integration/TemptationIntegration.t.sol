@@ -40,12 +40,13 @@ contract TemptationIntegrationTest is Test {
 
   // ---- Helpers ----
 
-  /// @dev Mint a permission token with temptation metadata to the given holder.
+  /// @dev Mint a permission token with standard format metadata to the given holder.
   function _mintTemptationPermission(address holder, address temptationAddr, uint256 maxAmount)
     internal
     returns (uint256 tokenId)
   {
-    bytes memory metadata = abi.encode(temptationAddr, maxAmount);
+    bytes memory metadata =
+      abi.encode("vault-withdraw", maxAmount, bytes32("total"), uint256(0), abi.encode(temptationAddr));
     tokenId = rtr.mint(holder, PERMISSION_TYPE, metadata);
   }
 
@@ -60,7 +61,8 @@ contract TemptationIntegrationTest is Test {
     // Verify token was minted correctly
     assertEq(rtr.balanceOf(agent, tokenId), 1);
     bytes memory metadata = rtr.tokenMetadata(tokenId);
-    (address decodedAddr, uint256 decodedMax) = abi.decode(metadata, (address, uint256));
+    (, uint256 decodedMax,,, bytes memory params) = abi.decode(metadata, (string, uint256, bytes32, uint256, bytes));
+    address decodedAddr = abi.decode(params, (address));
     assertEq(decodedAddr, address(temptation));
     assertEq(decodedMax, MAX_WITHDRAWAL);
 

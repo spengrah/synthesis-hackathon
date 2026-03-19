@@ -6,45 +6,16 @@ import {
   decodeResponsibility,
   encodeDirective,
   decodeDirective,
-  parseRateLimit,
-  formatRateLimit,
 } from "../src/resources.js";
-
-describe("parseRateLimit", () => {
-  it("parses '10/hour'", () => {
-    const rl = parseRateLimit("10/hour");
-    expect(rl.value).toBe(10n);
-    expect(rl.period).toBe("hour");
-  });
-
-  it("parses '100/day'", () => {
-    const rl = parseRateLimit("100/day");
-    expect(rl.value).toBe(100n);
-    expect(rl.period).toBe("day");
-  });
-
-  it("throws on invalid format", () => {
-    expect(() => parseRateLimit("noslash")).toThrow();
-  });
-});
-
-describe("formatRateLimit", () => {
-  it("formats back to string", () => {
-    expect(formatRateLimit(10n, "hour")).toBe("10/hour");
-  });
-
-  it("returns undefined for zero values", () => {
-    expect(formatRateLimit(0n, "")).toBeUndefined();
-  });
-});
 
 describe("Permission encode/decode", () => {
   it("roundtrips with all fields", () => {
     const entry = {
       resource: "/market-data",
-      rateLimit: "10/hour",
+      value: 10,
+      period: "hour",
       expiry: 1710700000,
-      purpose: "Market analysis",
+      params: { purpose: "Market analysis" },
     };
     const encoded = encodePermission(entry);
     const decoded = decodePermission(encoded);
@@ -52,14 +23,26 @@ describe("Permission encode/decode", () => {
   });
 
   it("roundtrips with only resource", () => {
-    const entry = { resource: "/api/v1/data" };
+    const entry = { resource: "/api" };
     const encoded = encodePermission(entry);
     const decoded = decodePermission(encoded);
     expect(decoded).toEqual(entry);
   });
 
-  it("roundtrips with rateLimit only", () => {
-    const entry = { resource: "/endpoint", rateLimit: "50/day" };
+  it("roundtrips with value+period only", () => {
+    const entry = { resource: "/endpoint", value: 50, period: "day" };
+    const encoded = encodePermission(entry);
+    const decoded = decodePermission(encoded);
+    expect(decoded).toEqual(entry);
+  });
+
+  it("roundtrips with params containing an address", () => {
+    const entry = {
+      resource: "vault-withdraw",
+      value: 5000000000000000,
+      period: "total",
+      params: { temptation: "0x1234567890abcdef1234567890abcdef12345678" },
+    };
     const encoded = encodePermission(entry);
     const decoded = decodePermission(encoded);
     expect(decoded).toEqual(entry);

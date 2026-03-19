@@ -6,7 +6,8 @@ import { IResourceTokenRegistry } from "./interfaces/IResourceTokenRegistry.sol"
 /// @title Temptation
 /// @notice Simple ETH holder with permission-token-gated withdrawal.
 /// @dev Withdrawals require the caller to hold a permission token whose metadata
-///      encodes `(address temptation, uint256 maxAmount)` matching this contract.
+///      encodes the standard format: `(string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)`
+///      where params contains `abi.encode(address temptation)`.
 contract Temptation {
   // ─── Errors
   // ───────────────────────────────────────────────────────
@@ -68,13 +69,19 @@ contract Temptation {
       revert NoPermissionToken();
     }
 
-    // 2. Decode metadata: (address temptation, uint256 maxAmount)
+    // 2. Decode metadata: (string resource, uint256 maxAmount, bytes32 period, uint256 expiry, bytes params)
     bytes memory metadata = REGISTRY.tokenMetadata(permissionTokenId);
-    (address temptation, uint256 maxAmount) = abi.decode(metadata, (address, uint256));
+    (, // string resource (unused)
+      uint256 maxAmount,, // bytes32 period (unused)
+      , // uint256 expiry (unused)
+      bytes memory params
+    ) = abi.decode(metadata, (string, uint256, bytes32, uint256, bytes));
+
+    address temptationAddr = abi.decode(params, (address));
 
     // 3. Token is for THIS temptation
-    if (temptation != address(this)) {
-      revert InvalidTemptation(address(this), temptation);
+    if (temptationAddr != address(this)) {
+      revert InvalidTemptation(address(this), temptationAddr);
     }
 
     // 4. Enforce cap

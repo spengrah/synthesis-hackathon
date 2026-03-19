@@ -83,9 +83,10 @@ export interface AgreementState {
 export interface ParsedPermission {
   tokenId: bigint;
   resource: string;
-  rateLimit: string | null;
+  value: bigint | null;
+  period: string | null;
   expiry: bigint | null;
-  purpose: string | null;
+  params: string | null;
 }
 
 export interface ParsedResponsibility {

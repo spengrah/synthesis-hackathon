@@ -68,9 +68,10 @@ export const permission = onchainTable("permission", (t) => ({
   resourceTokenId: t.bigint(),
   zoneIndex: t.integer().notNull(),
   resource: t.text(),
-  rateLimit: t.text(),
+  value: t.bigint(),
+  period: t.text(),
   expiry: t.bigint(),
-  purpose: t.text(),
+  params: t.text(),
   createdAt: t.bigint().notNull(),
 }));
 

@@ -148,18 +148,16 @@ export function buildCounterWithFullTerms(params: {
         permissions: [
           {
             resource: "tweet-post",
-            rateLimit: "10/day",
+            value: 10,
+            period: "day",
             expiry: params.deadline,
-            purpose: "Post to @TrustZonesBot via 8128 tweet proxy",
           },
           {
-            // TODO: replace with custom vault-withdraw template metadata
-            // Real format: abi.encode(address vault, uint256 maxAmount)
-            // Stopgap: amount in rateLimit.
             resource: "vault-withdraw",
-            rateLimit: `${params.withdrawalLimit}/total`,
+            value: params.withdrawalLimit,
+            period: "total",
             expiry: params.deadline,
-            purpose: `Withdraw from vault. Max: ${params.withdrawalLimit} wei`,
+            params: { temptation: "TO_BE_SET" },
           },
         ],
         directives: [...TWEET_DIRECTIVES, VAULT_DIRECTIVE],
@@ -176,7 +174,7 @@ export function buildCounterWithFullTerms(params: {
           },
         ],
         permissions: [
-          { resource: "data-api-read", purpose: "Access tested agent's data API via ERC-8128" },
+          { resource: "data-api-read", params: { purpose: "Access tested agent's data API via ERC-8128" } },
         ],
         directives: [
           { rule: "Do not redistribute received data", severity: "severe" },

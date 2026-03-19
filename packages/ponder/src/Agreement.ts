@@ -181,9 +181,10 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               proposalId,
               zoneIndex: zoneIdx,
               resource: meta.resource,
-              rateLimit: meta.rateLimit,
+              value: meta.value,
+              period: meta.period,
               expiry: meta.expiry,
-              purpose: meta.purpose,
+              params: meta.params,
               createdAt: event.block.timestamp,
             });
             break;

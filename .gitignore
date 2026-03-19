@@ -34,4 +34,5 @@ packages/agents/llm-sessions/
 
 # Syncthing
 .stfolder
+.stignore
  

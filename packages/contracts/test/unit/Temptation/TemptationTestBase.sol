@@ -32,13 +32,16 @@ abstract contract TemptationTestBase is Test {
     vm.mockCall(registry, abi.encodeCall(IResourceTokenRegistry.balanceOf, (owner, id)), abi.encode(bal));
   }
 
-  /// @dev Mock REGISTRY.tokenMetadata to return encoded (temptationAddr, maxAmt).
+  /// @dev Mock REGISTRY.tokenMetadata to return standard permission format.
   function _mockTokenMetadata(uint256 id, address temptationAddr, uint256 maxAmt) internal {
-    vm.mockCall(
-      registry,
-      abi.encodeCall(IResourceTokenRegistry.tokenMetadata, (id)),
-      abi.encode(abi.encode(temptationAddr, maxAmt))
+    bytes memory metadata = abi.encode(
+      "vault-withdraw", // resource
+      maxAmt, // value
+      bytes32("total"), // period
+      uint256(0), // expiry
+      abi.encode(temptationAddr) // params
     );
+    vm.mockCall(registry, abi.encodeCall(IResourceTokenRegistry.tokenMetadata, (id)), abi.encode(metadata));
   }
 
   /// @dev Set up valid mocks for a successful withdrawal.

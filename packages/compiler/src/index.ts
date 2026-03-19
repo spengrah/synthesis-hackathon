@@ -12,8 +12,6 @@ export {
   decodeResponsibility,
   encodeDirective,
   decodeDirective,
-  parseRateLimit,
-  formatRateLimit,
 } from "./resources.js";
 
 export type {

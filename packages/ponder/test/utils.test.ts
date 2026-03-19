@@ -3,6 +3,8 @@ import {
   keccak256,
   toHex,
   encodeAbiParameters,
+  stringToHex,
+  pad,
   type Hex,
 } from "viem";
 import {
@@ -260,78 +262,83 @@ describe("parseProposalData", () => {
 
 const permissionAbi = [
   { name: "resource", type: "string" as const },
-  {
-    name: "rateLimit",
-    type: "tuple" as const,
-    components: [
-      { name: "value", type: "uint256" as const },
-      { name: "period", type: "string" as const },
-    ],
-  },
+  { name: "value", type: "uint256" as const },
+  { name: "period", type: "bytes32" as const },
   { name: "expiry", type: "uint256" as const },
-  { name: "purpose", type: "string" as const },
+  { name: "params", type: "bytes" as const },
 ] as const;
 
 describe("parsePermissionMetadata", () => {
   it("decodes full permission metadata", () => {
+    const periodBytes = pad(stringToHex("hour"), { dir: "right", size: 32 });
+    const paramsHex = toHex(new TextEncoder().encode(JSON.stringify({ purpose: "Market data access" })));
     const encoded = encodeAbiParameters(permissionAbi, [
       "/market-data",
-      { value: 10n, period: "hour" },
+      10n,
+      periodBytes,
       1710700000n,
-      "Market data access",
+      paramsHex,
     ]);
 
     const result = parsePermissionMetadata(encoded);
 
     expect(result.resource).toBe("/market-data");
-    expect(result.rateLimit).toBe("10/hour");
+    expect(result.value).toBe(10n);
+    expect(result.period).toBe("hour");
     expect(result.expiry).toBe(1710700000n);
-    expect(result.purpose).toBe("Market data access");
+    expect(result.params).toBe(paramsHex);
   });
 
-  it("returns null rateLimit when value is zero", () => {
+  it("returns null value when zero", () => {
+    const zeroPeriod = ("0x" + "00".repeat(32)) as Hex;
     const encoded = encodeAbiParameters(permissionAbi, [
       "/api",
-      { value: 0n, period: "" },
+      0n,
+      zeroPeriod,
       1710700000n,
-      "API access",
+      "0x",
     ]);
 
     const result = parsePermissionMetadata(encoded);
-    expect(result.rateLimit).toBeNull();
+    expect(result.value).toBeNull();
   });
 
   it("returns null expiry when zero", () => {
+    const periodBytes = pad(stringToHex("day"), { dir: "right", size: 32 });
     const encoded = encodeAbiParameters(permissionAbi, [
       "/api",
-      { value: 5n, period: "day" },
+      5n,
+      periodBytes,
       0n,
-      "API access",
+      "0x",
     ]);
 
     const result = parsePermissionMetadata(encoded);
     expect(result.expiry).toBeNull();
   });
 
-  it("returns null purpose when empty", () => {
+  it("returns null params when empty", () => {
+    const periodBytes = pad(stringToHex("day"), { dir: "right", size: 32 });
     const encoded = encodeAbiParameters(permissionAbi, [
       "/api",
-      { value: 5n, period: "day" },
+      5n,
+      periodBytes,
       1710700000n,
-      "",
+      "0x",
     ]);
 
     const result = parsePermissionMetadata(encoded);
-    expect(result.purpose).toBeNull();
+    expect(result.params).toBeNull();
   });
 
   it("returns defaults for malformed data", () => {
     const result = parsePermissionMetadata("0xdeadbeef" as Hex);
     expect(result).toEqual({
       resource: "",
-      rateLimit: null,
+      value: null,
+      period: null,
       expiry: null,
-      purpose: null,
+      params: null,
     });
   });
 });

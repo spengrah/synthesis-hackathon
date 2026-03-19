@@ -40,9 +40,10 @@ export interface MechanismEntry {
 
 export interface PermissionEntry {
   resource: string;
-  rateLimit?: string;
-  expiry?: number;
-  purpose?: string;
+  value?: bigint | number | string;  // numeric value (rate limit count, max withdrawal, etc.)
+  period?: string;                    // short string fitting bytes32 ("hour", "day", "total")
+  expiry?: number;                    // unix timestamp
+  params?: Record<string, unknown>;   // freeform parameters (like DirectiveEntry.params)
 }
 
 export interface ResponsibilityEntry {

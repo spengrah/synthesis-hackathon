@@ -1,4 +1,4 @@
-import { keccak256, toHex, decodeAbiParameters, type Hex } from "viem";
+import { keccak256, toHex, decodeAbiParameters, trim, fromHex, type Hex } from "viem";
 
 // ─── bytes32 lookup table ────────────────────────────────────────
 
@@ -161,45 +161,47 @@ export function parseProposalData(data: Hex): ParsedProposalData {
 
 // ─── Resource token metadata decoding ────────────────────────────
 
-// Permission: (string resource, (uint256 value, string period) rateLimit, uint256 expiry, string purpose)
+// Permission: (string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)
 const permissionMetadataParams = [
   { name: "resource", type: "string" },
-  {
-    name: "rateLimit",
-    type: "tuple",
-    components: [
-      { name: "value", type: "uint256" },
-      { name: "period", type: "string" },
-    ],
-  },
+  { name: "value", type: "uint256" },
+  { name: "period", type: "bytes32" },
   { name: "expiry", type: "uint256" },
-  { name: "purpose", type: "string" },
+  { name: "params", type: "bytes" },
 ] as const;
 
 export interface ParsedPermissionMetadata {
   resource: string;
-  rateLimit: string | null;
+  value: bigint | null;
+  period: string | null;
   expiry: bigint | null;
-  purpose: string | null;
+  params: string | null;  // hex string of the raw bytes, or null if empty
 }
 
 export function parsePermissionMetadata(data: Hex): ParsedPermissionMetadata {
   try {
-    const [resource, rateLimit, expiry, purpose] = decodeAbiParameters(
+    const [resource, value, periodBytes, expiry, params] = decodeAbiParameters(
       permissionMetadataParams,
       data
     );
+    // Decode bytes32 period: trim trailing zeros, decode to string
+    const trimmed = trim(periodBytes as Hex, { dir: "right" });
+    let period: string | null = null;
+    if (trimmed !== "0x" && trimmed !== "0x00") {
+      const decoded = fromHex(trimmed as Hex, "string");
+      const cleaned = decoded.replace(/\0/g, "");
+      if (cleaned.length > 0) period = cleaned;
+    }
+
     return {
       resource: resource as string,
-      rateLimit:
-        (rateLimit as any).value > 0n
-          ? `${(rateLimit as any).value}/${(rateLimit as any).period}`
-          : null,
+      value: (value as bigint) > 0n ? (value as bigint) : null,
+      period,
       expiry: (expiry as bigint) > 0n ? (expiry as bigint) : null,
-      purpose: (purpose as string) || null,
+      params: (params as Hex) !== "0x" && (params as string).length > 2 ? (params as string) : null,
     };
   } catch {
-    return { resource: "", rateLimit: null, expiry: null, purpose: null };
+    return { resource: "", value: null, period: null, expiry: null, params: null };
   }
 }
 

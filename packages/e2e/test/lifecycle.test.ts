@@ -179,7 +179,7 @@ function summarizeSchemaDoc(doc: TZSchemaDocument): Record<string, unknown> {
         ...(z.eligibilities ?? []).map(m => `eligibility:${m.template}`),
         ...(z.incentives ?? []).map(m => `incentive:${m.template}(${JSON.stringify(m.params)})`),
       ],
-      permissions: (z.permissions ?? []).map(p => `${p.resource} [${p.rateLimit ?? "unlimited"}]`),
+      permissions: (z.permissions ?? []).map(p => `${p.resource} [${p.value != null ? `${p.value}/${p.period ?? ""}` : "unlimited"}]`),
       responsibilities: (z.responsibilities ?? []).map(r => r.obligation),
       directives: (z.directives ?? []).map(d => d.rule),
     })),
@@ -331,10 +331,10 @@ describe("E2E Lifecycle", () => {
 
     // Step 4: partyB modifies the schema doc — wants higher rate limit on market data access
     schemaDoc.zones[1].permissions = [
-      { resource: "market-data-read", rateLimit: "200/hour", purpose: "Access market data from Party A — increased limit" },
+      { resource: "market-data-read", value: 200, period: "hour", params: { purpose: "Access market data from Party A — increased limit" } },
     ];
 
-    tx.action("partyB modifies Zone B: market-data-read rate limit 50/hour → 200/hour", summarizeSchemaDoc(schemaDoc));
+    tx.action("partyB modifies Zone B: market-data-read value 50 → 200", summarizeSchemaDoc(schemaDoc));
 
     // Step 5: Recompile the modified schema doc
     const counterData = compileSchemaDoc(schemaDoc);
@@ -703,7 +703,7 @@ describe("E2E Lifecycle", () => {
     const decoded2 = decodeProposalData(pData.data.proposals.items[0].rawProposalData as `0x${string}`);
     const decompiled2 = decompile(decoded2, compilerConfig, registry);
     decompiled2.zones[1].permissions = [
-      { resource: "market-data-read", rateLimit: "200/hour", purpose: "Access market data from Party A — increased limit" },
+      { resource: "market-data-read", value: 200, period: "hour", params: { purpose: "Access market data from Party A — increased limit" } },
     ];
     const counterData = compileSchemaDoc(decompiled2);
     const counter = encodeCounter(counterData);

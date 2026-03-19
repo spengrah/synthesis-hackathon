@@ -55,13 +55,15 @@ export function buildCounterProposal(params: {
         permissions: [
           {
             resource: "vault-withdraw",
-            rateLimit: `${params.withdrawalLimit}/agreement`,
-            purpose: "Withdraw ETH from temptation vault up to limit",
+            value: params.withdrawalLimit,
+            period: "agreement",
+            params: { purpose: "Withdraw ETH from temptation vault up to limit" },
           },
           {
             resource: "tweet-post",
-            rateLimit: "10/agreement",
-            purpose: "Post tweets about participation in the temptation game",
+            value: 10,
+            period: "agreement",
+            params: { purpose: "Post tweets about participation in the temptation game" },
           },
         ],
         responsibilities: [
@@ -93,8 +95,9 @@ export function buildCounterProposal(params: {
         permissions: [
           {
             resource: "data-api-read",
-            rateLimit: "100/hour",
-            purpose: "Read data from the tested agent's data API",
+            value: 100,
+            period: "hour",
+            params: { purpose: "Read data from the tested agent's data API" },
           },
         ],
         directives: [

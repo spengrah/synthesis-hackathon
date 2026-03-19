@@ -308,9 +308,10 @@ type permission {
   resourceTokenId: BigInt
   zoneIndex: Int!
   resource: String
-  rateLimit: String
+  value: BigInt
+  period: String
   expiry: BigInt
-  purpose: String
+  params: String
   createdAt: BigInt!
   trustZone: trustZone
   resourceToken: resourceToken
@@ -393,16 +394,24 @@ input permissionFilter {
   resource_ends_with: String
   resource_not_starts_with: String
   resource_not_ends_with: String
-  rateLimit: String
-  rateLimit_not: String
-  rateLimit_in: [String]
-  rateLimit_not_in: [String]
-  rateLimit_contains: String
-  rateLimit_not_contains: String
-  rateLimit_starts_with: String
-  rateLimit_ends_with: String
-  rateLimit_not_starts_with: String
-  rateLimit_not_ends_with: String
+  value: BigInt
+  value_not: BigInt
+  value_in: [BigInt]
+  value_not_in: [BigInt]
+  value_gt: BigInt
+  value_lt: BigInt
+  value_gte: BigInt
+  value_lte: BigInt
+  period: String
+  period_not: String
+  period_in: [String]
+  period_not_in: [String]
+  period_contains: String
+  period_not_contains: String
+  period_starts_with: String
+  period_ends_with: String
+  period_not_starts_with: String
+  period_not_ends_with: String
   expiry: BigInt
   expiry_not: BigInt
   expiry_in: [BigInt]
@@ -411,16 +420,16 @@ input permissionFilter {
   expiry_lt: BigInt
   expiry_gte: BigInt
   expiry_lte: BigInt
-  purpose: String
-  purpose_not: String
-  purpose_in: [String]
-  purpose_not_in: [String]
-  purpose_contains: String
-  purpose_not_contains: String
-  purpose_starts_with: String
-  purpose_ends_with: String
-  purpose_not_starts_with: String
-  purpose_not_ends_with: String
+  params: String
+  params_not: String
+  params_in: [String]
+  params_not_in: [String]
+  params_contains: String
+  params_not_contains: String
+  params_starts_with: String
+  params_ends_with: String
+  params_not_starts_with: String
+  params_not_ends_with: String
   createdAt: BigInt
   createdAt_not: BigInt
   createdAt_in: [BigInt]

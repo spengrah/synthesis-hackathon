@@ -35,7 +35,7 @@ export function createProposalSchemaDoc(
           },
         ],
         permissions: [
-          { resource: "social-graph-read", rateLimit: "100/hour", purpose: "Access social graph data from Party B" },
+          { resource: "social-graph-read", value: 100, period: "hour", params: { purpose: "Access social graph data from Party B" } },
         ],
         responsibilities: [
           { obligation: "Provide market data with <5s latency", criteria: "99.5% uptime" },
@@ -56,7 +56,7 @@ export function createProposalSchemaDoc(
           },
         ],
         permissions: [
-          { resource: "market-data-read", rateLimit: "50/hour", purpose: "Access market data from Party A" },
+          { resource: "market-data-read", value: 50, period: "hour", params: { purpose: "Access market data from Party A" } },
         ],
         responsibilities: [
           { obligation: "Provide social graph data", criteria: "99% uptime" },
@@ -85,7 +85,7 @@ export function createCounterSchemaDoc(
 
   // partyB counters: wants higher rate limit on their access to market data
   doc.zones[1].permissions = [
-    { resource: "market-data-read", rateLimit: "200/hour", purpose: "Access market data from Party A — increased limit" },
+    { resource: "market-data-read", value: 200, period: "hour", params: { purpose: "Access market data from Party A — increased limit" } },
   ];
 
   return doc;

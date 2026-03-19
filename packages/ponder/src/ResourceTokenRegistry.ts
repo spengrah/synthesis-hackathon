@@ -47,9 +47,10 @@ ponder.on(
         for (const perm of perms) {
           await db.update(permission, { id: perm.id }).set({
             resource: meta.resource,
-            rateLimit: meta.rateLimit,
+            value: meta.value,
+            period: meta.period,
             expiry: meta.expiry,
-            purpose: meta.purpose,
+            params: meta.params,
           });
         }
         break;

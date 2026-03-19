@@ -63,7 +63,7 @@ describe("compile → decompile roundtrip", () => {
             { template: "target-allowlist", params: { targets: [TARGET] } },
           ],
           permissions: [
-            { resource: "/market-data", rateLimit: "10/hour", purpose: "Market analysis" },
+            { resource: "/market-data", value: 10, period: "hour", params: { purpose: "Market analysis" } },
           ],
           directives: [
             { rule: "attribution", severity: "moderate" },
@@ -146,7 +146,7 @@ describe("compile → decompile roundtrip", () => {
             { template: "staking", params: { token: USDC, minStake: "3000000000000000", cooldownPeriod: 86400 } },
           ],
           permissions: [
-            { resource: "/market-data", rateLimit: "10/hour" },
+            { resource: "/market-data", value: 10, period: "hour" },
             { resource: "/sentiment-analysis", expiry: 1710700000 },
           ],
           directives: [
@@ -165,7 +165,7 @@ describe("compile → decompile roundtrip", () => {
             { template: "staking", params: { token: USDC, minStake: "4000000000000000", cooldownPeriod: 86400 } },
           ],
           permissions: [
-            { resource: "/social-graph", rateLimit: "20/hour" },
+            { resource: "/social-graph", value: 20, period: "hour" },
             { resource: "/trend-signals" },
           ],
           directives: [
