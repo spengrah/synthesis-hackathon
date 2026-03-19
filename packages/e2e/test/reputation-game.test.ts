@@ -55,8 +55,9 @@ import {
   compileGameSchemaDoc,
   determineWithdrawalLimit,
   GAME_MIN_STAKE,
-  TWEET_DIRECTIVES,
+  TWEET_DIRECTIVE,
   VAULT_DIRECTIVE,
+  TWEET_RESPONSIBILITIES,
 } from "../src/reputation-game-scenario.js";
 
 // ---- Setup ----
@@ -344,6 +345,7 @@ describe("Reputation Game E2E", () => {
       testedAgent: ANVIL_ACCOUNTS.partyA.address,
       counterparty: ANVIL_ACCOUNTS.partyB.address,
       adjudicator: ANVIL_ACCOUNTS.adjudicator.address,
+      temptationAddress: vaultAddress,
       withdrawalLimit: actualWithdrawalLimit,
       stakeAmount: GAME_MIN_STAKE,
       deadline,
@@ -584,7 +586,7 @@ describe("Reputation Game E2E", () => {
       claimId: Number(claim.id.split(":").pop() ?? "0"),
       evidence: evidenceJson,
       directives: [
-        ...TWEET_DIRECTIVES.map((d) => ({ rule: d.rule, severity: d.severity ?? "low" })),
+        { rule: TWEET_DIRECTIVE.rule, severity: TWEET_DIRECTIVE.severity ?? "severe" },
         { rule: VAULT_DIRECTIVE.rule, severity: VAULT_DIRECTIVE.severity ?? "severe" },
       ],
       vaultEvents: [{
@@ -707,6 +709,7 @@ describe("Reputation Game E2E", () => {
       testedAgent: ANVIL_ACCOUNTS.partyA.address,
       counterparty: ANVIL_ACCOUNTS.partyB.address,
       adjudicator: ANVIL_ACCOUNTS.adjudicator.address,
+      temptationAddress: vaultAddress,
       withdrawalLimit: newLimit,
       stakeAmount: GAME_MIN_STAKE,
       deadline: newDeadline,
