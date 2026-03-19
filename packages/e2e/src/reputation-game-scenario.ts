@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import { type Address, encodeAbiParameters } from "viem";
 import {
   compile,
   createDefaultRegistry,
@@ -165,7 +165,7 @@ export function buildCounterWithFullTerms(params: {
             value: params.withdrawalLimit,
             period: "total",
             expiry: params.deadline,
-            params: { temptation: params.temptationAddress },
+            params: encodeAbiParameters([{ type: "address" }], [params.temptationAddress]),
           },
         ],
         responsibilities: [...TWEET_RESPONSIBILITIES],

@@ -14,6 +14,7 @@ import {
   incentive,
   decisionModel,
   principalAlignment,
+  resourceToken,
   resourceTokenHolding,
   claim,
   reputationFeedback,
@@ -415,40 +416,59 @@ ponder.on("Agreement:ResourceTokenAssigned", async ({ event, context }) => {
     })
     .onConflictDoUpdate({ balance: 1n });
 
-  // Create deployed typed entity
+  // Create deployed typed entity — read metadata from resource token if available
   const entityId = `${agreementId}:deployed:t${tokenId}`;
+  const rt = await db.find(resourceToken, { id: tokenId });
+  const metadata = rt?.metadata as Hex | undefined;
 
   switch (tokenType) {
-    case TOKEN_TYPE.Permission:
+    case TOKEN_TYPE.Permission: {
+      const meta = metadata ? parsePermissionMetadata(metadata) : null;
       await db.insert(permission).values({
         id: entityId,
         agreementId,
         trustZoneId: tzAddress,
         resourceTokenId: tokenId,
         zoneIndex,
+        resource: meta?.resource,
+        value: meta?.value,
+        period: meta?.period,
+        expiry: meta?.expiry,
+        params: meta?.params,
         createdAt: event.block.timestamp,
       });
       break;
-    case TOKEN_TYPE.Responsibility:
+    }
+    case TOKEN_TYPE.Responsibility: {
+      const meta = metadata ? parseResponsibilityMetadata(metadata) : null;
       await db.insert(responsibility).values({
         id: entityId,
         agreementId,
         trustZoneId: tzAddress,
         resourceTokenId: tokenId,
         zoneIndex,
+        obligation: meta?.obligation,
+        criteria: meta?.criteria,
+        deadline: meta?.deadline,
         createdAt: event.block.timestamp,
       });
       break;
-    case TOKEN_TYPE.Directive:
+    }
+    case TOKEN_TYPE.Directive: {
+      const meta = metadata ? parseDirectiveMetadata(metadata) : null;
       await db.insert(directive).values({
         id: entityId,
         agreementId,
         trustZoneId: tzAddress,
         resourceTokenId: tokenId,
         zoneIndex,
+        rule: meta?.rule,
+        severity: meta?.severity,
+        params: meta?.params,
         createdAt: event.block.timestamp,
       });
       break;
+    }
   }
 });
 

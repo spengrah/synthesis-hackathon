@@ -44,9 +44,16 @@ export function encodePermission(entry: PermissionEntry): Hex {
     ? pad(stringToHex(entry.period), { dir: "right", size: 32 })
     : ("0x" + "00".repeat(32)) as Hex;
   let paramsHex: Hex = "0x";
-  if (entry.params && Object.keys(entry.params).length > 0) {
-    const json = JSON.stringify(entry.params);
-    paramsHex = toHex(new TextEncoder().encode(json));
+  if (entry.params) {
+    if (typeof entry.params === "string" && (entry.params as string).startsWith("0x")) {
+      // Raw hex bytes — pass through (e.g., abi.encode(address))
+      paramsHex = entry.params as Hex;
+      // Raw hex bytes — pass through
+      paramsHex = entry.params as Hex;
+    } else if (typeof entry.params === "object" && Object.keys(entry.params as Record<string, unknown>).length > 0) {
+      const json = JSON.stringify(entry.params);
+      paramsHex = toHex(new TextEncoder().encode(json));
+    }
   }
   return encodeAbiParameters(permissionParams, [
     entry.resource,
@@ -75,9 +82,14 @@ export function decodePermission(metadata: Hex): PermissionEntry {
   if (expiry !== 0n) result.expiry = Number(expiry);
 
   if (paramsBytes !== "0x" && (paramsBytes as string).length > 2) {
-    const bytes = fromHex(paramsBytes as Hex, "bytes");
-    const json = new TextDecoder().decode(bytes);
-    result.params = JSON.parse(json);
+    try {
+      const bytes = fromHex(paramsBytes as Hex, "bytes");
+      const json = new TextDecoder().decode(bytes);
+      result.params = JSON.parse(json);
+    } catch {
+      // Not valid JSON — store as raw hex
+      result.params = paramsBytes as Hex;
+    }
   }
   return result;
 }

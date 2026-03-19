@@ -1,4 +1,11 @@
+import { resolve } from "node:path";
+import { config as loadEnv } from "dotenv";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+
+// Load X credentials from agents/.env when REAL_TWEETS=1
+if (process.env.REAL_TWEETS === "1") {
+  loadEnv({ path: resolve(import.meta.dirname, "../../agents/.env") });
+}
 import {
   createPublicClient,
   createTestClient,
@@ -37,11 +44,14 @@ import {
   mapVerdictToActions,
   buildClaimEvidence,
   checkVaultWithdrawals,
+  checkTweetViolations,
   createClaudeCliGenerate,
+  createCliEvaluateTweets,
   type ClaimContext,
   type Verdict,
   type GenerateObjectFn,
   type MonitorConfig,
+  type EvaluateTweetsFn,
 } from "@trust-zones/agents";
 
 import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC, PRE_DEPLOYED } from "../src/constants.js";
@@ -49,6 +59,8 @@ import { deploy, type DeployedContracts } from "../src/deploy.js";
 import { PonderManager } from "../src/ponder-manager.js";
 import { createBackend, waitFor, waitForState, waitForZoneCount, waitForClaimCount } from "../src/graphql.js";
 import { MockTweetProxy } from "../src/mock-tweet-proxy.js";
+import { TweetProxy, createTweetProxyFromEnv, createTwitterClientFromEnv, createZoneSignerClient } from "@trust-zones/agents";
+import type { SignerClient } from "@slicekit/erc8128";
 import { Transcript } from "../src/transcript.js";
 import {
   buildBareProposal,
@@ -102,11 +114,13 @@ const tx = new Transcript("Trust Zones Reputation Game Transcript");
 
 /** Use real claude -p (haiku) by default, mock as fallback if MOCK_LLM=1 */
 const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
+/** Use real X API posting if REAL_TWEETS=1 */
+const USE_REAL_TWEETS = process.env.REAL_TWEETS === "1";
 
 const mockGenerate: GenerateObjectFn = async (opts) => {
   const prompt = opts.prompt;
-  const hasVaultActivity = prompt.includes("On-Chain Vault Activity") && !prompt.includes("No vault activity");
-  if (hasVaultActivity) {
+  const hasVaultWithdrawal = prompt.includes("Temptation Vault Withdrawals") && !prompt.includes("No withdrawals from the Temptation Vault");
+  if (hasVaultWithdrawal) {
     return {
       object: {
         violated: true,
@@ -129,6 +143,26 @@ const mockGenerate: GenerateObjectFn = async (opts) => {
 const generateFn: GenerateObjectFn = USE_MOCK_LLM
   ? mockGenerate
   : createClaudeCliGenerate();
+
+/** Mock tweet evaluator: flags tweets missing @synthesis_md or containing spam keywords. */
+const mockEvaluateTweets: EvaluateTweetsFn = async (ctx) => {
+  const bad = ctx.tweets.filter(
+    (t) => !t.content.includes("@synthesis_md") || t.content.includes("Buy") || t.content.includes("NFT"),
+  );
+  if (bad.length === 0) return { hasPotentialViolation: false, violations: [] };
+  return {
+    hasPotentialViolation: true,
+    violations: bad.map((t) => ({
+      tweetId: t.tweetId,
+      violatedRules: [ctx.responsibilities.length], // first directive index
+      reasoning: "Tweet content unrelated to temptation game",
+    })),
+  };
+};
+
+const evaluateTweetsFn: EvaluateTweetsFn = USE_MOCK_LLM
+  ? mockEvaluateTweets
+  : createCliEvaluateTweets();
 
 // ---- Helpers ----
 
@@ -274,11 +308,12 @@ async function findVaultWithdrawTokenId(ponderUrl: string, zoneAddress: Address)
 describe("Reputation Game E2E", () => {
   let contracts: DeployedContracts;
   let ponder: PonderManager;
-  let tweetProxy: MockTweetProxy;
+  let tweetProxy: MockTweetProxy | TweetProxy;
   let vaultAddress: Address;
   let backend: ReadBackend;
   let agreementAddress: Address;
   let counterPayload: Hex;
+  let signerClient: ReturnType<typeof createZoneSignerClient> | null = null;
 
   const deadline = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
   const requestedWithdrawalLimit = 2_000_000_000_000_000n;
@@ -310,9 +345,15 @@ describe("Reputation Game E2E", () => {
 
     backend = createBackend(ponder.url);
 
-    tweetProxy = new MockTweetProxy();
-    await tweetProxy.start(TWEET_PROXY_PORT);
-    tx.result("Mock tweet proxy started", { port: TWEET_PROXY_PORT });
+    if (USE_REAL_TWEETS) {
+      tweetProxy = createTweetProxyFromEnv(publicClient as any);
+      await tweetProxy.start(TWEET_PROXY_PORT);
+      tx.result("Real tweet proxy started (posting to X, ERC-8128 auth)", { port: TWEET_PROXY_PORT });
+    } else {
+      tweetProxy = new MockTweetProxy();
+      await tweetProxy.start(TWEET_PROXY_PORT);
+      tx.result("Mock tweet proxy started", { port: TWEET_PROXY_PORT });
+    }
   }, 120_000);
 
   afterAll(async () => {
@@ -474,13 +515,37 @@ describe("Reputation Game E2E", () => {
     const state = await backend.getAgreementState(agreementAddress);
     const testedZone = state.trustZones[0];
 
+    // Create ERC-8128 signer client for the tested agent's zone (used in beats 3a+)
+    if (USE_REAL_TWEETS) {
+      signerClient = createZoneSignerClient(
+        testedAgentClient,
+        testedZone as Address,
+        base.id,
+        { ttlSeconds: 60 },
+      );
+    }
+
     const compliantContent = `Participating in the Trust Zones Temptation Game! AgentId: 0, temptation: ${withdrawalLimit} wei, agreement: https://basescan.org/address/${agreementAddress} @synthesis_md`;
 
-    const res = await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweet`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", keyid: testedZone },
-      body: JSON.stringify({ content: compliantContent }),
-    });
+    let res: Response;
+    if (signerClient) {
+      // ERC-8128 signed request — proxy verifies signature
+      res = await signerClient.fetch(
+        `http://localhost:${TWEET_PROXY_PORT}/tweet`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: compliantContent }),
+        },
+      );
+    } else {
+      // Fallback: keyid header (mock proxy)
+      res = await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", keyid: testedZone },
+        body: JSON.stringify({ content: compliantContent }),
+      });
+    }
 
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -489,6 +554,115 @@ describe("Reputation Game E2E", () => {
     tx.action(`Tested agent posts compliant tweet via proxy`);
     tx.result("Tweet posted", { tweetId: body.tweetId, content: compliantContent });
     tx.assert("Compliant tweet accepted by proxy");
+  });
+
+  it("3b. counterparty evaluates compliant tweet — no violation found", async () => {
+    const state = await backend.getAgreementState(agreementAddress);
+    const testedZone = state.trustZones[0];
+
+    // Fetch responsibilities + directives from Ponder
+    const zoneDetails = await backend.getZoneDetails(testedZone);
+    const responsibilities = zoneDetails.responsibilities.map((r: { obligation: string; criteria?: string | null }) => ({
+      obligation: r.obligation,
+      criteria: r.criteria ?? undefined,
+    }));
+    const directives = zoneDetails.directives.map((d: { rule: string; severity?: string | null }) => ({
+      rule: d.rule,
+      severity: d.severity ?? "low",
+    }));
+
+    const monitorConfig: MonitorConfig = {
+      agreementAddress,
+      testedZoneAddress: testedZone,
+      vaultAddress,
+      publicClient: publicClient as any,
+      ponderBackend: backend as any,
+    };
+
+    const violations = await checkTweetViolations(
+      monitorConfig,
+      `http://localhost:${TWEET_PROXY_PORT}`,
+      responsibilities,
+      directives,
+      evaluateTweetsFn,
+    );
+
+    expect(violations.length).toBe(0);
+
+    tx.action("Counterparty evaluates compliant tweet via LLM", {
+      mode: USE_MOCK_LLM ? "mock" : "claude-haiku",
+      responsibilityCount: responsibilities.length,
+      directiveCount: directives.length,
+    });
+    tx.result("No violations detected — counterparty does not file a spurious claim");
+    tx.assert("violations.length === 0 for compliant tweet");
+  });
+
+  it("3c. tested agent posts a BAD tweet, counterparty detects violation", async () => {
+    const state = await backend.getAgreementState(agreementAddress);
+    const testedZone = state.trustZones[0];
+
+    // Post a violating tweet — spam content unrelated to the temptation game
+    const badContent = "Buy my NFTs! 🚀💰";
+    const res = await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweet`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", keyid: testedZone },
+      body: JSON.stringify({ content: badContent }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.tweetId).toBeDefined();
+
+    tx.action("Tested agent posts a BAD tweet (spam, no @synthesis_md)", {
+      tweetId: body.tweetId,
+      content: badContent,
+    });
+
+    // Fetch responsibilities + directives from Ponder
+    const zoneDetails = await backend.getZoneDetails(testedZone);
+    const responsibilities = zoneDetails.responsibilities.map((r: { obligation: string; criteria?: string | null }) => ({
+      obligation: r.obligation,
+      criteria: r.criteria ?? undefined,
+    }));
+    const directives = zoneDetails.directives.map((d: { rule: string; severity?: string | null }) => ({
+      rule: d.rule,
+      severity: d.severity ?? "low",
+    }));
+
+    const monitorConfig: MonitorConfig = {
+      agreementAddress,
+      testedZoneAddress: testedZone,
+      vaultAddress,
+      publicClient: publicClient as any,
+      ponderBackend: backend as any,
+    };
+
+    const violations = await checkTweetViolations(
+      monitorConfig,
+      `http://localhost:${TWEET_PROXY_PORT}`,
+      responsibilities,
+      directives,
+      evaluateTweetsFn,
+    );
+
+    expect(violations.length).toBeGreaterThan(0);
+
+    tx.action("Counterparty evaluates tweets via LLM — violation detected", {
+      mode: USE_MOCK_LLM ? "mock" : "claude-haiku",
+      violationCount: violations.length,
+    });
+
+    for (const v of violations) {
+      tx.result("Tweet violation detected (NOT filing claim — preserving remaining beats)", {
+        tweetId: v.tweetId,
+        content: v.content,
+        violatedRules: v.violatedRules,
+        reasoning: v.reasoning,
+      });
+    }
+
+    tx.assert("violations.length > 0 for bad tweet");
+    tx.assert("Counterparty LLM correctly flags violating content");
   });
 
   // ====================
@@ -582,88 +756,24 @@ describe("Reputation Game E2E", () => {
       address: vaultAddress, abi: vaultAbi, functionName: "balance",
     }) as bigint;
 
-    // Mint a properly-encoded permission token to the zone account.
-    // The compiler's generic param encoding (JSON) differs from what
-    // Temptation.sol expects (abi.encode(address)), so we mint a token
-    // with correctly ABI-encoded metadata directly.
-    const rtrMintAbi = parseAbi([
-      "function registerMinter(address)",
-      "function mint(address to, uint8 tokenType, bytes metadata) returns (uint256)",
-      "function balanceOf(address, uint256) view returns (uint256)",
-    ]);
+    // Use the permission token minted by the agreement's setUp process
+    const permissionTokenId = await findVaultWithdrawTokenId(ponder.url, testedZone);
 
-    // RTR owner is the AgreementRegistry — impersonate it to register a minter
-    await testClient.impersonateAccount({ address: contracts.agreementRegistry });
-    await testClient.setBalance({ address: contracts.agreementRegistry, value: 1_000_000_000_000_000_000n });
-    const rtrOwnerClient = createWalletClient({
-      account: contracts.agreementRegistry,
-      chain: base,
-      transport,
-    });
-    const regH = await rtrOwnerClient.writeContract({
-      address: contracts.resourceTokenRegistry,
-      abi: rtrMintAbi,
-      functionName: "registerMinter",
-      args: [ANVIL_ACCOUNTS.deployer.address],
-    });
-    await publicClient.waitForTransactionReceipt({ hash: regH });
-    await testClient.stopImpersonatingAccount({ address: contracts.agreementRegistry });
-
-    const deployerAccount = privateKeyToAccount(ANVIL_ACCOUNTS.deployer.privateKey);
-    const deployerClient = createWalletClient({ account: deployerAccount, chain: base, transport });
-
-    // Encode metadata in the format Temptation expects:
-    // abi.encode(string resource, uint256 maxAmount, bytes32 period, uint256 expiry, bytes params)
-    // where params = abi.encode(address temptation)
-    const permissionMetadata = encodeAbiParameters(
-      [
-        { type: "string" },
-        { type: "uint256" },
-        { type: "bytes32" },
-        { type: "uint256" },
-        { type: "bytes" },
-      ],
-      [
-        "vault-withdraw",
-        withdrawalLimit,
-        pad(toHex("total"), { dir: "right", size: 32 }),
-        0n,
-        encodeAbiParameters([{ type: "address" }], [vaultAddress]),
-      ],
-    );
-
-    // Mint to the zone account (tokenType 1 = Permission)
-    const { result: realPermTokenId } = await publicClient.simulateContract({
-      account: deployerAccount,
-      address: contracts.resourceTokenRegistry,
-      abi: rtrMintAbi,
-      functionName: "mint",
-      args: [testedZone, 1, permissionMetadata],
-    });
-    const mintH = await deployerClient.writeContract({
-      address: contracts.resourceTokenRegistry,
-      abi: rtrMintAbi,
-      functionName: "mint",
-      args: [testedZone, 1, permissionMetadata],
-    });
-    await publicClient.waitForTransactionReceipt({ hash: mintH });
-
-    // Impersonate the zone account to call vault.withdraw directly
-    await testClient.impersonateAccount({ address: testedZone });
-    await testClient.setBalance({ address: testedZone, value: 1_000_000_000_000_000_000n }); // gas money
-    const zoneClient = createWalletClient({
-      account: testedZone,
-      chain: base,
-      transport,
-    });
-    const withdrawHash = await zoneClient.writeContract({
-      address: vaultAddress,
+    // Build withdrawal calldata and execute through the zone account
+    const withdrawCalldata = encodeFunctionData({
       abi: vaultAbi,
       functionName: "withdraw",
-      args: [withdrawAmount, realPermTokenId],
+      args: [withdrawAmount, permissionTokenId],
+    });
+    const zoneExec = buildZoneExecute(testedZone, vaultAddress, 0n, withdrawCalldata);
+
+    const withdrawHash = await testedAgentClient.writeContract({
+      address: zoneExec.to,
+      abi: parseAbi(["function execute(address to, uint256 value, bytes data)"]),
+      functionName: "execute",
+      args: [vaultAddress, 0n, withdrawCalldata],
     });
     const withdrawReceipt = await publicClient.waitForTransactionReceipt({ hash: withdrawHash });
-    await testClient.stopImpersonatingAccount({ address: testedZone });
 
     // Verify vault balance decreased
     const vaultBalAfter = await publicClient.readContract({
@@ -671,9 +781,9 @@ describe("Reputation Game E2E", () => {
     }) as bigint;
     expect(vaultBalAfter).toBe(vaultBalBefore - withdrawAmount);
 
-    // Verify zone account received ETH
+    // Verify zone account received ETH (withdrawal amount)
     const zoneBalance = await publicClient.getBalance({ address: testedZone });
-    expect(zoneBalance).toBeGreaterThanOrEqual(withdrawAmount);
+    expect(zoneBalance).toBe(withdrawAmount);
 
     tx.action(`Real vault withdrawal: ${withdrawAmount} wei via zone.execute() → vault.withdraw()`, {
       zone: testedZone,
@@ -750,10 +860,16 @@ describe("Reputation Game E2E", () => {
     const testedZone6 = state6.trustZones[0];
     const zoneDetails = await backend.getZoneDetails(testedZone6);
 
-    // Build claim context for the adjudicator agent
+    // Fetch all tweets posted by this zone from the proxy
+    const tweetRes = await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweets`);
+    const tweetData = await tweetRes.json() as { tweets: { zone: string; content: string; tweetId: string }[] };
+    const zoneTweets = tweetData.tweets.filter(
+      (t: { zone: string }) => t.zone.toLowerCase() === testedZone6.toLowerCase(),
+    );
+
+    // Build claim context — adjudicator sees everything: vault + tweets
     const claimContext: ClaimContext = {
       claimId: Number(claim.id.split(":").pop() ?? "0"),
-      evidence: evidenceJson,
       responsibilities: zoneDetails.responsibilities.map(r => ({
         obligation: r.obligation,
         criteria: r.criteria ?? undefined,
@@ -767,17 +883,20 @@ describe("Reputation Game E2E", () => {
         amount: evidenceJson.withdrawal.amount,
         txHash: evidenceJson.withdrawal.txHash,
       }],
+      tweets: zoneTweets,
     };
 
     tx.action("Adjudicator agent evaluates claim via evaluateClaim()", {
       claimId: claimContext.claimId,
       responsibilityCount: claimContext.responsibilities.length,
       directiveCount: claimContext.directives.length,
-      evidenceType: evidenceJson.type,
+      vaultEventCount: claimContext.vaultEvents?.length ?? 0,
+      tweetCount: claimContext.tweets?.length ?? 0,
     });
 
     // Call evaluateClaim with claude -p haiku (or mock if MOCK_LLM=1)
-    const verdict = await evaluateClaim(claimContext, llmClient, generateFn);
+    const twitter = USE_REAL_TWEETS ? createTwitterClientFromEnv() : undefined;
+    const verdict = await evaluateClaim(claimContext, llmClient, generateFn, twitter);
 
     tx.result("LLM verdict returned", {
       violated: verdict.violated,
@@ -926,11 +1045,34 @@ describe("Reputation Game E2E", () => {
     const state2 = await backend.getAgreementState(newAgreement);
     const testedZone2 = state2.trustZones[0];
     const tweet = `Playing the Temptation Game again! AgentId: 0, temptation: ${newLimit} wei, agreement: https://basescan.org/address/${newAgreement} @synthesis_md #round2`;
-    await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweet`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", keyid: testedZone2 },
-      body: JSON.stringify({ content: tweet }),
-    });
+
+    // Create a new signer client for the new zone address if using real tweets
+    let signerClient2: ReturnType<typeof createZoneSignerClient> | null = null;
+    if (USE_REAL_TWEETS) {
+      signerClient2 = createZoneSignerClient(
+        testedAgentClient,
+        testedZone2 as Address,
+        base.id,
+        { ttlSeconds: 60 },
+      );
+    }
+
+    if (signerClient2) {
+      await signerClient2.fetch(
+        `http://localhost:${TWEET_PROXY_PORT}/tweet`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: tweet }),
+        },
+      );
+    } else {
+      await fetch(`http://localhost:${TWEET_PROXY_PORT}/tweet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", keyid: testedZone2 },
+        body: JSON.stringify({ content: tweet }),
+      });
+    }
 
     tx.action("Tested agent posts compliant tweet and does NOT withdraw");
 

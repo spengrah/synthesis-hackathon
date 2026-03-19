@@ -8,10 +8,14 @@ export type { AdjudicatorConfig } from "./adjudicator/index.js";
 
 export { startCounterparty } from "./counterparty/index.js";
 export { buildCounterProposal, determineWithdrawalLimit } from "./counterparty/negotiate.js";
-export { buildClaimEvidence, checkVaultWithdrawals } from "./counterparty/monitor.js";
+export { buildClaimEvidence, checkVaultWithdrawals, checkTweetViolations } from "./counterparty/monitor.js";
 export type { MonitorConfig } from "./counterparty/monitor.js";
 export type { CounterpartyConfig } from "./counterparty/index.js";
 export type { VaultWithdrawal, TweetViolation } from "./counterparty/monitor.js";
+export { createCliEvaluateTweets } from "./counterparty/evaluate-tweets.js";
+export type { TweetEvaluation, TweetEvaluationContext, EvaluateTweetsFn } from "./counterparty/evaluate-tweets.js";
+export { TweetProxy, createTweetProxyFromEnv } from "./counterparty/tweet-proxy.js";
+export type { TweetProxyConfig, TweetRecord } from "./counterparty/tweet-proxy.js";
 
 export { createChainClients } from "./shared/chain.js";
 export type { ChainClients } from "./shared/chain.js";
@@ -21,3 +25,6 @@ export { pollUntil } from "./shared/polling.js";
 export { createAgentPonderClient } from "./shared/ponder.js";
 export type { AgentPonderClient } from "./shared/ponder.js";
 export { createClaudeCliGenerate } from "./shared/claude-cli.js";
+export { createTwitterClient, createTwitterClientFromEnv } from "./shared/twitter.js";
+export type { TwitterClient } from "./shared/twitter.js";
+export { createZoneSignerClient } from "./shared/erc8128.js";
