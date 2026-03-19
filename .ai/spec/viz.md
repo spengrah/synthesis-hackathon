@@ -99,84 +99,110 @@ Brief explainer:
 
 ## 2. Agreement Dashboard (`dashboard.html`)
 
-Single-agreement monitoring view. Three modes: recorded demo playback, live game spectating, and completed agreement replay.
+Single-agreement monitoring view. Used for demo video recording and live game spectating.
+
+**Design note:** For the demo video, the dashboard fits in a single browser window (~900px viewport) with no scrolling. The live app can breathe vertically with scroll if needed.
 
 ### Overview Screen (initial)
 
-Before the main dashboard, shows pre-agreement conditions. Primarily for the demo video recording:
-- Temptation Game concept (one paragraph)
-- The two agents and their goals/resources (not yet delegated)
-- "Start Demo" button transitions to the full agreement dashboard
+Shown before the main dashboard. Primarily for the demo video:
+- Title: "Trust Zones — Temptation Game"
+- One-paragraph game description
+- Two agent cards: Intelligence Source and Trust Vendor with goals (not yet delegated)
+- "Start Demo" button transitions to the full dashboard
 - Mode selector: Recorded Demo / Live (Poll APIs)
+- API URL inputs (Ponder, Tweet Proxy)
 
-### Main Dashboard (after Start Demo)
+### Main Dashboard
 
-**Design constraint for recorded demo**: Everything fits in a single browser window (~900px viewport height), no scrolling. The live app can breathe vertically if needed.
+3-column grid layout. All panels have fixed sizes — no resizing as content arrives.
+
+#### Layout
+
+```
+Row 1: [          Agreement Lifecycle (full width)          ]
+Row 2: [ Negotiation (col 1) ] [ Trust Zones (cols 2-3)     ]
+Row 3: [ Tweet Feed  (col 1) ] [ Trust Zones continues       ]
+Row 4: [ Event Log   (col 1) ] [ Vault+Rep (col 2) ] [ Claims (col 3) ]
+```
 
 #### Panels
 
-**Agreement Lifecycle** (full width, top):
+**Agreement Lifecycle** (full width, row 1):
 - State machine: PROPOSED → NEGOTIATING → ACCEPTED → READY → ACTIVE → CLOSED
 - Animated current-state highlighting
 - Outcome badge (COMPLETED / ADJUDICATED)
 - Agreement address
 
-**Negotiation** (left column):
+**Negotiation** (col 1, row 2):
 - Chronological back-and-forth: propose → counter → accept
-- Color-coded by actor (Temptee / Tempter)
-- Max-height with scroll for compactness
+- Color-coded by actor (Intelligence Source / Trust Vendor)
+- Incremental rendering — new items appended, existing items don't flash
 
-**Trust Zones** (right column):
-- Two zone cards side by side
+**Trust Zones** (cols 2-3, rows 2-3):
+- Two zone cards side by side, no scroll needed
+- **During negotiation**: zones appear with dashed borders and "PROPOSED" badge showing proposed terms
+- **After SET_UP**: solid borders, "ACTIVE" badge, same terms now deployed onchain
 - Each zone shows ALL dimensions, even if empty:
-  - **Actor**: EVM address + agentId (8004)
+  - **Actor**: EVM address + agentId (8004) — shown in zone header
   - **Permissions** (CAN do)
   - **Responsibilities** (MUST do)
   - **Directives** (MUST NOT do)
-  - **Resources** (e.g., USDC balance in TZ account)
+  - **Other Resources** (e.g., ETH withdrawn into zone)
   - **Incentives** (e.g., Stake: 1 USDC)
-  - **Decision Model** (None for hackathon)
+  - **Decision Model** (defaults to "1-of-1")
   - **Principal Alignment** (None for hackathon)
-- Active/Deactivated status badge
-- Max-height with scroll
+- Empty sections show "None"
 
-**@tempt_game_bot Feed** (left, row 3):
-- Tweet display with compliant/violation styling
-- Tempter LLM evaluation verdicts
-- Fixed height
+**@tempt_game_bot Feed** (col 1, row 3):
+- Tweet content only — no compliance badges (adjudicator's job)
+- Fixed height (~120px, roughly one tweet visible), scrollable
+- Incremental rendering
 
-**Temptation Vault** (right, row 3):
-- Large ETH balance display (not wei — always ETH)
-- Fill bar showing remaining percentage
-- Withdrawal log
-- Fixed height
+**Event Log** (col 1, row 4):
+- Timestamped event stream (type-colored: STATE, ACTION, VIOLATION, VERDICT, SUCCESS)
+- Scrollable, latest events auto-visible at bottom
+- Incremental rendering
 
-**Claims & Adjudication** (appears when claim filed):
+**Temptation Vault + Reputation** (col 2, row 4):
+- ETH balance display with fill bar and withdrawal log
+- Reputation outcomes (ERC-8004) appear inline below vault when agreement resolves
+
+**Claims & Adjudication** (col 3, row 4):
 - Claim cards with pending/adjudicated status
-- Verdict reasoning, action tags
-- LLM transcript display
+- Verdict reasoning, violated directive indices, action tags (CLOSE)
 
-**Reputation Outcomes** (appears at resolution):
-- ERC-8004 feedback grid
-- Positive/negative outcomes
+#### Recorded Demo Flow (12 beats, single agreement)
 
-**Event Log** (full width, bottom):
-- Timestamped event stream
-- Fixed height, auto-scrolls
+| Beat | Label | What happens |
+|------|-------|-------------|
+| 1a | Bare Proposal | Intelligence Source proposes. Zones appear as PROPOSED (empty terms). |
+| 1b | Counter-Proposal | Trust Vendor counters with full terms. Proposed zones populate. |
+| 1c | Accept | Intelligence Source accepts. |
+| 2a | Set Up Zones | Zones transition PROPOSED → ACTIVE (deployed onchain). |
+| 2b | Stake + Activate | Both stake. Agreement ACTIVE. |
+| 3a | Compliant Tweet | Intelligence Source tweets compliantly. |
+| 3b | Trust Vendor Evaluates | Trust Vendor LLM evaluates — no violation. |
+| 3c | Bad Tweet | Intelligence Source posts off-topic spam. Trust Vendor suspects violation. |
+| 4 | Constraint Fires | Vault reverts: NoPermissionToken, ExceedsPermittedAmount. |
+| 5 | Vault Withdrawal | Intelligence Source withdraws ETH. ETH appears in zone resources. |
+| 6 | Claim Filed | Trust Vendor files claim citing both tweet and vault violations. |
+| 7 | Adjudication + Resolution | LLM adjudicator confirms directives 3+4 breached. Agreement CLOSED. Negative ERC-8004 feedback. |
 
-#### Playback Controls (fixed bottom bar)
-- Prev / Play-Pause / Next
-- Beat progress indicator (clickable dots)
-- Speed control (Slow / Normal / Fast)
-- Current beat label
+#### Rendering
+
+All render functions are incremental to avoid flash:
+- Negotiation, tweets, event log: append new items only
+- Zones, claims, state machine: hash-check data, skip re-render if unchanged
+- `resetState()` clears render trackers for prev/jump/restart
 
 #### Modes
 
-**Recorded Demo**: 13 scripted beats with playback controls. Data is hardcoded to match the E2E test flow.
+**Recorded Demo**: 12 scripted beats with playback controls. Data is hardcoded.
 
 **Live**: Polls Ponder GraphQL + tweet proxy at configurable URLs. Updates every 2-5 seconds.
 
-**Replay**: Enter a completed agreement address → dashboard fetches full history from Ponder and renders it. Same panels as live mode but with all data already available. Can step through with playback controls.
+**Replay** (future): Enter a completed agreement address → fetch full history from Ponder.
 
 ---
 
