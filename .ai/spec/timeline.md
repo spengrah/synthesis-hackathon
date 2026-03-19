@@ -20,122 +20,86 @@
 - **E2E test** (13 tests): full 9-beat lifecycle on Anvil fork — negotiate (with Ponder-sourced decompile), staking (real USDC + StakingEligibility on Base fork), data API (mock), claim, adjudicate, renegotiation. Transcript generation.
 - **DeployAll.s.sol**: single deploy script orchestrating all contracts, nonce prediction for RTR↔AgreementRegistry, JSON output
 - **profile.deploy**: via-ir + 200 optimizer runs, Agreement fits under EIP-170 (23KB)
-- **Bugs found + fixed**: SDK encodeAccept payload, Ponder relations missing, Agreement over 24KB, staking eligibility blocks ACTIVATE, Ponder startBlock on fork, permission token semantics (consume vs provide)
-
-**Test counts**: 351 contracts + 56 SDK + 27 compiler + 36 ponder + 13 E2E = **483 tests passing**
 
 ### DONE (day 2 evening — research + spec)
-- **5 research agents** completed overnight:
-  - GenLayer: 3-component architecture, Optimistic Democracy as jury, pseudocode → **deferred** (too complex for hackathon, simple LLM agent replaces)
-  - Bonfires context graph: 12 entity types, 16 edges, 3-tier sync, 5 query patterns, auth model, provisioning flow
-  - OpenServ: SDK analysis, agent mapping → **deprioritized** (wrong trust model, agents are same-boundary)
-  - ERC-8128: `@slicekit/erc8128` reference impl, middleware design, smart account auth flow
-  - ERC-8004 eligibility: ReputationEligibility module design → **deferred** (too complex, relying on feedback as primary 8004 integration)
-- **Reputation Game designed:** vault + tweet proxy demo concept, two enforcement models, directives, negotiation logic
-- **Scope decisions:**
-  - Dropped OpenServ ($4,500 bounty) — wrong trust model
-  - Deferred GenLayer — simple LLM adjudicator for hackathon, GenLayer as production path
-  - Deferred 8004 eligibility module — existing reputation feedback is sufficient
-  - Consolidated two demos into one: reputation game replaces reciprocal data exchange
-  - Dropped directive middleware from 8128 spec — directives are post-hoc by definition
+- **5 research agents** completed overnight: GenLayer, Bonfires context graph, OpenServ, ERC-8128, ERC-8004 eligibility
+- **Reputation Game designed:** vault + tweet proxy demo, two enforcement models
+- **Scope decisions:** dropped OpenServ, deferred GenLayer + 8004 eligibility module, consolidated to single demo
+
+### DONE (day 3 — March 18)
+- **Temptation.sol** (was Vault): ETH holder with permission-token-gated withdrawal. 27 unit tests (BTT format with .tree) + 9 integration tests (real RTR + token metadata)
+- **Permission metadata generalized**: new standard format `(string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)`. Replaces old nested rateLimit tuple. Temptation decodes standard format natively — no custom template needed. Updated across compiler, SDK, Ponder, contracts, E2E.
+- **Agents package** (`packages/agents/`):
+  - Shared infra: Vercel AI SDK client, viem chain clients, polling utility, Ponder query helpers, `claude -p` CLI wrapper
+  - Adjudicator agent: `evaluateClaim()` with Zod-typed structured output, responsibilities + directives in prompt, `mapVerdictToActions()`, session transcript saving
+  - Counterparty agent: `buildCounterProposal()`, `determineWithdrawalLimit()`, `checkVaultWithdrawals()`, `buildClaimEvidence()`
+  - CLI entry point: `--role adjudicator|counterparty`
+  - 23 unit tests
+- **Responsibilities/directives split**: tweet obligations moved from directives to responsibilities. Only "do not post anything else" and "do not withdraw" remain as directives.
+- **Reputation game E2E** (13 tests): integrated with real components:
+  - Real Temptation.sol deployment + withdrawal via impersonated zone account
+  - Real permission token with standard metadata format
+  - Real `claude -p haiku` LLM adjudication (with mock fallback via MOCK_LLM=1)
+  - Real constraint test: both NoPermissionToken and ExceedsPermittedAmount error paths
+  - Directives + responsibilities fetched from Ponder via `backend.getZoneDetails()`
+  - Real feedback URIs with JSON content + keccak256 hash
+  - `checkVaultWithdrawals()` from agents package for violation detection
+  - LLM session transcripts saved to `packages/agents/llm-sessions/`
+- **termsDocUri** added to TZSchemaDocument + compiler compile/decompile pipeline
+- **X account created**: `@tempt_game_bot` with developer account (pay-as-you-go API)
+
+**Test counts**: 364 contracts + 56 SDK + 23 compiler + 36 ponder + 23 agents + 13 lifecycle E2E + 13 reputation game E2E = **528 tests passing**
 
 ---
 
 ## Remaining work
 
-### Day 3 (March 18): Vault + Agents + Tweet Proxy
+### Day 4 (March 19): Tweet Proxy + ERC-8128 + Bonfires
 
-**Vault contract (`packages/contracts/src/Vault.sol`):**
-- Simple ETH holder with permission-token-gated withdrawal
-- `withdraw(amount, permissionTokenId)` checks RTR balance + decodes custom metadata
-- Permission metadata: `abi.encode(address vault, uint256 maxAmount)` — new `vault-withdraw` compiler template
-- Foundry tests
-- Add to deploy script
-- ~3h
+**Real tweet proxy:**
+- Install `twitter-api-v2`, wire OAuth 1.0a credentials (Consumer Key/Secret + Access Token/Secret)
+- X app permissions: set to Read+Write, regenerate Access Token
+- Replace MockTweetProxy with real X API posting
+- Permission check via Ponder (query by `resource: "tweet-post"`)
+- Receipt logging (to Bonfires when available, to local log initially)
+- ~2-3h
 
-**Shared agent infrastructure (`packages/agents/src/shared/`):**
-- `llm.ts`: Vercel AI SDK + OpenAI-compatible provider (Venice.ai etc.)
-- `chain.ts`: viem public + wallet clients
-- `polling.ts`: generic poll-until utility
-- `ponder.ts`: Ponder query helpers (wraps SDK + custom queries for claims, proposals)
-- ~2h
-
-**Adjudicator agent (`packages/agents/src/adjudicator/`):**
-- `evaluate.ts`: fetch context → build LLM prompt → parse verdict → return actions
-- `index.ts`: polling loop wrapping evaluate
-- Handles both tweet violations (content eval) and vault violations (event check)
-- Pure function export for E2E testability
-- See `adjudicator-agent.md` for prompt design
-- ~3-4h
-
-**Counterparty agent (`packages/agents/src/counterparty/`):**
-- `negotiate.ts`: `buildReputationGameSchemaDoc()`, `determineTerms()`, standard directives
-- `monitor.ts`: poll vault events + tweet receipts, file claims, signal completion
-- `tweet-proxy.ts`: Express endpoint, posts to X via `twitter-api-v2`, **mock auth** (keyid header + Ponder permission check — real 8128 signature verification swapped in on day 4)
-- `index.ts`: start proxy + polling loops
-- See `counterparty-agent.md` for full design
-- ~3-4h
-
-**X account setup:**
-- Create X account, register developer portal, get OAuth credentials
-- Enable "Automated Account" label
-- Free tier: 1,500 tweets/month
-- ~30min
-
-### Day 4 (March 19): ERC-8128 + Bonfires + E2E
-
-**ERC-8128 real auth (`packages/data-apis/` + tweet proxy):**
+**ERC-8128 real auth:**
 - Install `@slicekit/erc8128`
 - `verifyERC8128` middleware (signature verification via ERC-1271 / `isValidSignature()`)
-- Replace mock keyid auth in tweet proxy + data API endpoints with real 8128 signature verification
+- Replace mock keyid auth in tweet proxy + data API endpoints
 - `logReceipt` middleware (fire-and-forget to Bonfires)
-- No directive middleware (directives are post-hoc)
 - See `erc8128.md` for design
 - ~3-4h
 
 **Bonfires integration:**
 - Bonfires team provisions bonfire, provides API key
 - `packages/bonfires-client/`: shared client for entities, edges, episodes, delve
-- Ponder → Bonfires sync service: entities + edges for agreements, zones, actors, tokens
+- Ponder → Bonfires sync service
 - Receipt logging: tweet proxy + data API → Bonfires episodes
 - Adjudicator queries: `/delve` for claim context
 - See `context-graph.md` for schema + API mapping
 - ~4-5h
 
-**Reputation game E2E test (`packages/e2e/test/reputation-game.test.ts`):**
-- Deploy vault, fund with ETH
-- Counterparty proposes via `buildReputationGameSchemaDoc()`
-- Tested agent accepts, SET_UP, stake, ACTIVATE
-- Honest path: compliant tweet → no withdrawal → COMPLETE → positive 8004
-- Dishonest path: withdrawal → claim → adjudicator evaluates → CLOSE → negative 8004
-- Tweet violation path: off-topic tweet → claim → LLM evaluates → CLOSE
-- Mock or real LLM depending on `LLM_API_KEY` env var
-- ~3-4h
-
-### Day 5 (March 20): Integration + Live Demo + Polish
+### Day 5 (March 20): Integration + Live Demo
 
 **Integration testing:**
-- Full reputation game flow with all real components (8128, Bonfires, LLM adjudicator)
+- Full reputation game flow with all real components (8128, Bonfires, LLM adjudicator, real tweets)
 - Fix integration issues
 - Receipt flow: tweet proxy → Bonfires → adjudicator queries → verdict
 
 **Live demo setup:**
 - Deploy contracts to Base (mainnet or Sepolia)
 - Deploy counterparty agent + adjudicator to Railway
-- Fund vault with real ETH
-- Test live: propose to an external agent, full flow
+- Fund Temptation contract with real ETH
+- Test live: external agent proposes, full flow
 - Write up "how to interact" instructions
-
-**Compiler template:**
-- `vault-withdraw` template: encode/decode `(address vault, uint256 maxAmount)`
-- Update `PermissionEntry` type to support template-specific params
-- Roundtrip tests
 
 ### Day 6 (March 21): Demo Video + Submission Prep
 
 **Demo video (recorded, reciprocal):**
-- Script the 9-beat reciprocal flow
-- Real deployments, real tweets, real artifacts
+- Script the reputation game flow
+- Real deployments, real tweets from @tempt_game_bot, real artifacts
 - Narrated walkthrough
 - Show: negotiation, 8128 auth, compliant tweet, constraint (vault reverts), directive violation, claim, LLM adjudication, 8004 feedback
 
@@ -172,8 +136,8 @@
 
 ```
 Contracts + SDK + Compiler + Ponder + E2E (DONE)
-  → Vault + Agents + Tweet Proxy (day 3)
-    → 8128 + Bonfires + E2E (day 4)
+  → Temptation + Agents + E2E integration (DONE)
+    → Tweet Proxy + 8128 + Bonfires (day 4)
       → Integration + Live Demo (day 5)
         → Demo Video + Submission (day 6-7)
 ```
@@ -182,19 +146,11 @@ Contracts + SDK + Compiler + Ponder + E2E (DONE)
 
 | If behind by... | Cut | Impact |
 |-----------------|-----|--------|
-| Day 3 | Tweet proxy | Vault-only demo. Lose 8128 integration in recorded demo. |
+| Day 4 | Real tweet proxy | Keep mock proxy. Lose live tweet demo. |
 | Day 4 | Bonfires | Adjudicator reads Ponder directly. Lose cross-tier evidence queries. |
-| Day 4 | Real 8128 auth | Keep mock keyid header from E2E test. Lose Slice bounty ($750). |
+| Day 4 | Real 8128 auth | Keep mock keyid header. Lose Slice bounty ($750). |
 | Day 5 | Live interactive demo | Recorded demo only. Still compelling but not interactive. |
-| Day 5 | Reciprocal demo (Zone B) | Single zone only (live demo mode). Lose mutual delegation narrative. |
-
-## Parallelism
-
-- Vault contract and shared agent infra are independent → parallel on day 3
-- Adjudicator and counterparty agent share infra but have independent logic → partially parallel
-- 8128 middleware and Bonfires integration are independent → parallel on day 4
-- E2E test depends on vault + agents → day 4 after day 3 outputs
-- Deploy to real chain can wait until day 5 (fork validates everything)
+| Day 5 | Reciprocal demo (Zone B) | Single zone only. Lose mutual delegation narrative. |
 
 ## Specs
 
@@ -218,5 +174,5 @@ Contracts + SDK + Compiler + Ponder + E2E (DONE)
 | GenLayer | Deferred | `deferred/genlayer.md` |
 | OpenServ | Deferred | `deferred/openserv.md` |
 | 8004 eligibility module | Deferred | `deferred/erc8004-eligibility.md` |
-| Original demo (reciprocal data exchange) | Deferred | `deferred/demo.md` |
+| Original demo | Deferred | `deferred/demo.md` |
 | Original agents | Deferred | `deferred/agents.md` |
