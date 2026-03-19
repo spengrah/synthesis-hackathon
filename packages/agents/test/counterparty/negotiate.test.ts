@@ -38,6 +38,7 @@ describe("buildCounterProposal", () => {
     testedAgent: "0x1111111111111111111111111111111111111111" as `0x${string}`,
     counterparty: "0x2222222222222222222222222222222222222222" as `0x${string}`,
     adjudicator: "0x3333333333333333333333333333333333333333" as `0x${string}`,
+    temptationAddress: "0x4444444444444444444444444444444444444444" as `0x${string}`,
     withdrawalLimit: 2_000_000_000_000_000n,
     stakeAmount: 1_000_000n,
     deadline: 1700000000,
@@ -62,12 +63,20 @@ describe("buildCounterProposal", () => {
     expect(doc.zones[1].actor.address).toBe(params.counterparty);
   });
 
-  it("zone 0 has tweet and vault directives", () => {
+  it("zone 0 has responsibilities and directives", () => {
     const doc = buildCounterProposal(params);
+    const responsibilities = doc.zones[0].responsibilities ?? [];
     const directives = doc.zones[0].directives ?? [];
-    expect(directives.length).toBeGreaterThanOrEqual(4); // 4 tweet + 1 vault
+
+    // 3 tweet responsibilities
+    expect(responsibilities.length).toBe(3);
+    expect(responsibilities.some((r) => r.obligation.includes("temptation game"))).toBe(true);
+    expect(responsibilities.some((r) => r.obligation.includes("@synthesis_md"))).toBe(true);
+
+    // 2 directives: tweet restriction + vault restriction
+    expect(directives.length).toBe(2);
+    expect(directives.some((d) => d.rule.includes("anything else"))).toBe(true);
     expect(directives.some((d) => d.rule.includes("vault"))).toBe(true);
-    expect(directives.some((d) => d.rule.includes("temptation game"))).toBe(true);
   });
 
   it("zone 1 has no-redistribute directive", () => {
@@ -92,15 +101,15 @@ describe("buildClaimEvidence", () => {
       blockNumber: 100n,
     };
 
-    const hex = buildClaimEvidence(violation);
+    const hex = buildClaimEvidence(violation, { rule: "Do not withdraw", severity: "severe" });
     expect(hex.startsWith("0x")).toBe(true);
 
-    // Decode and verify structure
     const decoded = Buffer.from(hex.slice(2), "hex").toString("utf-8");
     const parsed = JSON.parse(decoded);
-    expect(parsed.type).toBe("vault-withdrawal");
-    expect(parsed.to).toBe(violation.to);
-    expect(parsed.txHash).toBe(violation.txHash);
+    expect(parsed.type).toBe("vault-directive-violation");
+    expect(parsed.directive).toBe("Do not withdraw");
+    expect(parsed.withdrawal.zone).toBe(violation.to);
+    expect(parsed.withdrawal.txHash).toBe(violation.txHash);
   });
 
   it("encodes tweet violation as hex JSON", () => {
@@ -111,13 +120,13 @@ describe("buildClaimEvidence", () => {
       tweetId: "12345",
     };
 
-    const hex = buildClaimEvidence(violation);
+    const hex = buildClaimEvidence(violation, { rule: "Do not post anything else", severity: "severe" });
     expect(hex.startsWith("0x")).toBe(true);
 
     const decoded = Buffer.from(hex.slice(2), "hex").toString("utf-8");
     const parsed = JSON.parse(decoded);
-    expect(parsed.type).toBe("tweet-violation");
-    expect(parsed.content).toBe("Buy my NFTs!");
-    expect(parsed.tweetId).toBe("12345");
+    expect(parsed.type).toBe("tweet-directive-violation");
+    expect(parsed.tweet.content).toBe("Buy my NFTs!");
+    expect(parsed.tweet.tweetId).toBe("12345");
   });
 });

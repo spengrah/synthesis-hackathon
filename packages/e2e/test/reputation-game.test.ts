@@ -745,16 +745,23 @@ describe("Reputation Game E2E", () => {
       Buffer.from(evidenceHex.slice(2), "hex").toString("utf-8"),
     );
 
-    // Fetch directives from Ponder instead of hardcoding
+    // Fetch responsibilities + directives from Ponder
     const state6 = await backend.getAgreementState(agreementAddress);
     const testedZone6 = state6.trustZones[0];
-    const directives = await backend.getZoneDirectives(testedZone6);
+    const zoneDetails = await backend.getZoneDetails(testedZone6);
 
     // Build claim context for the adjudicator agent
     const claimContext: ClaimContext = {
       claimId: Number(claim.id.split(":").pop() ?? "0"),
       evidence: evidenceJson,
-      directives: directives.map(d => ({ rule: d.rule, severity: d.severity ?? "low" })),
+      responsibilities: zoneDetails.responsibilities.map(r => ({
+        obligation: r.obligation,
+        criteria: r.criteria ?? undefined,
+      })),
+      directives: zoneDetails.directives.map(d => ({
+        rule: d.rule,
+        severity: d.severity ?? "low",
+      })),
       vaultEvents: [{
         to: evidenceJson.withdrawal.zone,
         amount: evidenceJson.withdrawal.amount,
@@ -764,6 +771,7 @@ describe("Reputation Game E2E", () => {
 
     tx.action("Adjudicator agent evaluates claim via evaluateClaim()", {
       claimId: claimContext.claimId,
+      responsibilityCount: claimContext.responsibilities.length,
       directiveCount: claimContext.directives.length,
       evidenceType: evidenceJson.type,
     });

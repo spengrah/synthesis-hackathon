@@ -13,26 +13,43 @@ export type Verdict = z.infer<typeof verdictSchema>;
 export interface ClaimContext {
   claimId: number;
   evidence: Record<string, unknown>;
+  responsibilities: { obligation: string; criteria?: string }[];
   directives: { rule: string; severity: string }[];
   vaultEvents?: { to: string; amount: string; txHash: string }[];
   tweetReceipts?: { zone: string; content: string; tweetId: string }[];
 }
 
-const SYSTEM_PROMPT = `You are an impartial adjudicator for a Trust Zone agreement. You evaluate claims of directive violations. Examine the evidence, compare against the stated directives, and determine if a violation occurred. Be conservative: only find a violation if the evidence clearly demonstrates one.`;
+const SYSTEM_PROMPT = `You are an impartial adjudicator for a Trust Zone agreement. You evaluate claims of responsibility failures and directive violations. Examine the evidence, compare against the stated responsibilities (obligations the agent MUST fulfill) and directives (restrictions the agent MUST NOT violate), and determine if a violation occurred. Be conservative: only find a violation if the evidence clearly demonstrates one.`;
+
+function buildRulesSection(ctx: ClaimContext): string {
+  const parts: string[] = [];
+
+  if (ctx.responsibilities.length > 0) {
+    const list = ctx.responsibilities
+      .map((r, i) => `${i}. ${r.obligation}${r.criteria ? ` (criteria: ${r.criteria})` : ""}`)
+      .join("\n");
+    parts.push(`## Responsibilities (obligations — agent MUST do these)\n${list}`);
+  }
+
+  if (ctx.directives.length > 0) {
+    const offset = ctx.responsibilities.length;
+    const list = ctx.directives
+      .map((d, i) => `${offset + i}. [${d.severity}] ${d.rule}`)
+      .join("\n");
+    parts.push(`## Directives (restrictions — agent MUST NOT violate these)\n${list}`);
+  }
+
+  return parts.join("\n\n");
+}
 
 function buildVaultUserPrompt(ctx: ClaimContext): string {
-  const directivesList = ctx.directives
-    .map((d, i) => `${i}. [${d.severity}] ${d.rule}`)
-    .join("\n");
-
   const evidenceJson = JSON.stringify(ctx.evidence, null, 2);
 
   const vaultEvents = (ctx.vaultEvents ?? [])
     .map((e) => `- To: ${e.to}, Amount: ${e.amount}, TxHash: ${e.txHash}`)
     .join("\n");
 
-  return `## Directives
-${directivesList}
+  return `${buildRulesSection(ctx)}
 
 ## Evidence Submitted by Claimant
 ${evidenceJson}
@@ -41,27 +58,22 @@ ${evidenceJson}
 ${vaultEvents || "No vault activity recorded."}
 
 ## Question
-Did the accused party violate any directives? Respond with structured JSON.`;
+Did the accused party violate any responsibilities or directives? Respond with structured JSON.`;
 }
 
 function buildTweetUserPrompt(ctx: ClaimContext): string {
-  const directivesList = ctx.directives
-    .map((d, i) => `${i}. [${d.severity}] ${d.rule}`)
-    .join("\n");
-
   const tweet = ctx.tweetReceipts?.[0];
   const tweetSection = tweet
     ? `Content: "${tweet.content}"\nTweet ID: ${tweet.tweetId}\nZone: ${tweet.zone}`
     : "No tweet data available.";
 
-  return `## Directives
-${directivesList}
+  return `${buildRulesSection(ctx)}
 
 ## Tweet Posted by Accused Party
 ${tweetSection}
 
 ## Question
-Does this tweet violate any of the directives? Respond with structured JSON.`;
+Does this tweet violate any responsibilities or directives? Respond with structured JSON.`;
 }
 
 /**

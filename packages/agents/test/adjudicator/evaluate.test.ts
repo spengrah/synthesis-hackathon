@@ -25,6 +25,11 @@ describe("evaluateClaim", () => {
     { rule: "Always attribute @synthesis_md hackathon", severity: "severe" },
   ];
 
+  const responsibilities = [
+    { obligation: "Post about your participation in the temptation game" },
+    { obligation: "Attribute @synthesis_md hackathon in every post" },
+  ];
+
   it("detects vault violation", async () => {
     const ctx: ClaimContext = {
       claimId: 1,
@@ -33,6 +38,7 @@ describe("evaluateClaim", () => {
         to: "0x1234",
         amount: "1000000000000000000",
       },
+      responsibilities,
       directives,
       vaultEvents: [
         {
@@ -65,6 +71,7 @@ describe("evaluateClaim", () => {
         type: "tweet-violation",
         content: "Buy my NFT collection!",
       },
+      responsibilities,
       directives,
       tweetReceipts: [
         {
@@ -93,6 +100,7 @@ describe("evaluateClaim", () => {
     const ctx: ClaimContext = {
       claimId: 3,
       evidence: { type: "check", message: "routine compliance check" },
+      responsibilities,
       directives,
     };
 
