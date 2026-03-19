@@ -46,6 +46,7 @@ export const proposal = onchainTable("proposal", (t) => ({
   deadline: t.bigint(),
   zoneCount: t.integer(),
   rawProposalData: t.hex(), // ABI-encoded ProposalData bytes from the event
+  txHash: t.hex(),
 }));
 
 export const trustZone = onchainTable("trust_zone", (t) => ({
@@ -56,6 +57,7 @@ export const trustZone = onchainTable("trust_zone", (t) => ({
   zoneIndex: t.integer().notNull(),
   active: t.boolean().notNull().default(true),
   createdAt: t.bigint().notNull(),
+  txHash: t.hex(),
 }));
 
 // ─── Context graph typed entities ────────────────────────────────
@@ -191,6 +193,7 @@ export const claim = onchainTable("claim", (t) => ({
   actionTypes: t.text(), // JSON array of decoded bytes32 strings
   timestamp: t.bigint().notNull(),
   adjudicatedAt: t.bigint(),
+  txHash: t.hex(),
 }));
 
 export const reputationFeedback = onchainTable("reputation_feedback", (t) => ({
@@ -201,6 +204,7 @@ export const reputationFeedback = onchainTable("reputation_feedback", (t) => ({
   feedbackURI: t.text().notNull(),
   feedbackHash: t.hex().notNull(),
   timestamp: t.bigint().notNull(),
+  txHash: t.hex(),
 }));
 
 // ─── Relations ──────────────────────────────────────────────────

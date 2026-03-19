@@ -1064,6 +1064,24 @@
     overflow-y: auto;
   }
 
+  /* ====== EXPLORER LINKS ====== */
+  .explorer-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    transition: color 0.15s;
+  }
+
+  .explorer-link:hover {
+    color: var(--cyan);
+    text-decoration: underline;
+  }
+
+  .explorer-link.dim {
+    color: var(--text-dim);
+    cursor: default;
+  }
+
   /* ====== HIDDEN ====== */
   .hidden { display: none !important; }
 
@@ -1180,7 +1198,7 @@
   <div class="card full-width" id="stateCard">
     <div class="card-header">
       <span class="card-title">Agreement Lifecycle</span>
-      <span id="agreementAddr" style="font-family: monospace; font-size: 10px; color: var(--text-dim);"></span>
+      <span id="agreementAddr" style="font-size: 10px;"></span>
     </div>
     <div class="state-machine" id="stateMachine">
       <!-- Populated by JS -->
@@ -1394,7 +1412,7 @@ const DEMO_BEATS = [
             { rule: 'Do not withdraw any ETH from the Temptation Vault', severity: 'severe' },
           ],
           resources: [],
-          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
           decisionModel: null, principalAlignment: null,
         },
         {
@@ -1407,7 +1425,7 @@ const DEMO_BEATS = [
             { rule: 'Do not redistribute received data', severity: 'severe' },
           ],
           resources: [],
-          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
           decisionModel: null, principalAlignment: null,
         },
       ];
@@ -1451,7 +1469,7 @@ const DEMO_BEATS = [
             { rule: 'Do not withdraw any ETH from the Temptation Vault', severity: 'severe' },
           ],
           resources: [],
-          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
           decisionModel: null,
           principalAlignment: null,
         },
@@ -1465,14 +1483,14 @@ const DEMO_BEATS = [
             { rule: 'Do not redistribute received data', severity: 'severe' },
           ],
           resources: [],
-          incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+          incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
           decisionModel: null,
           principalAlignment: null,
         },
       ];
       addEvent('state', 'ACCEPTED -> READY');
-      addEvent('action', `Zone A deployed: ${shortAddr(DEMO_ZONES.agent.address)}`);
-      addEvent('action', `Zone B deployed: ${shortAddr(DEMO_ZONES.counterparty.address)}`);
+      addEvent('action', `Zone A deployed: ${addrLink(DEMO_ZONES.agent.address)}`);
+      addEvent('action', `Zone B deployed: ${addrLink(DEMO_ZONES.counterparty.address)}`);
       addEvent('action', 'Resource tokens minted (2 permissions, 3 responsibilities, 3 directives)');
     },
   },
@@ -1483,6 +1501,7 @@ const DEMO_BEATS = [
       addEvent('action', 'Both parties stake 1 USDC into eligibility modules');
       addEvent('state', 'READY -> ACTIVE');
       addEvent('success', 'Agreement is now ACTIVE -- agents can use delegated capabilities');
+      addEvent('action', 'Trust Vendor accesses Intelligence Source data API via ERC-8128 auth (data-api-read permission)');
     },
   },
   {
@@ -1550,7 +1569,7 @@ const DEMO_BEATS = [
       if (s.zones[0]) {
         s.zones[0].resources = [{ detail: `ETH: ${withdrawAmount}` }];
       }
-      addEvent('violation', `Vault withdrawal: ${withdrawAmount} ETH by zone ${shortAddr(DEMO_ZONES.agent.address)}`);
+      addEvent('violation', `Vault withdrawal: ${withdrawAmount} ETH by zone ${addrLink(DEMO_ZONES.agent.address)}`);
       addEvent('action', 'Trust Vendor detects withdrawal via checkVaultWithdrawals()');
     },
   },
@@ -1579,7 +1598,10 @@ const DEMO_BEATS = [
       };
       s.currentState = 'CLOSED';
       s.outcome = 'ADJUDICATED';
-      s.zones.forEach(z => z.active = false);
+      s.zones.forEach((z, i) => {
+        z.active = false;
+        if (i === 0) z.incentives.forEach(inc => { inc.slashed = true; });
+      });
       // Reputation feedback written on adjudication
       s.reputation = [
         {
@@ -1591,8 +1613,9 @@ const DEMO_BEATS = [
       ];
       document.getElementById('reputationCard').style.display = '';
       addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directives 3 and 4 breached');
+      addEvent('action', 'Intelligence Source 1 USDC stake slashed');
       addEvent('state', 'ACTIVE -> CLOSED (ADJUDICATED)');
-      addEvent('action', 'Zones deactivated');
+      addEvent('action', 'Both zones deactivated (agreement closed -- includes non-violating party)');
       addEvent('success', 'Negative ERC-8004 reputation feedback written onchain');
     },
   },
@@ -1612,9 +1635,36 @@ const _rendered = {
   stateHash: '',
 };
 
+const BASESCAN = 'https://basescan.org';
+const TWITTER_HANDLE = 'tempt_game_bot';
+
 function shortAddr(addr) {
   if (!addr) return '???';
   return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
+
+function addrLink(addr, label) {
+  if (!addr) return '???';
+  const text = label || shortAddr(addr);
+  return `<a href="${BASESCAN}/address/${addr}" target="_blank" rel="noopener" class="explorer-link">${text}</a>`;
+}
+
+function txLink(hash, label) {
+  if (!hash) return '???';
+  const text = label || shortAddr(hash);
+  return `<a href="${BASESCAN}/tx/${hash}" target="_blank" rel="noopener" class="explorer-link">${text}</a>`;
+}
+
+function agentIdLink(agentId) {
+  if (agentId == null) return '';
+  return `<a href="https://agentproof.sh/agents/${agentId}?chain=base" target="_blank" rel="noopener" class="explorer-link">${agentId}</a>`;
+}
+
+function tweetLink(tweetId, label) {
+  if (!tweetId) return '';
+  const text = label || '#' + tweetId;
+  if (tweetId.startsWith('mock-')) return `<span class="explorer-link dim">${text}</span>`;
+  return `<a href="https://x.com/${TWITTER_HANDLE}/status/${tweetId}" target="_blank" rel="noopener" class="explorer-link">${text}</a>`;
 }
 
 function renderStateMachine() {
@@ -1646,7 +1696,7 @@ function renderStateMachine() {
   container.innerHTML = html;
 
   if (state.agreementAddress) {
-    document.getElementById('agreementAddr').textContent = shortAddr(state.agreementAddress);
+    document.getElementById('agreementAddr').innerHTML = addrLink(state.agreementAddress);
   }
 }
 
@@ -1717,10 +1767,19 @@ function renderZones() {
       <div class="zone-header">
         <div>
           <div class="zone-name ${nameCls}">${zone.name}</div>
-          <div class="zone-address">${shortAddr(zone.address)} | agentId: ${zone.agentId != null ? zone.agentId : '?'}</div>
+          <div class="zone-address">${addrLink(zone.address)}${zone.txHash ? ' ' + txLink(zone.txHash, 'tx') : ''}</div>
         </div>
         <div class="zone-active ${statusCls}">${statusLabel}</div>
       </div>`;
+
+    // Actor
+    html += `<div class="zone-section">
+      <div class="zone-section-label">Actor</div>
+      <div class="token-item" style="background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); color: var(--text);">
+        <span>${addrLink(zone.agentAddress || zone.address)}</span>
+        <span style="margin-left: auto;">${zone.agentId != null ? 'agentId: ' + agentIdLink(zone.agentId) : ''}</span>
+      </div>
+    </div>`;
 
     // Permissions
     html += `<div class="zone-section">
@@ -1787,9 +1846,10 @@ function renderZones() {
       <div class="zone-section-label">Incentives</div>`;
     if (zone.incentives && zone.incentives.length > 0) {
       zone.incentives.forEach(inc => {
+        const slashedPill = inc.slashed ? ' <span style="font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); margin-left: 6px;">SLASHED</span>' : '';
         html += `<div class="token-item incentive-item">
           <span class="icon">\u2605</span>
-          <span>${inc.detail || inc.type}</span>
+          <span>${inc.detail || inc.type}${slashedPill}</span>
         </div>`;
       });
     } else {
@@ -1836,7 +1896,7 @@ function renderTweets() {
     div.className = 'tweet-item';
     div.innerHTML = `<div class="tweet-header">
         <span class="tweet-zone">@tempt_game_bot</span>
-        <span class="tweet-id">#${t.tweetId}</span>
+        <span class="tweet-id">${tweetLink(t.tweetId)}</span>
       </div>
       <div class="tweet-content">${escapeHtml(t.content)}</div>`;
     container.appendChild(div);
@@ -1870,7 +1930,7 @@ function renderVault() {
   let logHtml = '';
   state.withdrawals.forEach(w => {
     logHtml += `<div class="withdrawal-item">
-      -${w.amount} ETH by ${shortAddr(w.zone)} (tx: ${shortAddr(w.txHash)})
+      -${w.amount} ETH by ${addrLink(w.zone)} (tx: ${txLink(w.txHash)})
     </div>`;
   });
   logEl.innerHTML = logHtml;
@@ -1897,7 +1957,7 @@ function renderClaims() {
 
     html += `<div class="claim-item">
       <div class="claim-header">
-        <span class="claim-id">Claim #${claim.id}</span>
+        <span class="claim-id">Claim #${claim.id}${claim.txHash ? ' ' + txLink(claim.txHash, 'tx') : ''}</span>
         <span class="claim-status ${statusCls}">${statusLabel}</span>
       </div>
       <div class="claim-evidence">${escapeHtml(claim.evidence)}</div>`;
@@ -1941,7 +2001,7 @@ function renderReputation() {
     html += `<div class="reputation-card">
       <div class="reputation-outcome ${cls}">${symbol}</div>
       <div class="reputation-label">${r.label}: ${r.outcome}</div>
-      <div class="reputation-detail">${r.detail}</div>
+      <div class="reputation-detail">${r.detail}${r.txHash ? ' ' + txLink(r.txHash, 'tx') : ''}</div>
     </div>`;
   });
   container.innerHTML = html;
@@ -1977,7 +2037,7 @@ function renderEventLog() {
     div.className = 'event-item';
     div.innerHTML = `<span class="event-time">${e.time.toFixed(1)}s</span>
       <span class="event-type ${e.type}">${e.type.toUpperCase()}</span>
-      <span class="event-msg">${escapeHtml(e.msg)}</span>`;
+      <span class="event-msg">${e.msg}</span>`;
     container.appendChild(div);
   }
   _rendered.eventCount = state.events.length;
@@ -2169,6 +2229,8 @@ async function pollPonder(url) {
                   id
                   active
                   zoneIndex
+                  txHash
+                  actor { id address agentId }
                   permissions { items { resource } }
                   responsibilities { items { obligation criteria } }
                   directives { items { rule severity } }
@@ -2178,6 +2240,7 @@ async function pollPonder(url) {
                 items {
                   sequence
                   termsDocUri
+                  txHash
                   proposer { address }
                 }
               }
@@ -2187,12 +2250,14 @@ async function pollPonder(url) {
                   verdict
                   actionTypes
                   evidence
+                  txHash
                 }
               }
               reputationFeedback {
                 items {
                   tag
                   feedbackURI
+                  txHash
                 }
               }
             }
@@ -2214,13 +2279,15 @@ async function pollPonder(url) {
       state.zones = agreement.trustZones.items.map(z => ({
         address: z.id,
         name: z.zoneIndex === 0 ? 'Intelligence Source' : 'Trust Vendor',
-        agentId: 0,
+        agentAddress: z.actor?.address,
+        agentId: z.actor?.agentId != null ? Number(z.actor.agentId) : null,
         active: z.active,
+        txHash: z.txHash,
         permissions: z.permissions?.items?.map(p => ({ resource: p.resource, detail: '' })) || [],
         responsibilities: z.responsibilities?.items?.map(r => ({ obligation: r.obligation })) || [],
         directives: z.directives?.items?.map(d => ({ rule: d.rule, severity: d.severity || 'low' })) || [],
         resources: [],
-        incentives: [{ type: 'staking', detail: 'Stake: 1 USDC' }],
+        incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
         decisionModel: null,
         principalAlignment: null,
       }));
@@ -2233,7 +2300,7 @@ async function pollPonder(url) {
         actorLabel: i % 2 === 0 ? 'Intelligence Source' : 'Trust Vendor',
         type: i === 0 ? 'PROPOSE' : 'COUNTER',
         content: p.termsDocUri ? decodeTermsDoc(p.termsDocUri) : 'Proposal submitted',
-        meta: `Proposer: ${shortAddr(p.proposer?.address)}`,
+        meta: `Proposer: ${addrLink(p.proposer?.address)}${p.txHash ? ' | tx: ' + txLink(p.txHash) : ''}`,
       }));
     }
 
@@ -2243,6 +2310,7 @@ async function pollPonder(url) {
         id: c.id,
         status: c.verdict !== null ? 'adjudicated' : 'pending',
         evidence: c.evidence ? 'Evidence submitted' : '',
+        txHash: c.txHash,
         verdict: c.verdict !== null ? {
           violated: c.verdict,
           violatedDirectives: [],
@@ -2259,6 +2327,7 @@ async function pollPonder(url) {
         outcome: f.tag,
         positive: f.tag === 'COMPLETED',
         detail: f.feedbackURI || '',
+        txHash: f.txHash,
       }));
       document.getElementById('reputationCard').style.display = '';
     }

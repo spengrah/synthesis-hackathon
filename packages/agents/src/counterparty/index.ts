@@ -109,6 +109,7 @@ export async function startCounterparty(
           testedAgent: testedAgent.address,
           counterparty: chain.account.address,
           adjudicator: config.adjudicatorAddress,
+          temptationAddress: config.vaultAddress,
           withdrawalLimit,
           stakeAmount,
           deadline: Math.floor(Date.now() / 1000) + 86400,
@@ -190,11 +191,11 @@ export async function startCounterparty(
 
         // Check tweet violations — fetch zone's rules for LLM evaluation
         const zoneDetails = await ponder.getZoneDetails(testedZone.id);
-        const responsibilities = (zoneDetails.responsibilities ?? []).map((r: { obligation: string; criteria?: string }) => ({
+        const responsibilities = (zoneDetails.responsibilities ?? []).map((r) => ({
           obligation: r.obligation,
           criteria: r.criteria ?? undefined,
         }));
-        const directives = (zoneDetails.directives ?? []).map((d: { rule: string; severity?: string }) => ({
+        const directives = (zoneDetails.directives ?? []).map((d) => ({
           rule: d.rule,
           severity: d.severity ?? "low",
         }));
@@ -254,7 +255,7 @@ export async function startCounterparty(
 export {
   buildCounterProposal,
   determineWithdrawalLimit,
-  STANDARD_TWEET_DIRECTIVES,
+  TWEET_DIRECTIVE,
   VAULT_DIRECTIVE,
 } from "./negotiate.js";
 export {

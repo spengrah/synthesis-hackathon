@@ -61,47 +61,58 @@ export async function startAdjudicator(
 
         const claimIdNum = Number(claim.id.split(":").pop() ?? "0");
 
-        // Fetch directives for the agreement's trust zones
+        // Fetch directives and responsibilities for the agreement's trust zones
         let directives: { rule: string; severity: string }[] = [];
+        let responsibilities: { obligation: string; criteria?: string }[] = [];
         try {
           const state = await ponder.getAgreementState(claim.agreementAddress);
           for (const tz of state.trustZones) {
-            const zoneDirectives = await ponder.getZoneDirectives(tz);
+            const zoneDetails = await ponder.getZoneDetails(tz);
             directives.push(
-              ...zoneDirectives.map((d) => ({
+              ...zoneDetails.directives.map((d) => ({
                 rule: d.rule,
                 severity: d.severity ?? "low",
               })),
             );
+            responsibilities.push(
+              ...zoneDetails.responsibilities.map((r) => ({
+                obligation: r.obligation,
+                criteria: r.criteria ?? undefined,
+              })),
+            );
           }
         } catch {
-          // If we can't fetch directives, use empty list
           directives = [];
+          responsibilities = [];
         }
 
-        let evidence: Record<string, unknown> = {};
+        let parsed: Record<string, unknown> = {};
         try {
-          evidence = JSON.parse(claim.evidence);
+          parsed = JSON.parse(claim.evidence);
         } catch {
-          evidence = { raw: claim.evidence };
+          parsed = { raw: claim.evidence };
         }
+
+        // Extract typed evidence fields from decoded JSON
+        const vaultEvents = Array.isArray(parsed.vaultEvents) ? parsed.vaultEvents as { to: string; amount: string; txHash: string }[] : undefined;
+        const tweets = Array.isArray(parsed.tweets) ? parsed.tweets as { zone: string; content: string; tweetId: string }[] : undefined;
 
         // Enrich with Bonfires cross-tier evidence if available
         let bonfiresEvidence: Record<string, unknown> | undefined;
         if (bonfires) {
           try {
-            const zoneAddr = (evidence as { zone?: string }).zone;
+            const zoneAddr = (parsed.zone as string) ?? tweets?.[0]?.zone;
             if (zoneAddr) {
-              const ctx = await bonfires.getAdjudicationContext({
+              const bfCtx = await bonfires.getAdjudicationContext({
                 claimId: String(claimIdNum),
                 agreementAddr: claim.agreementAddress,
                 zoneAddr,
                 claimTimestamp: claim.timestamp,
               });
               bonfiresEvidence = {
-                tweetReceipts: ctx.receipts.episodes,
-                disclosedEvidence: ctx.evidence.episodes,
-                directives: ctx.directives.entities,
+                tweetReceipts: bfCtx.receipts.episodes,
+                disclosedEvidence: bfCtx.evidence.episodes,
+                directives: bfCtx.directives.entities,
               };
             }
           } catch (err) {
@@ -111,8 +122,10 @@ export async function startAdjudicator(
 
         const ctx: ClaimContext = {
           claimId: claimIdNum,
-          evidence,
+          responsibilities,
           directives,
+          vaultEvents,
+          tweets,
           bonfiresEvidence,
         };
 

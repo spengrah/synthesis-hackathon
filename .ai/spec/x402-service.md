@@ -4,10 +4,12 @@
 
 An x402-gated API server that bundles the Trust Zones SDK and Compiler behind pay-per-request endpoints. Agents that don't want to import the libraries locally can call the service instead. Payment in USDC on Base via the x402 protocol.
 
+A companion CLI and Claude Code skill (`/trust-zones`) let agents install and interact with the API without writing HTTP calls directly.
+
 ## Architecture
 
 ```
-Agent
+Agent (or CLI / Skill)
   │
   │  HTTP request + x402 payment header
   │
@@ -32,26 +34,32 @@ Compile a TZ schema document into ABI-encoded ProposalData.
 ```json
 {
   "tzSchemaDoc": {
+    "version": "0.1.0",
     "zones": [
       {
-        "party": "0x...",
-        "agentId": 42,
+        "actor": { "address": "0x...", "agentId": 42 },
+        "maxActors": 1,
+        "description": "Zone A",
         "constraints": [
-          { "template": "budget-cap", "params": { "token": "0x...", "limit": "1000000", "period": "day" } },
-          { "template": "target-allowlist", "params": { "targets": ["0x..."], "selectors": ["0x..."] } }
+          { "template": "budget-cap", "params": { "token": "0x...", "limit": "1000000" } }
         ],
-        "eligibility": [
-          { "template": "staking-requirement", "params": { "token": "0x...", "minStake": "5000000000000000" } }
+        "eligibilities": [
+          { "template": "staking", "params": { "token": "0x...", "minStake": "5000000000000000", "cooldownPeriod": 86400 } }
         ],
-        "resources": [
-          { "type": "permission", "metadata": { "resource": "/market-data", "rules": { "rateLimit": { "value": 10, "period": "hour" } } } },
-          { "type": "directive", "metadata": { "rule": "attribution", "severity": "moderate" } }
+        "incentives": [],
+        "permissions": [
+          { "resource": "/market-data", "value": 10, "period": "hour", "expiry": 1710700000 }
+        ],
+        "responsibilities": [
+          { "obligation": "Provide uptime guarantee", "criteria": "99% over agreement period" }
+        ],
+        "directives": [
+          { "rule": "Do not redistribute data", "severity": "severe" }
         ]
       }
     ],
-    "adjudicator": "0x...",
-    "deadline": 1710700000,
-    "termsDocUri": "ipfs://..."
+    "adjudicator": { "template": "stub-adjudicator" },
+    "deadline": 1710700000
   }
 }
 ```
@@ -150,12 +158,12 @@ Decode a contract event log into structured data.
 
 ### POST /graphql
 
-Proxied access to Ponder's GraphQL API. Returns the full parsed, relational data model — agreements, zones, typed entities (permissions, directives, constraints, etc.), claims, proposals.
+Proxied access to Ponder's GraphQL API. Returns the full parsed, relational data model — agreements, zones, typed entities (permissions, directives, constraints, etc.), claims, proposals, transaction hashes.
 
 **Request:**
 ```json
 {
-  "query": "query { agreement(id: \"0x...\") { state trustZones { items { permissions { items { resource rateLimit } } } } } }"
+  "query": "query { agreement(id: \"0x...\") { state trustZones { items { txHash permissions { items { resource } } } } } }"
 }
 ```
 
@@ -165,13 +173,12 @@ This is the most valuable read endpoint — agents get fully parsed, relational 
 
 ### POST /explain
 
-Read agreement state from the chain and produce a human/agent-readable summary.
+Read agreement state from Ponder and produce a human/agent-readable summary.
 
 **Request:**
 ```json
 {
-  "agreement": "0x...",
-  "rpcUrl": "https://mainnet.base.org"
+  "agreement": "0x..."
 }
 ```
 
@@ -180,20 +187,30 @@ Read agreement state from the chain and produce a human/agent-readable summary.
 {
   "address": "0x...",
   "state": "ACTIVE",
-  "parties": ["0x...", "0x..."],
+  "parties": [
+    { "address": "0x...", "agentId": 1 },
+    { "address": "0x...", "agentId": 2 }
+  ],
   "zones": [
     {
       "account": "0x...",
       "party": "0x...",
-      "hatId": "0x...",
-      "tokens": [
-        { "id": "0x0101", "type": "permission", "metadata": { "resource": "/market-data", ... } },
-        { "id": "0x0103", "type": "directive", "metadata": { "rule": "rateLimit", ... } }
+      "active": true,
+      "txHash": "0x...",
+      "permissions": [
+        { "resource": "tweet-post", "value": 10, "period": "day" }
+      ],
+      "responsibilities": [
+        { "obligation": "Post about the temptation game" }
+      ],
+      "directives": [
+        { "rule": "Do not withdraw any ETH", "severity": "severe" }
       ]
     }
   ],
-  "mechanisms": [...],
-  "claims": [...],
+  "claims": [
+    { "id": "0x...:0", "verdict": true, "actions": ["CLOSE"], "txHash": "0x..." }
+  ],
   "deadline": "2026-03-20T00:00:00Z",
   "termsUri": "ipfs://..."
 }
@@ -234,8 +251,9 @@ packages/x402-service/
 │   │   ├── compile.ts        # /compile, /decompile
 │   │   ├── encode.ts         # /encode/:inputId
 │   │   ├── decode.ts         # /decode/event
+│   │   ├── graphql.ts        # /graphql (Ponder proxy)
 │   │   └── explain.ts        # /explain
-│   └── config.ts             # Addresses, pricing, RPC
+│   └── config.ts             # Addresses, pricing, RPC, Ponder URL
 ├── package.json
 └── tsconfig.json
 ```
@@ -248,9 +266,23 @@ packages/x402-service/
 - `@trust-zones/compiler` — compile/decompile
 - `viem` — chain reads for /explain
 
+### CLI + Skill
+
+```
+packages/tz-cli/
+├── src/
+│   ├── index.ts              # CLI entry: tz compile, tz encode, tz explain, ...
+│   └── client.ts             # x402 HTTP client (handles payment flow)
+├── SKILL.md                  # Claude Code skill definition (/trust-zones)
+├── package.json
+└── tsconfig.json
+```
+
+The CLI wraps the x402 API calls with wallet-based payment. The skill (`/trust-zones`) provides tool descriptions and example flows so agents can use the API through Claude Code.
+
 ### Deployment
 
-Self-hosted (Vercel, Railway, etc.). Stateless — no database, no session. All reads go to chain or are computed from inputs.
+Self-hosted (Railway). Stateless — no database, no session. All reads go to Ponder or are computed from inputs.
 
 ## Relationship to SDK and Compiler
 
@@ -260,7 +292,7 @@ Self-hosted (Vercel, Railway, etc.). Stateless — no database, no session. All 
 │                                              │
 │  /compile, /decompile ──→ Compiler library   │
 │  /encode, /decode     ──→ SDK library        │
-│  /explain             ──→ SDK reads + chain  │
+│  /explain, /graphql   ──→ SDK reads + Ponder │
 │                                              │
 │  All behind x402 payment gate                │
 └─────────────────────────────────────────────┘

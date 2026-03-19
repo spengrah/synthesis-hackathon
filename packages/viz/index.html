@@ -580,6 +580,65 @@
     box-shadow: 0 4px 20px var(--accent-glow);
   }
 
+  /* ====== CONTROLS BAR ====== */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .controls-bar label {
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .controls-bar select,
+  .controls-bar input[type="text"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .controls-bar select { cursor: pointer; }
+  .controls-bar input[type="text"] { width: 220px; }
+
+  .mode-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .mode-badge.demo {
+    background: var(--info-dim);
+    color: var(--info);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+
+  .mode-badge.live {
+    background: var(--success-dim);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    animation: pulse-badge 2s infinite;
+  }
+
+  @keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
   /* ====== RESPONSIVE ====== */
   @media (max-width: 768px) {
     .site-header {
@@ -650,6 +709,22 @@
 <!-- ====== MAIN CONTENT ====== -->
 <main class="main">
 
+  <!-- Controls -->
+  <section class="controls-bar">
+    <label>Mode:</label>
+    <select id="modeSelect">
+      <option value="demo" selected>Demo Data</option>
+      <option value="live">Live (Poll APIs)</option>
+    </select>
+    <span class="mode-badge demo" id="modeBadge">DEMO</span>
+    <label>Ponder:</label>
+    <input type="text" id="ponderUrl" value="http://localhost:42069">
+    <label>Tweet Proxy:</label>
+    <input type="text" id="tweetProxyUrl" value="http://localhost:42071">
+    <label>Vault:</label>
+    <input type="text" id="vaultAddress" value="" placeholder="0x... (vault contract)">
+  </section>
+
   <!-- Skill Banner -->
   <section class="skill-banner">
     <h1 class="skill-banner-title">Play the Temptation Game</h1>
@@ -664,29 +739,29 @@
   <!-- Global Stats -->
   <section class="stat-grid">
     <div class="stat-card">
-      <div class="stat-value" style="color: var(--accent);">12</div>
+      <div class="stat-value" style="color: var(--accent);" id="statGames">12</div>
       <div class="stat-label">Total Games</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" style="color: var(--success);">0.0120 <span class="stat-suffix">ETH</span></div>
+      <div class="stat-value" style="color: var(--success);" id="statEth">0.0120 <span class="stat-suffix">ETH</span></div>
       <div class="stat-label">Total ETH Tempted</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" style="color: var(--cyan);">67%</div>
+      <div class="stat-value" style="color: var(--cyan);" id="statCoopRate">67%</div>
       <div class="stat-label">Cooperation Rate</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" style="color: var(--warning);">34</div>
+      <div class="stat-value" style="color: var(--warning);" id="statTweets">34</div>
       <div class="stat-label">Total Tweets</div>
     </div>
   </section>
 
   <!-- Vault Balance -->
   <section class="vault-card">
-    <div class="vault-balance">0.0095 <span class="eth-suffix">ETH</span></div>
+    <div class="vault-balance" id="vaultBalance">0.0095 <span class="eth-suffix">ETH</span></div>
     <div class="vault-label">Temptation Vault Balance</div>
     <div class="vault-bar-track">
-      <div class="vault-bar-fill" style="width: 95%;"></div>
+      <div class="vault-bar-fill" id="vaultFill" style="width: 95%;"></div>
     </div>
   </section>
 
@@ -720,7 +795,7 @@
     <!-- Live Game Feed -->
     <div class="card">
       <div class="card-header">Live Game Feed</div>
-      <ul class="feed-list">
+      <ul class="feed-list" id="gameFeed">
         <li class="feed-item">
           <span class="feed-dot coop"></span>
           <div class="feed-content">
@@ -762,7 +837,7 @@
     <!-- Tweet Feed -->
     <div class="card">
       <div class="card-header">Tweet Feed</div>
-      <div>
+      <div id="tweetFeed">
         <div class="tweet-item">
           <div class="tweet-header">
             <span class="tweet-address">0xFBEE...0aA4</span>
@@ -806,7 +881,7 @@
 </main>
 
 <script>
-  // ====== DATA ======
+  // ====== DEMO DATA ======
   const DEMO_AGENTS = [
     { address: '0xFBEE...0aA4', games: 4, cooperations: 3, violations: 1, streak: { type: 'coop', count: 2 }, ethTempted: 0.004, reputation: 2 },
     { address: '0xA1B2...C3D4', games: 3, cooperations: 3, violations: 0, streak: { type: 'coop', count: 3 }, ethTempted: 0.003, reputation: 3 },
@@ -815,9 +890,21 @@
     { address: '0xCAFE...BABE', games: 1, cooperations: 1, violations: 0, streak: { type: 'coop', count: 1 }, ethTempted: 0.001, reputation: 1 },
   ];
 
+  const DEMO_STATS = { games: 12, ethTempted: 0.0120, coopRate: 67, tweets: 34 };
+  const DEMO_VAULT = { balance: 0.0095, maxBalance: 0.01 };
+
+  // ====== STATE ======
+  let agents = DEMO_AGENTS;
+  let stats = { ...DEMO_STATS };
+  let vaultState = { ...DEMO_VAULT };
+  let liveMode = false;
+  let pollTimer = null;
+  let liveTweets = [];
+  let liveGameFeed = [];
+
   // ====== TABLE SORTING ======
   let sortCol = 'games';
-  let sortAsc = false; // descending by default
+  let sortAsc = false;
 
   function getCoopRate(agent) {
     return agent.games > 0 ? agent.cooperations / agent.games : 0;
@@ -827,12 +914,12 @@
     return agent.streak.type === 'coop' ? agent.streak.count : -agent.streak.count;
   }
 
-  function sortAgents(agents, col, asc) {
-    var sorted = agents.slice();
+  function sortAgents(list, col, asc) {
+    var sorted = list.slice();
     sorted.sort(function(a, b) {
       var va, vb;
       switch (col) {
-        case 'rank': // sort by games desc as rank proxy
+        case 'rank':
           va = a.games; vb = b.games; break;
         case 'address':
           va = a.address.toLowerCase(); vb = b.address.toLowerCase();
@@ -861,11 +948,16 @@
     return sorted;
   }
 
+  // ====== RENDERING ======
+  function truncAddr(addr) {
+    if (addr.length <= 13) return addr;
+    return addr.slice(0, 6) + '...' + addr.slice(-4);
+  }
+
   function renderTable() {
-    var sorted = sortAgents(DEMO_AGENTS, sortCol, sortAsc);
+    var sorted = sortAgents(agents, sortCol, sortAsc);
     var tbody = document.getElementById('leaderboard-body');
     var html = '';
-
     for (var i = 0; i < sorted.length; i++) {
       var a = sorted[i];
       var coopRate = a.games > 0 ? Math.round((a.cooperations / a.games) * 100) : 0;
@@ -873,10 +965,9 @@
       var streakText = a.streak.count + ' ' + (a.streak.type === 'coop' ? 'coop' : 'viol');
       var repClass = a.reputation > 0 ? 'rep-positive' : (a.reputation < 0 ? 'rep-negative' : 'rep-neutral');
       var repText = a.reputation > 0 ? '+' + a.reputation : String(a.reputation);
-
       html += '<tr>';
       html += '<td class="col-rank">' + (i + 1) + '</td>';
-      html += '<td class="col-address">' + a.address + '</td>';
+      html += '<td class="col-address">' + truncAddr(a.address) + '</td>';
       html += '<td class="col-num">' + a.games + '</td>';
       html += '<td class="col-num">' + a.cooperations + '</td>';
       html += '<td class="col-num">' + a.violations + '</td>';
@@ -886,8 +977,56 @@
       html += '<td class="' + repClass + '">' + repText + '</td>';
       html += '</tr>';
     }
-
     tbody.innerHTML = html;
+  }
+
+  function renderStats() {
+    document.getElementById('statGames').textContent = stats.games;
+    document.getElementById('statEth').innerHTML = stats.ethTempted.toFixed(4) + ' <span class="stat-suffix">ETH</span>';
+    document.getElementById('statCoopRate').textContent = stats.coopRate + '%';
+    document.getElementById('statTweets').textContent = stats.tweets;
+  }
+
+  function renderVault() {
+    document.getElementById('vaultBalance').innerHTML = vaultState.balance.toFixed(4) + ' <span class="eth-suffix">ETH</span>';
+    var pct = vaultState.maxBalance > 0 ? Math.min(100, (vaultState.balance / vaultState.maxBalance) * 100) : 0;
+    document.getElementById('vaultFill').style.width = pct + '%';
+  }
+
+  function renderGameFeed(items) {
+    var el = document.getElementById('gameFeed');
+    if (!items || items.length === 0) return;
+    var html = '';
+    items.forEach(function(ev) {
+      var dotClass = ev.outcome === 'COMPLETED' ? 'coop' : 'viol';
+      var label = ev.outcome === 'COMPLETED' ? 'cooperated' : 'violated';
+      var suffix = ev.outcome === 'COMPLETED' ? 'completed' : 'adjudicated';
+      html += '<li class="feed-item">';
+      html += '<span class="feed-dot ' + dotClass + '"></span>';
+      html += '<div class="feed-content">';
+      html += '<div class="feed-text"><span class="address">' + truncAddr(ev.address) + '</span> ' + label + ' &mdash; Agreement ' + truncAddr(ev.agreementId) + ' ' + suffix + '</div>';
+      html += '<div class="feed-time">' + ev.time + '</div>';
+      html += '</div></li>';
+    });
+    el.innerHTML = html;
+  }
+
+  function renderTweetFeed(tweets) {
+    var el = document.getElementById('tweetFeed');
+    if (!tweets || tweets.length === 0) return;
+    var html = '';
+    tweets.forEach(function(tw) {
+      var badgeClass = tw.violation ? 'violation' : 'compliant';
+      var badgeText = tw.violation ? 'Violation' : 'Compliant';
+      html += '<div class="tweet-item">';
+      html += '<div class="tweet-header">';
+      html += '<span class="tweet-address">' + truncAddr(tw.zone || tw.address || '') + '</span>';
+      html += '<span class="tweet-badge ' + badgeClass + '">' + badgeText + '</span>';
+      html += '</div>';
+      html += '<div class="tweet-text">"' + tw.content + '"</div>';
+      html += '</div>';
+    });
+    el.innerHTML = html;
   }
 
   function updateSortHeaders() {
@@ -905,25 +1044,262 @@
     }
   }
 
-  // Attach click handlers to table headers
+  function renderAll() {
+    renderStats();
+    renderVault();
+    renderTable();
+  }
+
+  // ====== LIVE MODE — PONDER POLLING ======
+  const PONDER_QUERY = `{
+    agreements(limit: 100, orderBy: "createdAt", orderDirection: "desc") {
+      items {
+        id
+        state
+        outcome
+        createdAt
+        closedAt
+        trustZones {
+          items {
+            id
+            actorId
+            zoneIndex
+            active
+          }
+        }
+        claims {
+          items {
+            id
+            verdict
+            actionTypes
+          }
+        }
+        reputationFeedback {
+          items {
+            actorId
+            tag
+          }
+        }
+      }
+    }
+  }`;
+
+  function aggregateAgents(agreements) {
+    var map = {}; // address -> agent stats
+    var totalGames = 0;
+    var totalCoops = 0;
+    var totalViols = 0;
+    var feedItems = [];
+
+    agreements.forEach(function(ag) {
+      var isClosed = ag.state === 'CLOSED';
+      var isCompleted = ag.outcome === 'COMPLETED';
+      var isAdjudicated = ag.outcome === 'ADJUDICATED';
+      if (!isClosed) return;
+
+      // Each zone represents a party
+      var zones = (ag.trustZones && ag.trustZones.items) || [];
+      // Reputation feedback per actor
+      var repMap = {};
+      ((ag.reputationFeedback && ag.reputationFeedback.items) || []).forEach(function(rf) {
+        repMap[rf.actorId] = rf.tag;
+      });
+
+      // Claims tell us who violated
+      var hasViolation = ((ag.claims && ag.claims.items) || []).some(function(c) {
+        return c.verdict === 'VIOLATION' || (c.actionTypes && c.actionTypes.includes('CLOSE'));
+      });
+
+      zones.forEach(function(zone) {
+        var addr = zone.actorId;
+        if (!addr) return;
+        if (!map[addr]) {
+          map[addr] = { address: addr, games: 0, cooperations: 0, violations: 0, results: [], ethTempted: 0, reputation: 0 };
+        }
+        var entry = map[addr];
+        entry.games++;
+        totalGames++;
+
+        // Determine per-party outcome from reputation feedback
+        var tag = repMap[addr];
+        var cooperated = tag === 'POSITIVE' || (isCompleted && !hasViolation);
+        var violated = tag === 'NEGATIVE' || (isAdjudicated && hasViolation);
+
+        if (violated) {
+          entry.violations++;
+          entry.results.push('viol');
+          totalViols++;
+        } else {
+          entry.cooperations++;
+          entry.results.push('coop');
+          totalCoops++;
+        }
+
+        // Approximate ETH tempted (0.001 per game)
+        entry.ethTempted += 0.001;
+
+        // Reputation: +1 for positive, -1 for negative
+        if (tag === 'POSITIVE') entry.reputation++;
+        else if (tag === 'NEGATIVE') entry.reputation--;
+        else if (cooperated) entry.reputation++;
+        else if (violated) entry.reputation--;
+
+        // Feed item
+        feedItems.push({
+          address: addr,
+          agreementId: ag.id,
+          outcome: isCompleted ? 'COMPLETED' : 'ADJUDICATED',
+          time: ag.closedAt ? timeAgo(Number(ag.closedAt)) : 'recently',
+        });
+      });
+    });
+
+    // Compute streaks
+    var agentList = Object.values(map);
+    agentList.forEach(function(a) {
+      var results = a.results;
+      if (results.length === 0) {
+        a.streak = { type: 'coop', count: 0 };
+        return;
+      }
+      var last = results[results.length - 1];
+      var count = 0;
+      for (var i = results.length - 1; i >= 0; i--) {
+        if (results[i] === last) count++;
+        else break;
+      }
+      a.streak = { type: last, count: count };
+      delete a.results;
+    });
+
+    var coopRate = totalGames > 0 ? Math.round((totalCoops / totalGames) * 100) : 0;
+
+    return {
+      agents: agentList,
+      stats: {
+        games: Math.floor(totalGames / 2), // each agreement has 2 parties
+        ethTempted: agentList.reduce(function(s, a) { return s + a.ethTempted; }, 0),
+        coopRate: coopRate,
+      },
+      feed: feedItems.slice(0, 10),
+    };
+  }
+
+  function timeAgo(ts) {
+    var diff = Math.floor((Date.now() / 1000) - ts);
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  async function pollPonder() {
+    var url = document.getElementById('ponderUrl').value;
+    try {
+      var res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: PONDER_QUERY }),
+      });
+      var json = await res.json();
+      var items = json.data && json.data.agreements && json.data.agreements.items;
+      if (!items) return;
+      var result = aggregateAgents(items);
+      agents = result.agents;
+      stats.games = result.stats.games;
+      stats.ethTempted = result.stats.ethTempted;
+      stats.coopRate = result.stats.coopRate;
+      liveGameFeed = result.feed;
+      renderAll();
+      renderGameFeed(liveGameFeed);
+    } catch (e) {
+      console.warn('Ponder poll failed:', e);
+    }
+  }
+
+  async function pollTweets() {
+    var url = document.getElementById('tweetProxyUrl').value;
+    try {
+      var res = await fetch(url + '/tweets');
+      var json = await res.json();
+      var tweets = json.tweets || [];
+      stats.tweets = tweets.length;
+      liveTweets = tweets.slice(-10).reverse();
+      renderTweetFeed(liveTweets);
+      renderStats();
+    } catch (e) {
+      console.warn('Tweet proxy poll failed:', e);
+    }
+  }
+
+  async function pollVault() {
+    var addr = document.getElementById('vaultAddress').value;
+    if (!addr || !addr.startsWith('0x')) return;
+    try {
+      var res = await fetch('https://mainnet.base.org', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [addr, 'latest'],
+        }),
+      });
+      var json = await res.json();
+      if (json.result) {
+        var wei = BigInt(json.result);
+        vaultState.balance = Number(wei) / 1e18;
+        vaultState.maxBalance = Math.max(vaultState.maxBalance, vaultState.balance);
+        renderVault();
+      }
+    } catch (e) {
+      console.warn('Vault balance poll failed:', e);
+    }
+  }
+
+  async function pollAll() {
+    await Promise.all([pollPonder(), pollTweets(), pollVault()]);
+  }
+
+  function startLive() {
+    liveMode = true;
+    pollAll();
+    pollTimer = setInterval(pollAll, 30000);
+    var badge = document.getElementById('modeBadge');
+    badge.textContent = 'LIVE';
+    badge.className = 'mode-badge live';
+  }
+
+  function stopLive() {
+    liveMode = false;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    agents = DEMO_AGENTS;
+    stats = { ...DEMO_STATS };
+    vaultState = { ...DEMO_VAULT };
+    var badge = document.getElementById('modeBadge');
+    badge.textContent = 'DEMO';
+    badge.className = 'mode-badge demo';
+    renderAll();
+  }
+
+  // ====== MODE TOGGLE ======
+  document.getElementById('modeSelect').addEventListener('change', function() {
+    if (this.value === 'live') startLive();
+    else stopLive();
+  });
+
+  // ====== SORT CLICK HANDLERS ======
   document.querySelectorAll('thead th').forEach(function(th) {
     th.addEventListener('click', function() {
       var col = this.getAttribute('data-col');
-      if (col === sortCol) {
-        sortAsc = !sortAsc;
-      } else {
-        sortCol = col;
-        sortAsc = false;
-      }
+      if (col === sortCol) sortAsc = !sortAsc;
+      else { sortCol = col; sortAsc = false; }
       updateSortHeaders();
       renderTable();
     });
   });
 
-  // Initial render
+  // ====== INIT ======
   updateSortHeaders();
-  renderTable();
-
+  renderAll();
 </script>
 
 </body>

@@ -106,6 +106,20 @@ Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go awa
 - See `context-graph.md` for schema + API mapping
 - ~4-5h
 
+### Day 4 (March 19): x402 Service + CLI Skill
+
+**x402 service** (`packages/x402-service/`):
+- Express server wrapping compiler + SDK behind x402 payment gates
+- Endpoints: `/compile`, `/decompile`, `/encode/:inputId`, `/decode/event`, `/graphql` (Ponder proxy), `/explain`
+- `@x402/express` middleware, USDC on Base
+- Deploy to Railway alongside other services
+
+**CLI + Skill** (`packages/tz-cli/`):
+- Small CLI wrapping x402 API calls: `tz compile`, `tz encode propose`, `tz explain`, etc.
+- Handles x402 payment flow (wallet config, USDC approval)
+- Associated Claude Code skill (SKILL.md) so agents can install and use via `/trust-zones`
+- Skill provides tool descriptions + example flows for negotiation, zone setup, monitoring
+
 ### Day 5 (March 20): Integration + Live Demo
 
 **Integration testing:**
@@ -176,6 +190,12 @@ Contracts + SDK + Compiler + Ponder + E2E (DONE)
 | Day 4 | Bonfires | Adjudicator reads Ponder directly. Lose cross-tier evidence queries. |
 | Day 5 | Live interactive demo | Recorded demo only. Still compelling but not interactive. |
 | Day 5 | Reciprocal demo (Zone B) | Single zone only. Lose mutual delegation narrative. |
+
+## Stretch
+
+| Item | Description |
+|------|-------------|
+| Selective zone deactivation on close | Currently `_deactivateZoneHats()` deactivates ALL zone hats on agreement close, including the non-violating party. Make close logic configurable: on ADJUDICATED outcome, only deactivate the violating party's zone. Requires changes in Agreement.sol (`_close` / `_deactivateZoneHats`), adjudicator action types (new `DEACTIVATE_PARTY` action), Ponder handler, SDK, and dashboard rendering. |
 
 ## Specs
 
