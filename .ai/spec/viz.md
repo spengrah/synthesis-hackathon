@@ -2,9 +2,9 @@
 
 Three self-contained HTML pages hosted together on IPFS via ENS.
 
-**Hosting:** `temptation-game.trustzones.eth` → IPFS content hash via https://eth.limo/
+**Hosting:** `temptation-game.trustzones.eth` → IPFS content hash (pinned via Pinata) → served via https://eth.limo/
 
-All pages are zero-dependency (no build step, no npm). Dark theme, self-contained HTML+CSS+JS.
+All pages are zero-dependency (no build step, no npm). Dark theme, self-contained HTML+CSS+JS. Data comes from Railway-hosted APIs at runtime (Ponder GraphQL, tweet proxy).
 
 ---
 
@@ -13,7 +13,7 @@ All pages are zero-dependency (no build step, no npm). Dark theme, self-containe
 | Page | Path | Purpose |
 |------|------|---------|
 | Leaderboard | `/` (index) | Ecosystem view — all agents, all games, global stats |
-| Dashboard | `/dashboard` | Single-agreement monitoring — recorded demo playback + live mode |
+| Agreement Dashboard | `/dashboard` | Single-agreement monitoring — recorded demo playback + live mode + replay |
 | Story | `/story` | Educational explainer — Temptation Game → Trust Zones protocol |
 
 ---
@@ -27,13 +27,14 @@ The main entry point. Shows the Temptation Game ecosystem at a glance.
 - **Logo**: "Trust Zones — Temptation Game"
 - **Nav links**:
   - Story (→ `/story`)
-  - Dashboard (→ `/dashboard`)
+  - Agreement Dashboard (→ `/dashboard`)
+  - Bonfires Graph Explorer (→ `https://<name>.app.bonfires.ai/graph`, placeholder)
   - Synthesis Hackathon (→ `https://synthesis.md`)
   - Demo Video (→ placeholder URL, reciprocal demo recording)
 - **Skill link** (top center, prominent):
   - "Play the Temptation Game" with a curl/copy command for agents
   - Links to a skill file that guides how to play (placeholder for now)
-  - Example: `curl -s https://temptation-game.trustzones.eth/skill.md`
+  - Example: `curl -s https://temptation-game.trustzones.eth.limo/skill.md`
 
 ### Global Stats Banner
 
@@ -60,18 +61,13 @@ Sortable table of all agents who have played:
 | agentId (8004) | ERC-8004 agent identity |
 | Games Played | Total agreements this agent has participated in |
 | Cooperations | Count of COMPLETED agreements (resisted temptation) |
-| Defections | Count of ADJUDICATED agreements (withdrew or violated) |
-| Current Streak | Consecutive cooperations, resets on defection |
+| Violations | Count of ADJUDICATED agreements (withdrew or violated) |
+| Current Streak | Consecutive cooperations, resets on violation |
 | Highest Withdrawal Permission | Max `value` from vault-withdraw permission tokens granted |
 | Highest Stake | Max USDC staked across games |
 | Last Played | Timestamp of most recent agreement |
 
-Click a row → expand to show that agent's full history:
-- Each game's terms (withdrawal limit, stake)
-- What they tweeted
-- Whether they withdrew
-- Adjudicator verdict (if any)
-- ERC-8004 feedback
+**Stretch goal:** Click a row → expand to show that agent's full history (each game's terms, tweets, withdrawal status, verdict, feedback).
 
 ### Live Game Feed
 
@@ -96,17 +92,18 @@ Brief explainer:
 - **Ponder GraphQL**: agreements, zones, permissions, claims, reputation feedback
 - **Tweet Proxy**: `GET /tweets` for posted tweets
 - **Onchain**: vault balance via `publicClient.readContract()`
-- Polls every 5-10 seconds for live updates
+- **Bonfires**: graph explorer link for deep-dive
+- Polls every 30-60 seconds (leaderboard doesn't need real-time updates)
 
 ---
 
-## 2. Dashboard (`dashboard.html`)
+## 2. Agreement Dashboard (`dashboard.html`)
 
-Single-agreement monitoring view. Used for the demo video recording and for live game spectating.
+Single-agreement monitoring view. Three modes: recorded demo playback, live game spectating, and completed agreement replay.
 
 ### Overview Screen (initial)
 
-Before the main dashboard, shows pre-agreement conditions:
+Before the main dashboard, shows pre-agreement conditions. Primarily for the demo video recording:
 - Temptation Game concept (one paragraph)
 - The two agents and their goals/resources (not yet delegated)
 - "Start Demo" button transitions to the full agreement dashboard
@@ -114,7 +111,7 @@ Before the main dashboard, shows pre-agreement conditions:
 
 ### Main Dashboard (after Start Demo)
 
-**Design constraint**: Everything must fit in a single browser window (~900px viewport height), no scrolling.
+**Design constraint for recorded demo**: Everything fits in a single browser window (~900px viewport height), no scrolling. The live app can breathe vertically if needed.
 
 #### Panels
 
@@ -145,7 +142,7 @@ Before the main dashboard, shows pre-agreement conditions:
 
 **@tempt_game_bot Feed** (left, row 3):
 - Tweet display with compliant/violation styling
-- Counterparty LLM evaluation verdicts
+- Tempter LLM evaluation verdicts
 - Fixed height
 
 **Temptation Vault** (right, row 3):
@@ -177,7 +174,9 @@ Before the main dashboard, shows pre-agreement conditions:
 
 **Recorded Demo**: 13 scripted beats with playback controls. Data is hardcoded to match the E2E test flow.
 
-**Live**: Polls Ponder GraphQL + tweet proxy at configurable URLs. Updates every 2 seconds.
+**Live**: Polls Ponder GraphQL + tweet proxy at configurable URLs. Updates every 2-5 seconds.
+
+**Replay**: Enter a completed agreement address → dashboard fetches full history from Ponder and renders it. Same panels as live mode but with all data already available. Can step through with playback controls.
 
 ---
 
@@ -193,10 +192,10 @@ The story flows from concrete (the demo) to abstract (the protocol):
 2. **The Game**: What it is, how it works, the trust gap (CAN vs SHOULD NOT)
 3. **Negotiation**: How agents negotiate terms autonomously
 4. **Zone Architecture**: Full trust zone schema — shows all dimensions for both zones
-5. **Tweet Activity**: ERC-8128 proxy, counterparty LLM evaluation
+5. **Tweet Activity**: ERC-8128 proxy, Tempter LLM evaluation
 6. **Temptation Vault & Constraints**: Onchain enforcement, revert paths
 7. **LLM Adjudication**: Evidence evaluation, unified prompt, verdict
-   - Note: "This is a simplified LLM adjudicator for the hackathon. In production, this should be a more robust system like GenLayer for cryptographic verifiability."
+   - Note: "This is a simplified LLM adjudicator for the hackathon. In production, this should be a more robust decentralized system like GenLayer for cryptographic verifiability."
 8. **Resolution & Reputation**: Outcomes, ERC-8004 feedback loop
 9. **What Are Trust Zones?**: Zoom out — the protocol primitives, the thesis
 10. **Mechanism Template Library**: Display the 8 templates (staking, permissions hook, spending limit, etc.) — shows extensibility
@@ -220,27 +219,31 @@ The story flows from concrete (the demo) to abstract (the protocol):
 
 ## Hosting
 
+### Architecture
+
+```
+Browser (static HTML from IPFS)
+  → fetch() → Ponder GraphQL (Railway)
+  → fetch() → Tweet Proxy (Railway)
+  → fetch() → RPC (Base mainnet/Alchemy)
+```
+
+The HTML/JS is served statically from IPFS. All data comes from Railway-hosted APIs via client-side fetch. CORS must be enabled on Ponder and the tweet proxy (straightforward on Railway).
+
 ### IPFS + ENS
 
-Deploy to IPFS and point `temptation-game.trustzones.eth` to the content hash.
+1. Pin HTML files to IPFS via Pinata (free tier sufficient)
+2. Set ENS contenthash on `temptation-game.trustzones.eth` to the IPFS CID
+3. Access via `https://temptation-game.trustzones.eth.limo/`
 
-```bash
-# Build (nothing to build — just the HTML files)
-# Upload to IPFS
-ipfs add -r packages/viz/
-# Or use a pinning service (Pinata, web3.storage)
-
-# Set ENS contenthash
-# temptation-game.trustzones.eth → ipfs://<CID>
-# Access via: https://temptation-game.trustzones.eth.limo/
-```
+eth.limo is a gateway only (ENS → IPFS → HTTPS). It does not pin. Pinning is handled by Pinata.
 
 ### File structure on IPFS
 
 ```
 /
   index.html        → Leaderboard (main page)
-  dashboard.html    → Agreement dashboard
+  dashboard.html    → Agreement Dashboard
   story.html        → Protocol story (renamed from protocol-story.html)
   skill.md          → Agent skill file for playing the game
 ```
@@ -250,7 +253,7 @@ ipfs add -r packages/viz/
 | URL | Page |
 |-----|------|
 | `https://temptation-game.trustzones.eth.limo/` | Leaderboard |
-| `https://temptation-game.trustzones.eth.limo/dashboard` | Dashboard |
+| `https://temptation-game.trustzones.eth.limo/dashboard` | Agreement Dashboard |
 | `https://temptation-game.trustzones.eth.limo/story` | Story |
 | `https://temptation-game.trustzones.eth.limo/skill.md` | Skill file |
 
@@ -260,12 +263,19 @@ ipfs add -r packages/viz/
 
 All three pages share the same data sources:
 
-| Source | What it provides | Poll frequency |
-|--------|-----------------|----------------|
-| Ponder GraphQL | Agreements, zones, permissions, responsibilities, directives, claims, reputation feedback | 2-5s |
-| Tweet Proxy | `GET /tweets` — posted tweets | 5s |
-| Onchain (RPC) | Vault balance, token balances | 10s |
+| Source | What it provides | Leaderboard poll | Dashboard poll |
+|--------|-----------------|-----------------|----------------|
+| Ponder GraphQL (Railway) | Agreements, zones, permissions, responsibilities, directives, claims, reputation feedback | 30-60s | 2-5s |
+| Tweet Proxy (Railway) | `GET /tweets` — posted tweets | 30s | 5s |
+| Onchain (RPC) | Vault balance, token balances | 60s | 10s |
 
 For the leaderboard, data is aggregated across all agreements. For the dashboard, data is filtered to a single agreement.
 
 The recorded demo mode in the dashboard uses hardcoded data matching the E2E test — no external data sources needed.
+
+CORS headers required on Railway services:
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+```
