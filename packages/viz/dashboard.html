@@ -665,6 +665,8 @@
 
   /* ====== TWEET FEED ====== */
   .tweet-feed {
+    max-height: 120px;
+    overflow-y: auto;
   }
 
   .tweet-item {
@@ -710,32 +712,6 @@
     border-left: 3px solid var(--accent);
   }
 
-  .tweet-content.violation {
-    border-left-color: var(--danger);
-    background: var(--danger-dim);
-  }
-
-  .tweet-content.compliant {
-    border-left-color: var(--success);
-  }
-
-  .tweet-verdict {
-    font-size: 10px;
-    margin-top: 3px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    display: inline-block;
-  }
-
-  .tweet-verdict.pass {
-    background: var(--success-dim);
-    color: var(--success);
-  }
-
-  .tweet-verdict.fail {
-    background: var(--danger-dim);
-    color: var(--danger);
-  }
 
   /* ====== VAULT ====== */
   .vault-display {
@@ -1856,53 +1832,21 @@ function renderTweets() {
   // Clear empty state if first item
   if (_rendered.tweetCount === 0) container.innerHTML = '';
 
-  // Append new tweets
+  // Append new tweets (content only — no verdict/compliance badges)
   for (let i = _rendered.tweetCount; i < state.tweets.length; i++) {
     const t = state.tweets[i];
-    const contentCls = t.status === 'violation' ? 'violation' : 'compliant';
     const div = document.createElement('div');
     div.className = 'tweet-item';
-    div.id = `tweet-${t.tweetId}`;
-    let inner = `<div class="tweet-header">
+    div.innerHTML = `<div class="tweet-header">
         <span class="tweet-zone">@tempt_game_bot</span>
         <span class="tweet-id">#${t.tweetId}</span>
       </div>
-      <div class="tweet-content ${contentCls}">${escapeHtml(t.content)}</div>`;
-    if (t.verdict) {
-      const vcls = t.verdict.pass ? 'pass' : 'fail';
-      const vlabel = t.verdict.pass ? 'COMPLIANT' : 'VIOLATION DETECTED';
-      inner += `<div class="tweet-verdict ${vcls}">${vlabel}</div>`;
-      if (t.verdict.reasoning) {
-        inner += `<div style="font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;">${escapeHtml(t.verdict.reasoning)}</div>`;
-      }
-    }
-    div.innerHTML = inner;
+      <div class="tweet-content">${escapeHtml(t.content)}</div>`;
     container.appendChild(div);
   }
 
-  // Update verdicts on existing tweets (e.g., beat 3b adds verdict to tweet from 3a)
-  for (let i = 0; i < _rendered.tweetCount; i++) {
-    const t = state.tweets[i];
-    if (t.verdict) {
-      const existing = document.getElementById(`tweet-${t.tweetId}`);
-      if (existing && !existing.querySelector('.tweet-verdict')) {
-        const vcls = t.verdict.pass ? 'pass' : 'fail';
-        const vlabel = t.verdict.pass ? 'COMPLIANT' : 'VIOLATION DETECTED';
-        const verdictDiv = document.createElement('div');
-        verdictDiv.className = `tweet-verdict ${vcls}`;
-        verdictDiv.textContent = vlabel;
-        existing.appendChild(verdictDiv);
-        if (t.verdict.reasoning) {
-          const reasonDiv = document.createElement('div');
-          reasonDiv.style.cssText = 'font-size: 10px; color: var(--text-dim); margin-top: 3px; padding: 0 6px;';
-          reasonDiv.textContent = t.verdict.reasoning;
-          existing.appendChild(reasonDiv);
-        }
-      }
-    }
-  }
-
   _rendered.tweetCount = state.tweets.length;
+  container.scrollTop = container.scrollHeight;
 }
 
 function renderVault() {
