@@ -43,7 +43,7 @@ Compile a TZ schema document into ABI-encoded ProposalData.
         "constraints": [
           { "template": "budget-cap", "params": { "token": "0x...", "limit": "1000000" } }
         ],
-        "eligibilities": [
+        "incentives": [
           { "template": "staking", "params": { "token": "0x...", "minStake": "5000000000000000", "cooldownPeriod": 86400 } }
         ],
         "incentives": [],
