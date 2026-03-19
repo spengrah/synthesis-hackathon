@@ -95,7 +95,42 @@
 
 Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go away on real network deployment.
 
-### Day 4 (March 19): Bonfires + Integration polish
+### DONE (day 4 — March 19)
+
+**Viz suite — Leaderboard + Story:**
+- New `index.html` leaderboard: stats, sortable table, game/tweet feeds, live mode polling Ponder + tweet proxy + vault RPC
+- Story: 2 new scenes (mechanism template library, "What Else Is Possible?"), expanded zone cards, GenLayer note
+- Shared nav header across all 3 pages
+- `serve.ts` routing: `/` → leaderboard, `/dashboard`, `/story`
+
+**Dashboard enhancements:**
+- Basescan links for agreements, zones, agents, tx hashes throughout
+- X.com links for tweets, AgentProof.sh links for agentId
+- Actor section in zone cards (agent address + agentId linked to AgentProof)
+- Slashable Stake with SLASHED pill on adjudication (violator only)
+- Data API access event logged
+- Selective zone deactivation note in event log
+
+**Ponder txHash indexing:**
+- Added `txHash` field to proposal, trustZone, claim, reputationFeedback schemas
+- 4 handlers now store `event.log.transactionHash`
+- Dashboard queries and renders tx links from Ponder in live mode
+
+**x402 MCP server** (`packages/x402-service/`):
+- MCP server (not Express) wrapping compiler + SDK via `@x402/mcp`
+- 7 tools: compile, decompile, encode, decode_event, graphql, explain, ping
+- x402 payment gating toggleable via `REQUIRE_PAYMENT` env var
+- 22 unit tests passing
+- Verified working via MCP Inspector
+
+**Skills** (`packages/skill/`):
+- `trust-zones/SKILL.md` — protocol skill: MCP server tools, mechanism templates, example flows
+- `temptation-game/SKILL.md` — game skill: how to enter, requirements, rules, links
+
+**Staking categorization fix:**
+- Staking is Incentive (paramType Penalty), not Qualification — fixed across story, skill, x402 spec
+
+### Remaining (day 4): Bonfires
 
 **Bonfires integration:**
 - Bonfires team provisions bonfire, provides API key
@@ -104,19 +139,6 @@ Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go awa
 - Receipt logging: tweet proxy + data API → Bonfires episodes
 - Adjudicator queries: `/delve` for claim context
 - See `context-graph.md` for schema + API mapping
-- ~4-5h
-
-### Day 4 (March 19): x402 Service + CLI Skill
-
-**x402 service** (`packages/x402-service/`):
-- Express server wrapping compiler + SDK behind x402 payment gates
-- Endpoints: `/compile`, `/decompile`, `/encode/:inputId`, `/decode/event`, `/graphql` (Ponder proxy), `/explain`
-- `@x402/express` middleware, USDC on Base
-- Deploy to Railway alongside other services
-
-**Skills** (`packages/skill/`):
-- `trust-zones/SKILL.md` — protocol skill: MCP server tools, mechanism templates, example flows
-- `temptation-game/SKILL.md` — game skill: how to enter, requirements, rules, links
 
 ### Day 5 (March 20): Integration + Live Demo
 
