@@ -283,6 +283,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     );
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(clone.outcome(), keccak256("EXPIRED"));
@@ -360,6 +361,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     );
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
   }
 
@@ -384,6 +386,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     emit IAgreementEvents.ReputationFeedbackWritten(agentIdB, "EXPIRED", endpoint, expectedHash);
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
   }
 
@@ -406,6 +409,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     );
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
 
     // After close, getHatStatus should return false
@@ -421,6 +425,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     assertEq(registry.balanceOf(tz0, permissionTokenId), 1, "resource token should be minted before close");
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(clone.outcome(), keccak256("EXPIRED"));
@@ -455,6 +460,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     TrustZone zone = TrustZone(payable(tz0));
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(registry.balanceOf(tz0, permissionTokenId), 1, "resource token should remain held after close");
@@ -478,6 +484,7 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     bytes memory signature = abi.encodePacked(address(hatValidator), _sign(signerPkA, hash));
 
     vm.warp(clone.deadline() + 1);
+    vm.prank(partyA);
     clone.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(registry.balanceOf(tz0, permissionTokenId), 1, "resource token should remain held after close");

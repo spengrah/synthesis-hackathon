@@ -245,8 +245,8 @@ contract FullLifecycle_Expiry is IntegrationBase {
     // Warp past the deadline
     vm.warp(block.timestamp + Constants.DEFAULT_DEADLINE + 1);
 
-    // Anyone can finalize after deadline
-    vm.prank(observer);
+    // Either party can finalize after deadline
+    vm.prank(partyA);
     agr.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(agr.currentState(), AgreementTypes.CLOSED, "should be CLOSED after finalize");

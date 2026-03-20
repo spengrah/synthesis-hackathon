@@ -44,6 +44,18 @@ abstract contract TemptationTestBase is Test {
     vm.mockCall(registry, abi.encodeCall(IResourceTokenRegistry.tokenMetadata, (id)), abi.encode(metadata));
   }
 
+  /// @dev Mock REGISTRY.tokenMetadata with explicit expiry.
+  function _mockTokenMetadataWithExpiry(uint256 id, address temptationAddr, uint256 maxAmt, uint256 expiry) internal {
+    bytes memory metadata = abi.encode(
+      "vault-withdraw", // resource
+      maxAmt, // value
+      bytes32("total"), // period
+      expiry, // expiry
+      abi.encode(temptationAddr) // params
+    );
+    vm.mockCall(registry, abi.encodeCall(IResourceTokenRegistry.tokenMetadata, (id)), abi.encode(metadata));
+  }
+
   /// @dev Set up valid mocks for a successful withdrawal.
   function _mockValidWithdrawal() internal {
     _mockBalanceOf(caller, TOKEN_ID, 1);

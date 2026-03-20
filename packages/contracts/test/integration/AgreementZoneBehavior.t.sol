@@ -143,7 +143,7 @@ contract Agreement_ZoneBehavior is ForkTestBase {
 
   function _closeExpired(Agreement agr) internal {
     vm.warp(block.timestamp + Constants.DEFAULT_DEADLINE + 1);
-    vm.prank(observer);
+    vm.prank(partyA);
     agr.submitInput(AgreementTypes.FINALIZE, "");
   }
 

@@ -83,7 +83,7 @@ contract Agreement_ERC8004Compatibility is ForkTestBase {
     (Agreement agr,,) = _createActiveAgreementWithRealAgents(false);
 
     vm.warp(block.timestamp + Constants.DEFAULT_DEADLINE + 1);
-    vm.prank(observer);
+    vm.prank(partyA);
     agr.submitInput(AgreementTypes.FINALIZE, "");
 
     assertEq(agr.currentState(), AgreementTypes.CLOSED);

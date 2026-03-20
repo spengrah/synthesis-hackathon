@@ -172,7 +172,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     } else if (inputId == AgreementTypes.EXIT) {
       toState = _handleExit($, msg.sender, payload);
     } else if (inputId == AgreementTypes.FINALIZE) {
-      toState = _handleFinalize($);
+      toState = _handleFinalize($, msg.sender);
     } else {
       revert InvalidInput(inputId);
     }
@@ -457,6 +457,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     if (data.deadline <= block.timestamp) revert DeadlineReached(data.deadline);
 
     $._adjudicator = data.adjudicator;
+    if (data.adjudicator == $._parties[0] || data.adjudicator == $._parties[1]) {
+      revert PartyCannotBeAdjudicator(data.adjudicator);
+    }
     $._deadline = data.deadline;
 
     for (uint256 i = 0; i < 2; i++) {
@@ -905,8 +908,9 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     return AgreementTypes.ACTIVE;
   }
 
-  function _handleFinalize(AgreementStorage storage $) internal returns (bytes32) {
+  function _handleFinalize(AgreementStorage storage $, address caller) internal returns (bytes32) {
     _requireState($, AgreementTypes.ACTIVE);
+    _requireParty($, caller);
     if (block.timestamp < $._deadline) revert DeadlineNotReached($._deadline, block.timestamp);
 
     _close($, keccak256("EXPIRED"));

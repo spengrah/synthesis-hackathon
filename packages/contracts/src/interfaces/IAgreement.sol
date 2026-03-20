@@ -12,6 +12,7 @@ interface IAgreementErrors {
   error NotAParty(address caller);
   error NotYourTurn(address caller, address expected);
   error NotAdjudicator(address caller);
+  error PartyCannotBeAdjudicator(address adjudicator);
   error DeadlineNotReached(uint256 deadline, uint256 current);
   error DeadlineReached(uint256 deadline);
   error InvalidInput(bytes32 inputId);

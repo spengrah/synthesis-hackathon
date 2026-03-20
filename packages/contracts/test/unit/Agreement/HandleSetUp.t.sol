@@ -127,6 +127,39 @@ contract Agreement_handleSetUp is AgreementHarnessBase {
     harness.exposed_handleSetUp(partyA);
   }
 
+  // ─── Self-adjudication prevention
+  // ──────────────────────────────────────
+
+  function test_RevertIf_AdjudicatorIsPartyA() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    AgreementTypes.ProposalData memory data =
+      Defaults.proposalData(zones, partyA, block.timestamp + Constants.DEFAULT_DEADLINE);
+    bytes memory payload = abi.encode(data);
+
+    (AgreementHarness badHarness,) = _createHarnessCloneWithPayload(payload);
+    badHarness.exposed_handleAccept(partyB, payload);
+
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.PartyCannotBeAdjudicator.selector, partyA));
+    badHarness.exposed_handleSetUp(partyA);
+  }
+
+  function test_RevertIf_AdjudicatorIsPartyB() public {
+    TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](2);
+    zones[0] = Defaults.tzConfig(partyA, 0);
+    zones[1] = Defaults.tzConfig(partyB, 0);
+    AgreementTypes.ProposalData memory data =
+      Defaults.proposalData(zones, partyB, block.timestamp + Constants.DEFAULT_DEADLINE);
+    bytes memory payload = abi.encode(data);
+
+    (AgreementHarness badHarness,) = _createHarnessCloneWithPayload(payload);
+    badHarness.exposed_handleAccept(partyB, payload);
+
+    vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.PartyCannotBeAdjudicator.selector, partyB));
+    badHarness.exposed_handleSetUp(partyA);
+  }
+
   // ---- Local advance helpers ----
 
   function _advanceToAccepted() internal {

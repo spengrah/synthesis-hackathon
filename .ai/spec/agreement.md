@@ -184,7 +184,7 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 | ACTIVE | CLAIM | TBD — parties, registered observers, etc. |
 | ACTIVE | ADJUDICATE | Adjudicator only (`msg.sender == adjudicator`) |
 | ACTIVE | COMPLETE, EXIT | Either party (two-step mutual agreement) |
-| ACTIVE | FINALIZE | Anyone (if `block.timestamp >= deadline`) |
+| ACTIVE | FINALIZE | Either party (if `block.timestamp >= deadline`) |
 | CLOSED, REJECTED | — | No inputs accepted |
 
 ---
@@ -347,8 +347,9 @@ submitInput(EXIT, abi.encode(feedbackURI, feedbackHash))
 ```
 submitInput(FINALIZE, "")
 ```
-- Auth: anyone, but `block.timestamp >= deadline` required.
+- Auth: either party, and `block.timestamp >= deadline` required.
 - Agreement transitions to CLOSED with outcome `EXPIRED`.
+- Note: `IHatsToggle.getHatStatus()` already returns `false` after deadline, so zones are inert regardless. FINALIZE formalizes the state change and writes reputation feedback.
 
 ### CLOSED (terminal)
 
@@ -420,7 +421,7 @@ uint256[2] public zoneHatIds;
 uint256[2] public agentIds;          // from TZConfig, 0 = no 8004
 
 // Config
-address public adjudicator;
+address public adjudicator;           // must not be either party (validated during SET_UP)
 uint256 public deadline;
 
 // Mechanisms

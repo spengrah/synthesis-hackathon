@@ -17,6 +17,7 @@ contract Temptation {
   error InvalidTemptation(address expected, address actual);
   error InsufficientBalance(uint256 requested, uint256 available);
   error TransferFailed();
+  error PermissionExpired();
 
   // ─── Events
   // ───────────────────────────────────────────────────────
@@ -29,6 +30,7 @@ contract Temptation {
 
   IResourceTokenRegistry public immutable REGISTRY;
   address public owner;
+  mapping(uint256 => uint256) public cumulativeWithdrawn;
 
   // ─── Reentrancy lock
   // ──────────────────────────────────────────────
@@ -64,6 +66,9 @@ contract Temptation {
   /// @param amount The amount of ETH to withdraw.
   /// @param permissionTokenId The permission token ID authorising the withdrawal.
   function withdraw(uint256 amount, uint256 permissionTokenId) external nonReentrant {
+    // 0. Token must be a Permission type (0x01 encoded in low byte of token ID)
+    if (permissionTokenId & 0xFF != 1) revert NoPermissionToken();
+
     // 1. Caller holds the permission token
     if (REGISTRY.balanceOf(msg.sender, permissionTokenId) == 0) {
       revert NoPermissionToken();
@@ -73,9 +78,14 @@ contract Temptation {
     bytes memory metadata = REGISTRY.tokenMetadata(permissionTokenId);
     (, // string resource (unused)
       uint256 maxAmount,, // bytes32 period (unused)
-      , // uint256 expiry (unused)
+      uint256 expiry,
       bytes memory params
     ) = abi.decode(metadata, (string, uint256, bytes32, uint256, bytes));
+
+    // 2b. Check expiry (0 = no expiry per spec)
+    if (expiry != 0 && block.timestamp > expiry) {
+      revert PermissionExpired();
+    }
 
     address temptationAddr = abi.decode(params, (address));
 
@@ -84,9 +94,10 @@ contract Temptation {
       revert InvalidTemptation(address(this), temptationAddr);
     }
 
-    // 4. Enforce cap
-    if (amount > maxAmount) {
-      revert ExceedsPermittedAmount(amount, maxAmount);
+    // 4. Enforce cumulative cap
+    cumulativeWithdrawn[permissionTokenId] += amount;
+    if (cumulativeWithdrawn[permissionTokenId] > maxAmount) {
+      revert ExceedsPermittedAmount(cumulativeWithdrawn[permissionTokenId], maxAmount);
     }
 
     // 5. Sufficient balance

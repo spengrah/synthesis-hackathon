@@ -78,7 +78,7 @@ contract Agreement_getHatStatus is AgreementHarnessBase {
   function test_ReturnsFalse_GivenStateIsClosed() public {
     _advanceToActive();
     vm.warp(harness.deadline() + 1);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
     assertFalse(harness.getHatStatus(0));
   }
 

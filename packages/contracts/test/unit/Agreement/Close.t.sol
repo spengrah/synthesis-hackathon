@@ -14,13 +14,13 @@ contract Agreement_close is AgreementHarnessBase {
 
   function test_SetsStateToClosed() public {
     vm.warp(harness.deadline() + 1);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
     assertEq(harness.currentState(), AgreementTypes.CLOSED);
   }
 
   function test_StoresOutcome() public {
     vm.warp(harness.deadline() + 1);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
     assertEq(harness.outcome(), keccak256("EXPIRED"));
   }
 
@@ -30,7 +30,7 @@ contract Agreement_close is AgreementHarnessBase {
     uint256 hatId1 = harness.zoneHatIds(1);
 
     vm.warp(harness.deadline() + 1);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
 
     // After close, getHatStatus should return false
     assertFalse(harness.getHatStatus(hatId0));
@@ -41,14 +41,14 @@ contract Agreement_close is AgreementHarnessBase {
     vm.warp(harness.deadline() + 1);
     vm.expectEmit(true, false, false, false);
     emit IAgreementEvents.AgreementClosed(keccak256("EXPIRED"));
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
   }
 
   function test_EmitsAgreementStateChanged() public {
     vm.warp(harness.deadline() + 1);
     vm.expectEmit(true, true, false, false);
     emit IAgreementEvents.AgreementStateChanged(AgreementTypes.ACTIVE, AgreementTypes.CLOSED);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
   }
 
   function test_ClosedViaComplete_StoresCompletedOutcome() public {

@@ -120,6 +120,7 @@ contract Agreement_InputAccepted is AgreementHarnessBase {
 
     vm.expectEmit(true, true, true, false);
     emit IAgreementEvents.InputAccepted(AgreementTypes.ACTIVE, AgreementTypes.CLOSED, AgreementTypes.FINALIZE, "");
+    vm.prank(partyA);
     harness.submitInput(AgreementTypes.FINALIZE, "");
   }
 

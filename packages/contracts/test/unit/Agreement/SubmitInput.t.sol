@@ -17,6 +17,7 @@ contract Agreement_submitInput is AgreementHarnessBase {
   function test_RevertIf_StateIsClosed() public {
     _advanceToActive();
     vm.warp(harness.deadline() + 1);
+    vm.prank(partyA);
     harness.submitInput(AgreementTypes.FINALIZE, "");
 
     vm.expectRevert(abi.encodeWithSelector(IAgreementErrors.InvalidState.selector, AgreementTypes.CLOSED, bytes32(0)));

@@ -79,9 +79,9 @@ contract AgreementHarness is Agreement {
     return _handleExit($, caller, payload);
   }
 
-  function exposed_handleFinalize() external returns (bytes32) {
+  function exposed_handleFinalize(address caller) external returns (bytes32) {
     AgreementStorage storage $ = _getAgreementStorage();
-    return _handleFinalize($);
+    return _handleFinalize($, caller);
   }
 
   // ---- Setup + Activation internals ----

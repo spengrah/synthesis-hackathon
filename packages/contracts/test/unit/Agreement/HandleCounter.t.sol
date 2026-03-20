@@ -64,7 +64,7 @@ contract Agreement_handleCounter is AgreementHarnessBase {
     // Advance to active then finalize
     _advanceToActive();
     vm.warp(harness.deadline() + 1);
-    harness.exposed_handleFinalize();
+    harness.exposed_handleFinalize(partyA);
 
     // _handleCounter calls _requireNegotiating which reverts with InvalidState(CLOSED, PROPOSED)
     vm.expectRevert(
