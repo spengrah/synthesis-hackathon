@@ -15,7 +15,10 @@ export interface AdjudicatorConfig {
   rpcUrl: string;
   ponderUrl: string;
   privateKey: Hex;
-  llm: LLMConfig;
+  /** AI SDK LLM config — provide this OR generate, not both */
+  llm?: LLMConfig;
+  /** Direct generate function — bypasses AI SDK, use for claude-cli or mocks */
+  generate?: GenerateObjectFn;
   pollIntervalMs?: number;
   bonfiresUrl?: string;
   bonfiresApiKey?: string;
@@ -27,8 +30,18 @@ export async function startAdjudicator(
 ): Promise<{ stop: () => void }> {
   const chain = createChainClients(config.rpcUrl, config.privateKey);
   const ponder = createAgentPonderClient(config.ponderUrl);
-  const llm = createLLMClient(config.llm);
   const pollInterval = config.pollIntervalMs ?? 10_000;
+
+  // LLM: use provided generate function, or construct one from AI SDK config
+  const llm = config.llm ? createLLMClient(config.llm) : { provider: (() => "injected") as any, model: "injected" };
+  const generate: GenerateObjectFn = config.generate ?? (async (opts) => {
+    return generateObject({
+      model: opts.model,
+      schema: opts.schema,
+      system: opts.system,
+      prompt: opts.prompt,
+    });
+  });
 
   // Optional Bonfires integration for cross-tier evidence queries
   const bonfires = config.bonfiresUrl && config.bonfiresApiKey && config.bonfireId
@@ -40,15 +53,6 @@ export async function startAdjudicator(
     : null;
 
   let running = true;
-
-  const generate: GenerateObjectFn = async (opts) => {
-    return generateObject({
-      model: opts.model,
-      schema: opts.schema,
-      system: opts.system,
-      prompt: opts.prompt,
-    });
-  };
 
   async function tick() {
     try {
@@ -88,14 +92,36 @@ export async function startAdjudicator(
 
         let parsed: Record<string, unknown> = {};
         try {
-          parsed = JSON.parse(claim.evidence);
+          // Evidence is hex-encoded JSON — decode it
+          const evidenceStr = claim.evidence.startsWith("0x")
+            ? Buffer.from(claim.evidence.slice(2), "hex").toString("utf-8")
+            : claim.evidence;
+          parsed = JSON.parse(evidenceStr);
         } catch {
           parsed = { raw: claim.evidence };
         }
 
         // Extract typed evidence fields from decoded JSON
-        const vaultEvents = Array.isArray(parsed.vaultEvents) ? parsed.vaultEvents as { to: string; amount: string; txHash: string }[] : undefined;
-        const tweets = Array.isArray(parsed.tweets) ? parsed.tweets as { zone: string; content: string; tweetId: string }[] : undefined;
+        // Evidence may contain vaultEvents array or a single withdrawal object
+        let vaultEvents: { to: string; amount: string; txHash: string }[] | undefined;
+        if (Array.isArray(parsed.vaultEvents)) {
+          vaultEvents = parsed.vaultEvents as { to: string; amount: string; txHash: string }[];
+        } else if (parsed.withdrawal && typeof parsed.withdrawal === "object") {
+          const w = parsed.withdrawal as { zone?: string; to?: string; amount: string; txHash: string };
+          vaultEvents = [{ to: w.zone ?? w.to ?? "", amount: w.amount, txHash: w.txHash }];
+        }
+        // Evidence may contain tweets array or a single tweet object
+        let tweets: { zone: string; content: string; tweetId: string }[] | undefined;
+        if (Array.isArray(parsed.tweets)) {
+          tweets = parsed.tweets as { zone: string; content: string; tweetId: string }[];
+        } else if (Array.isArray(parsed.violations)) {
+          // Tweet violation evidence has a violations array
+          tweets = (parsed.violations as { tweetId: string; content?: string; zone?: string }[]).map((v) => ({
+            zone: v.zone ?? (parsed.zone as string) ?? "",
+            content: v.content ?? "",
+            tweetId: v.tweetId,
+          }));
+        }
 
         // Enrich with Bonfires cross-tier evidence if available
         let bonfiresEvidence: Record<string, unknown> | undefined;

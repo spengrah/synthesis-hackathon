@@ -27,22 +27,28 @@ async function gql<T>(
 
 const GET_UNADJUDICATED_CLAIMS = `
 query GetUnadjudicatedClaims {
-  claims(where: { verdict_is_null: true }) {
+  claims {
     items {
       id
       mechanismIndex
       evidence
+      verdict
       actionTypes
       adjudicatedAt
       claimant { address }
-      agreement { id adjudicator state }
+      agreement {
+        id
+        adjudicator
+        state
+        proposals { items { adjudicator sequence } }
+      }
       timestamp
     }
   }
 }`;
 
 const GET_ACTIVE_AGREEMENTS_FOR_PARTY = `
-query GetActiveAgreements($party: String!) {
+query GetActiveAgreements {
   agreements(where: { state: "ACTIVE" }) {
     items {
       id
@@ -155,8 +161,16 @@ export function createAgentPonderClient(ponderUrl: string): AgentPonderClient {
     return items
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((c: any) => {
+        // Only unadjudicated claims (verdict is null)
+        if (c.verdict !== null) return false;
         if (!adjudicatorAddress) return true;
-        return c.agreement?.adjudicator?.toLowerCase() === adjudicatorAddress.toLowerCase();
+        // Check agreement.adjudicator first, fall back to latest proposal's adjudicator
+        const agAdj = c.agreement?.adjudicator;
+        const proposals = c.agreement?.proposals?.items ?? [];
+        const latestProposal = proposals.sort((a: any, b: any) => b.sequence - a.sequence)[0];
+        const propAdj = latestProposal?.adjudicator;
+        const effectiveAdj = agAdj ?? propAdj;
+        return effectiveAdj?.toLowerCase() === adjudicatorAddress.toLowerCase();
       })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((c: any) => ({
@@ -167,7 +181,8 @@ export function createAgentPonderClient(ponderUrl: string): AgentPonderClient {
         adjudicatedAt: c.adjudicatedAt,
         claimantAddress: c.claimant?.address as Address,
         agreementAddress: c.agreement?.id as Address,
-        adjudicatorAddress: c.agreement?.adjudicator as Address,
+        adjudicatorAddress: (c.agreement?.adjudicator ??
+          c.agreement?.proposals?.items?.sort((a: any, b: any) => b.sequence - a.sequence)[0]?.adjudicator) as Address,
         agreementState: c.agreement?.state,
         timestamp: c.timestamp,
       }));

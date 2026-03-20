@@ -36,6 +36,8 @@ export interface CounterpartyConfig {
   vaultAddress: Address;
   tweetProxyUrl: string;
   llm?: LLMConfig;
+  /** Direct tweet evaluation function — bypasses createCliEvaluateTweets */
+  evaluateTweets?: EvaluateTweetsFn;
   pollIntervalMs?: number;
   bonfiresUrl?: string;
   bonfiresApiKey?: string;
@@ -51,9 +53,9 @@ export async function startCounterparty(
   const pollInterval = config.pollIntervalMs ?? 10_000;
   const registry = createDefaultRegistry();
 
-  const evaluateTweets = createCliEvaluateTweets();
+  const evaluateTweets = config.evaluateTweets ?? createCliEvaluateTweets();
   let running = true;
-  let lastCheckedBlock = 0n;
+  let lastCheckedBlock = await chain.public.getBlockNumber();
 
   // Loop 1: Watch for new proposals where this agent is partyB
   async function watchProposals() {

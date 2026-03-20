@@ -69,6 +69,25 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/cli:
+    dependencies:
+      '@slicekit/erc8128':
+        specifier: ^0.3.3
+        version: 0.3.3
+      viem:
+        specifier: ^2.28.0
+        version: 2.47.4(typescript@5.9.3)(zod@3.25.76)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/compiler:
     dependencies:
       '@trust-zones/sdk':
@@ -95,12 +114,18 @@ importers:
       '@trust-zones/agents':
         specifier: workspace:*
         version: link:../agents
+      '@trust-zones/bonfires':
+        specifier: workspace:*
+        version: link:../bonfires
       '@trust-zones/compiler':
         specifier: workspace:*
         version: link:../compiler
       '@trust-zones/sdk':
         specifier: workspace:*
         version: link:../sdk
+      '@trust-zones/x402-service':
+        specifier: workspace:*
+        version: link:../x402-service
       express:
         specifier: ^4.21.0
         version: 4.22.1
@@ -162,7 +187,7 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0(@types/node@22.19.15)(vite@8.0.0)
 
-  packages/tz-cli: {}
+  packages/skill: {}
 
   packages/viz: {}
 

@@ -1,10 +1,9 @@
-const PONDER_URL = process.env.PONDER_URL || "http://localhost:42069";
-
 export async function handleGraphql(args: {
   query: string;
   variables?: Record<string, unknown>;
 }): Promise<Record<string, unknown>> {
-  const res = await fetch(PONDER_URL, {
+  const ponderUrl = process.env.PONDER_URL || "http://localhost:42069";
+  const res = await fetch(ponderUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

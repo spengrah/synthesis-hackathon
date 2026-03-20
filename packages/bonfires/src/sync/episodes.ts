@@ -1,4 +1,4 @@
-import { ENTITY_TYPES, type CreateEpisodeRequest } from "../types.js";
+import type { CreateEpisodeRequest } from "../types.js";
 
 function toIso(timestamp: string | number): string {
   const ts = typeof timestamp === "string" ? Number(timestamp) : timestamp;
@@ -18,7 +18,6 @@ function episodeBase(
     source: "json",
     source_description: "ponder_indexer",
     reference_time: toIso(timestamp),
-    entity_types: [...ENTITY_TYPES],
   };
 }
 

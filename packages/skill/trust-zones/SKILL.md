@@ -1,107 +1,88 @@
 ---
 name: trust-zones
-description: Interact with the Trust Zones protocol — compile agreement schemas, encode transactions, query agreement state via the Trust Zones MCP server.
+description: Interact with the Trust Zones protocol — compile agreement schemas, encode transactions, query state, and authenticate as a zone.
 ---
 
 # Trust Zones
 
 Trust Zones is an interoperability standard for machine agreements. Constraints are explicit, enforcement is onchain, resources are at stake, disputes are adjudicated, and trust updates from every interaction.
 
-## MCP Server
+## Tooling
 
-The Trust Zones MCP server exposes protocol tools for compiling schemas, encoding transactions, and querying agreement state. Connect it to your agent:
+Your agent needs two things to interact with Trust Zones:
+
+### 1. Trust Zones MCP Server (remote, x402-gated)
+
+Protocol knowledge tools — compile schemas, encode transactions, query agreement state.
+
+Connect to the hosted server:
+```
+MCP server URL: TODO (hosted endpoint)
+```
+
+Or run locally (no payment required):
+```bash
+npx tsx packages/x402-service/src/server.ts
+```
+
+**Tools available:**
+
+| Tool | What it does |
+|------|-------------|
+| `compile` | Compile a TZSchemaDocument into ABI-encoded ProposalData |
+| `decompile` | Reverse compiled ProposalData into human-readable schema |
+| `encode` | Encode parameters into `submitInput()` calldata |
+| `decode_event` | Decode Agreement contract event logs |
+| `graphql` | Query the Ponder indexer for agreement state |
+| `explain` | Get a human-readable summary of an agreement |
+| `staking_info` | Get the eligibility module address and staking instructions for a zone |
+| `ping` | Health check |
+
+Valid `encode` actions: `propose`, `counter`, `accept`, `reject`, `withdraw`, `setup`, `activate`, `claim`, `adjudicate`, `complete`, `exit`, `finalize`.
+
+### 2. Trust Zones CLI (local, free)
+
+Execution utilities that run locally — signing and zone execution. These never touch your private key remotely.
 
 ```bash
-claude mcp add trust-zones -- npx tsx /path/to/packages/x402-service/src/server.ts
+npm install -g @trust-zones/cli   # or npx @trust-zones/cli <command>
+tz [command]
 ```
 
-Or with payment enabled (requires USDC on Base):
+**Commands:**
 
+| Command | What it does |
+|---------|-------------|
+| `sign-http` | Sign an HTTP request as a zone (ERC-8128) for tweet proxy, data API auth |
+| `prepare-tx` | Prepare calldata for executing a transaction through a zone account |
+
+**ERC-8128 signing example:**
 ```bash
-REQUIRE_PAYMENT=true TREASURY_ADDRESS=0x... claude mcp add trust-zones -- npx tsx /path/to/packages/x402-service/src/server.ts
+# Sign a tweet proxy request as your zone
+tz sign-http \
+  --zone 0xYourZoneAddress \
+  --url http://tweet-proxy.example.com/tweet \
+  --method POST \
+  --body '{"content":"Hello from the Temptation Game!"}' \
+  --private-key $PRIVATE_KEY \
+  --rpc-url https://base-mainnet.g.alchemy.com/v2/...
+
+# Returns: { headers, url } — attach headers to your HTTP request
 ```
 
-## Available Tools
+**Zone execution example:**
+```bash
+# Prepare a vault withdrawal through your zone
+tz prepare-tx \
+  --zone 0xYourZoneAddress \
+  --to 0xVaultAddress \
+  --value 0 \
+  --data 0x...  # encoded withdraw(amount, permissionTokenId)
 
-### `compile`
-Compile a Trust Zones schema document into ABI-encoded ProposalData.
-
-```json
-{
-  "tzSchemaDoc": {
-    "version": "0.1.0",
-    "zones": [
-      {
-        "actor": { "address": "0x1234...", "agentId": 1 },
-        "maxActors": 1,
-        "description": "Zone A — data provider",
-        "constraints": [
-          { "template": "budget-cap", "params": { "token": "0x...", "limit": "1000000" } }
-        ],
-        "incentives": [
-          { "template": "staking", "params": { "token": "0x...", "minStake": "1000000", "cooldownPeriod": 86400 } }
-        ],
-        "permissions": [
-          { "resource": "/market-data", "value": 10, "period": "hour" }
-        ],
-        "responsibilities": [
-          { "obligation": "Provide data with 99% uptime" }
-        ],
-        "directives": [
-          { "rule": "Do not redistribute data", "severity": "severe" }
-        ]
-      }
-    ],
-    "adjudicator": { "template": "stub-adjudicator" },
-    "deadline": 1710700000
-  }
-}
+# Returns: { to, data, value } — submit with your wallet (cast send, etc.)
 ```
 
-Returns `{ proposalData: "0x...", termsHash: "0x..." }`.
-
-### `decompile`
-Reverse a compiled ProposalData back into a human-readable schema.
-
-### `encode`
-Encode parameters into `submitInput()` calldata for an Agreement contract.
-
-Valid `inputId` values: `propose`, `counter`, `accept`, `reject`, `withdraw`, `setup`, `activate`, `claim`, `adjudicate`, `complete`, `exit`, `finalize`.
-
-Example — encode a propose:
-```json
-{ "inputId": "propose", "params": { "termsDocUri": "ipfs://...", "zones": [...], "adjudicator": "0x...", "deadline": 1710700000 } }
-```
-
-Example — encode a claim:
-```json
-{ "inputId": "claim", "params": { "mechanismIndex": 0, "evidence": "0x..." } }
-```
-
-Returns `{ inputId: "0x...", payload: "0x...", calldata: "0x..." }` where `calldata` is ready to submit as transaction data.
-
-### `decode_event`
-Decode an Agreement contract event log into structured data.
-
-### `graphql`
-Query the Trust Zones Ponder indexer for agreement state, zones, permissions, directives, claims, proposals, reputation feedback, and transaction hashes.
-
-Example:
-```json
-{
-  "query": "{ agreements(limit: 5) { items { id state outcome trustZones { items { id active } } } } }"
-}
-```
-
-### `explain`
-Get a human-readable summary of an agreement's current state.
-
-```json
-{ "agreement": "0xF6cFFBe062162120FDf6b0De81824F7b56410544" }
-```
-
-### `ping`
-Health check. Returns server version and available tools.
+The CLI reads the zone's HatValidator address onchain, signs the message with your EOA, and prefixes the signature for ERC-7579 routing — all locally.
 
 ## Mechanism Templates
 
@@ -120,32 +101,26 @@ The compiler supports 8 mechanism templates:
 
 ## Example Flow: Create an Agreement
 
-1. **Compile** a schema document into ProposalData
-2. **Encode** a `propose` input with the ProposalData
-3. Submit the calldata to the Agreement contract on Base
-4. Wait for counterparty to **encode** a `counter` or `accept`
-5. Both parties **encode** `setup` then `activate`
-6. Use **graphql** or **explain** to monitor agreement state
+1. **Compile** a schema document into ProposalData (MCP `compile`)
+2. **Encode** a `propose` input (MCP `encode`)
+3. Submit the calldata to AgreementRegistry on Base (your wallet)
+4. Wait for counterparty to `counter` or `accept` (MCP `graphql` to poll)
+5. **Encode** `setup` then `activate` (MCP `encode`, your wallet submits)
+6. Act within your zone — use CLI `sign-request` for authenticated HTTP requests
 7. On completion, **encode** `complete` with reputation feedback
 
-## Payment
+## Contracts (Base Mainnet)
 
-When payment is enabled, tools cost $0.005–$0.01 per call in USDC on Base via the x402 protocol. Use `@x402/fetch` or `@x402/mcp` client to handle payments automatically:
-
-```typescript
-import { wrapFetchWithPaymentFromConfig } from "@x402/fetch";
-import { ExactEvmScheme } from "@x402/evm";
-import { privateKeyToAccount } from "viem/accounts";
-
-const account = privateKeyToAccount(process.env.PRIVATE_KEY);
-const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [{ network: "eip155:8453", client: new ExactEvmScheme(account) }],
-});
-```
+| Contract | Address |
+|----------|---------|
+| AgreementRegistry | TODO |
+| ResourceTokenRegistry | TODO |
+| Hats Protocol | 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137 |
 
 ## Links
 
 - Protocol: https://github.com/trust-zones
-- Explorer: https://basescan.org
+- Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
 - ERC-8004 Identity: https://agentproof.sh
 - x402 Protocol: https://x402.org
+- Ponder GraphQL: TODO

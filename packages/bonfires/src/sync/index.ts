@@ -1,6 +1,6 @@
 import { BonfiresClient } from "../client.js";
 import { UuidRegistry } from "../uuid-registry.js";
-import { fetchPonderSnapshot, type PonderSnapshot, type PonderTypedEntities } from "./queries.js";
+import { fetchPonderSnapshot, type PonderSnapshot, type PonderAgreement, type PonderTypedEntities } from "./queries.js";
 import {
   buildAgreementEntity,
   buildActorEntity,
@@ -33,18 +33,32 @@ import {
   agreementClosedEpisode,
 } from "./episodes.js";
 import { Differ, type SyncChangeset } from "./differ.js";
-import type { CreateEdgeRequest } from "../types.js";
+import type { CreateEdgeRequest, CreateEpisodeRequest } from "../types.js";
+
+// ─── Typed entity kinds ─────────────────────────────────────────
+
+const TYPED_KINDS: [keyof PonderTypedEntities, TypedEntityKind][] = [
+  ["permissions", "Permission"],
+  ["responsibilitys", "Responsibility"],
+  ["directives", "Directive"],
+  ["constraints", "Constraint"],
+  ["eligibilitys", "Eligibility"],
+  ["incentives", "Incentive"],
+  ["decisionModels", "DecisionModel"],
+  ["principalAlignments", "PrincipalAlignment"],
+];
 
 // ─── Sync orchestrator ──────────────────────────────────────────
 
 async function syncEntities(
   client: BonfiresClient,
   registry: UuidRegistry,
-  snapshot: PonderSnapshot,
+  agreements: PonderAgreement[],
+  typedEntities: Map<string, PonderTypedEntities>,
 ) {
-  // 1. Actors — collect unique actors from all agreements
+  // 1. Actors — collect unique actors from changed agreements
   const actors = new Map<string, { id: string; address: string; agentId?: string }>();
-  for (const agr of snapshot.agreements) {
+  for (const agr of agreements) {
     for (const party of agr.agreementParties.items) {
       actors.set(party.actor.id, party.actor);
     }
@@ -61,100 +75,80 @@ async function syncEntities(
       if (fb.actor) actors.set(fb.actor.id, fb.actor);
     }
   }
-  for (const actor of actors.values()) {
-    await registry.ensureEntity(client, buildActorEntity(actor));
-  }
+  await Promise.all(
+    [...actors.values()].map((a) => registry.ensureEntity(client, buildActorEntity(a))),
+  );
 
   // 2. Agreements
-  for (const agr of snapshot.agreements) {
-    await registry.ensureEntity(client, buildAgreementEntity(agr));
-  }
+  await Promise.all(
+    agreements.map((agr) => registry.ensureEntity(client, buildAgreementEntity(agr))),
+  );
 
   // 3. Proposals
-  for (const agr of snapshot.agreements) {
-    for (const prop of agr.proposals.items) {
-      await registry.ensureEntity(client, buildProposalEntity(prop, agr.id));
-    }
-  }
+  await Promise.all(
+    agreements.flatMap((agr) =>
+      agr.proposals.items.map((prop) => registry.ensureEntity(client, buildProposalEntity(prop, agr.id))),
+    ),
+  );
 
   // 4. Trust Zones
-  for (const agr of snapshot.agreements) {
-    for (const zone of agr.trustZones.items) {
-      await registry.ensureEntity(client, buildTrustZoneEntity(zone, agr.id));
-    }
-  }
+  await Promise.all(
+    agreements.flatMap((agr) =>
+      agr.trustZones.items.map((zone) => registry.ensureEntity(client, buildTrustZoneEntity(zone, agr.id))),
+    ),
+  );
 
   // 5. Typed entities
-  for (const agr of snapshot.agreements) {
-    const typed = snapshot.typedEntities.get(agr.id);
-    if (!typed) continue;
-
-    const kinds: [keyof PonderTypedEntities, TypedEntityKind][] = [
-      ["permissions", "Permission"],
-      ["responsibilitys", "Responsibility"],
-      ["directives", "Directive"],
-      ["constraints", "Constraint"],
-      ["eligibilitys", "Eligibility"],
-      ["incentives", "Incentive"],
-      ["decisionModels", "DecisionModel"],
-      ["principalAlignments", "PrincipalAlignment"],
-    ];
-
-    for (const [key, kind] of kinds) {
-      for (const entity of typed[key].items) {
-        await registry.ensureEntity(client, buildTypedEntity(kind, entity));
-      }
-    }
-  }
+  await Promise.all(
+    agreements.flatMap((agr) => {
+      const typed = typedEntities.get(agr.id);
+      if (!typed) return [];
+      return TYPED_KINDS.flatMap(([key, kind]) =>
+        typed[key].items.map((entity) => registry.ensureEntity(client, buildTypedEntity(kind, entity))),
+      );
+    }),
+  );
 
   // 6. Claims
-  for (const agr of snapshot.agreements) {
-    for (const claim of agr.claims.items) {
-      await registry.ensureEntity(client, buildClaimEntity(claim, agr.id));
-    }
-  }
+  await Promise.all(
+    agreements.flatMap((agr) =>
+      agr.claims.items.map((claim) => registry.ensureEntity(client, buildClaimEntity(claim, agr.id))),
+    ),
+  );
 
   // 7. Reputation feedback
-  for (const agr of snapshot.agreements) {
-    for (const fb of agr.reputationFeedbacks.items) {
-      await registry.ensureEntity(client, buildFeedbackEntity(fb, agr.id));
-    }
-  }
+  await Promise.all(
+    agreements.flatMap((agr) =>
+      agr.reputationFeedbacks.items.map((fb) => registry.ensureEntity(client, buildFeedbackEntity(fb, agr.id))),
+    ),
+  );
 }
 
 async function syncEdges(
   client: BonfiresClient,
   registry: UuidRegistry,
-  snapshot: PonderSnapshot,
+  agreements: PonderAgreement[],
+  typedEntities: Map<string, PonderTypedEntities>,
 ) {
   const ctx: EdgeContext = { registry, groupId: client.bonfireId };
   const edges: (CreateEdgeRequest | null)[] = [];
 
-  for (const agr of snapshot.agreements) {
-    // Agreement ↔ parties
+  for (const agr of agreements) {
     for (const party of agr.agreementParties.items) {
       edges.push(partyOfEdge(ctx, party.actor.id, agr.id));
     }
-
-    // Agreement ↔ zones
     for (const zone of agr.trustZones.items) {
       edges.push(agreementZoneEdge(ctx, agr.id, zone.id));
       edges.push(operatesEdge(ctx, zone.actorId, zone.id));
     }
-
-    // Agreement ↔ proposals
     for (const prop of agr.proposals.items) {
       edges.push(proposalInEdge(ctx, prop.id, agr.id));
       edges.push(proposedByEdge(ctx, prop.id, prop.proposer.id));
     }
-
-    // Agreement ↔ claims
     for (const claim of agr.claims.items) {
       edges.push(claimInEdge(ctx, claim.id, agr.id));
       edges.push(filedByEdge(ctx, claim.id, claim.claimant.id));
     }
-
-    // Agreement ↔ feedback
     for (const fb of agr.reputationFeedbacks.items) {
       edges.push(feedbackInEdge(ctx, fb.id, agr.id));
       if (fb.actor) {
@@ -162,22 +156,10 @@ async function syncEdges(
       }
     }
 
-    // Typed entity edges
-    const typed = snapshot.typedEntities.get(agr.id);
+    const typed = typedEntities.get(agr.id);
     if (!typed) continue;
 
-    const kinds: [keyof PonderTypedEntities, TypedEntityKind][] = [
-      ["permissions", "Permission"],
-      ["responsibilitys", "Responsibility"],
-      ["directives", "Directive"],
-      ["constraints", "Constraint"],
-      ["eligibilitys", "Eligibility"],
-      ["incentives", "Incentive"],
-      ["decisionModels", "DecisionModel"],
-      ["principalAlignments", "PrincipalAlignment"],
-    ];
-
-    for (const [key, kind] of kinds) {
+    for (const [key, kind] of TYPED_KINDS) {
       for (const entity of typed[key].items) {
         if (entity.trustZoneId) {
           edges.push(deployedEntityEdge(ctx, kind, entity.id, entity.trustZoneId));
@@ -189,16 +171,15 @@ async function syncEdges(
     }
   }
 
-  // Create all edges (skip nulls — missing UUIDs)
-  for (const e of edges) {
-    if (!e) continue;
-    try {
-      await client.createEdge(e);
-    } catch (err) {
-      // Edges may already exist — Bonfires should deduplicate, but log just in case
-      console.warn(`[bonfires-sync] edge warning: ${(err as Error).message}`);
-    }
-  }
+  await Promise.all(
+    edges
+      .filter((e): e is CreateEdgeRequest => e !== null)
+      .map((e) =>
+        registry.ensureEdge(client, e).catch((err) => {
+          console.warn(`[bonfires-sync] edge warning: ${(err as Error).message}`);
+        }),
+      ),
+  );
 }
 
 async function syncEpisodes(
@@ -207,55 +188,30 @@ async function syncEpisodes(
   changes: SyncChangeset,
 ) {
   const bonfireId = client.bonfireId;
+  const episodes: CreateEpisodeRequest[] = [];
 
   // State transitions
   for (const st of changes.stateTransitions) {
-    try {
-      await client.createEpisode(
-        stateTransitionEpisode(bonfireId, st.agreementId, st.fromState, st.toState, st.timestamp),
-      );
-    } catch (err) {
-      console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
-    }
+    episodes.push(stateTransitionEpisode(bonfireId, st.agreementId, st.fromState, st.toState, st.timestamp));
   }
 
-  // New proposals
+  // New proposals (on full sync)
   if (changes.isFullSync) {
     for (const agr of snapshot.agreements) {
       for (const prop of agr.proposals.items) {
-        try {
-          await client.createEpisode(
-            proposalEpisode(bonfireId, prop.id, agr.id, prop.proposer.address, prop.sequence, prop.timestamp),
-          );
-        } catch (err) {
-          console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
-        }
+        episodes.push(proposalEpisode(bonfireId, prop.id, agr.id, prop.proposer.address, prop.sequence, prop.timestamp));
       }
     }
   }
 
-  // New claims
+  // New claims + adjudications
   for (const agr of snapshot.agreements) {
     for (const claim of agr.claims.items) {
       if (changes.newClaimIds.has(claim.id)) {
-        try {
-          await client.createEpisode(
-            claimFiledEpisode(bonfireId, claim.id, agr.id, claim.claimant.address, claim.timestamp),
-          );
-        } catch (err) {
-          console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
-        }
+        episodes.push(claimFiledEpisode(bonfireId, claim.id, agr.id, claim.claimant.address, claim.timestamp));
       }
-
-      // Adjudicated claims
       if (changes.adjudicatedClaimIds.has(claim.id) && claim.adjudicatedAt) {
-        try {
-          await client.createEpisode(
-            adjudicationEpisode(bonfireId, claim.id, agr.id, claim.verdict!, claim.actionTypes, claim.adjudicatedAt),
-          );
-        } catch (err) {
-          console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
-        }
+        episodes.push(adjudicationEpisode(bonfireId, claim.id, agr.id, claim.verdict!, claim.actionTypes, claim.adjudicatedAt));
       }
     }
   }
@@ -263,15 +219,17 @@ async function syncEpisodes(
   // Closed agreements
   for (const agr of snapshot.agreements) {
     if (changes.closedAgreementIds.has(agr.id) && agr.closedAt && agr.outcome) {
-      try {
-        await client.createEpisode(
-          agreementClosedEpisode(bonfireId, agr.id, agr.outcome, agr.closedAt),
-        );
-      } catch (err) {
-        console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
-      }
+      episodes.push(agreementClosedEpisode(bonfireId, agr.id, agr.outcome, agr.closedAt));
     }
   }
+
+  await Promise.all(
+    episodes.map((ep) =>
+      client.createEpisode(ep).catch((err) => {
+        console.warn(`[bonfires-sync] episode warning: ${(err as Error).message}`);
+      }),
+    ),
+  );
 }
 
 // ─── Main loop ──────────────────────────────────────────────────
@@ -305,20 +263,31 @@ export async function startSync(config: SyncConfig): Promise<{ stop: () => void 
       const snapshot = await fetchPonderSnapshot(config.ponderUrl);
       const changes = differ.diff(snapshot);
 
-      const entityCount = snapshot.agreements.length;
-      if (entityCount === 0) {
-        return; // Nothing to sync
+      if (snapshot.agreements.length === 0) {
+        return;
+      }
+
+      // Filter to only agreements that changed
+      const changed = snapshot.agreements.filter((a) => changes.changedAgreementIds.has(a.id));
+
+      if (changed.length === 0 && changes.stateTransitions.length === 0) {
+        return; // Nothing changed
       }
 
       console.log(
-        `[bonfires-sync] tick: ${entityCount} agreements, ` +
-        `${changes.newAgreementIds.size} new, ` +
+        `[bonfires-sync] tick: ${snapshot.agreements.length} agreements, ` +
+        `${changed.length} changed, ` +
         `${changes.stateTransitions.length} state changes, ` +
         `${changes.newClaimIds.size} new claims`,
       );
 
-      await syncEntities(client, registry, snapshot);
-      await syncEdges(client, registry, snapshot);
+      // Only sync entities/edges for changed agreements
+      if (changed.length > 0) {
+        await syncEntities(client, registry, changed, snapshot.typedEntities);
+        await syncEdges(client, registry, changed, snapshot.typedEntities);
+      }
+
+      // Episodes are already filtered by the changeset
       await syncEpisodes(client, snapshot, changes);
       await registry.save();
     } catch (err) {

@@ -7,6 +7,7 @@ import { handleEncode } from "./tools/encode.js";
 import { handleDecodeEvent } from "./tools/decode.js";
 import { handleGraphql } from "./tools/graphql.js";
 import { handleExplain } from "./tools/explain.js";
+import { handleStakingInfo } from "./tools/staking.js";
 
 const REQUIRE_PAYMENT = process.env.REQUIRE_PAYMENT === "true" || process.env.REQUIRE_PAYMENT === "1";
 
@@ -139,6 +140,16 @@ async function main() {
   );
 
   server.tool(
+    "staking_info",
+    "Get the eligibility module address and staking instructions for your zone in an agreement. Call this after setup to know where to stake.",
+    {
+      agreement: z.string().describe("Agreement contract address (0x...)"),
+      agentAddress: z.string().describe("Your agent's EOA address (0x...)"),
+    },
+    wrap(handleStakingInfo, paidGraphql),
+  );
+
+  server.tool(
     "ping",
     "Health check. Returns server version and available tools.",
     {},
@@ -147,7 +158,7 @@ async function main() {
         server: "trust-zones",
         version: "0.1.0",
         payment: REQUIRE_PAYMENT ? "enabled" : "disabled",
-        tools: ["compile", "decompile", "encode", "decode_event", "graphql", "explain", "ping"],
+        tools: ["compile", "decompile", "encode", "decode_event", "graphql", "explain", "staking_info", "ping"],
       }),
   );
 

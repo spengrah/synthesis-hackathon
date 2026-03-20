@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/server.ts",
+    "./tools/staking": "./src/tools/staking.ts"
+  },
   "scripts": {
     "start": "tsx src/server.ts"
   },

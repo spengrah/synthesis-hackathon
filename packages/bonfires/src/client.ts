@@ -28,12 +28,18 @@ export class BonfiresClient {
   }
 
   private async request<T>(path: string, body: unknown): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.apiKey}`,
+      "X-Bonfire-Id": this.bonfireId,
+    };
+    if (this.agentId) {
+      headers["X-Agent-Id"] = this.agentId;
+    }
+
     const res = await fetch(`${this.apiUrl}${path}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -55,21 +61,21 @@ export class BonfiresClient {
       bonfire_id: req.bonfire_id ?? this.bonfireId,
       agent_id: req.agent_id ?? this.agentId,
     };
-    const result = await this.request<{ success: boolean; entity: { uuid: string } }>(
+    const result = await this.request<{ success: boolean; uuid: string }>(
       "/knowledge_graph/entity",
       body,
     );
-    return { uuid: result.entity.uuid };
+    return { uuid: result.uuid };
   }
 
   async createEdge(
     req: CreateEdgeRequest,
   ): Promise<{ uuid: string }> {
-    const result = await this.request<{ success: boolean; edge: { uuid: string } }>(
+    const result = await this.request<{ success: boolean; edge_uuid: string }>(
       "/knowledge_graph/edge",
       req,
     );
-    return { uuid: result.edge.uuid };
+    return { uuid: result.edge_uuid };
   }
 
   async createEpisode(

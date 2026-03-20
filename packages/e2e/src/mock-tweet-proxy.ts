@@ -5,6 +5,7 @@ export interface TweetRecord {
   zone: string;
   content: string;
   tweetId: string;
+  url: string;
   timestamp: number;
 }
 
@@ -18,8 +19,10 @@ export class MockTweetProxy {
   private server: Server | null = null;
   private tweets: TweetRecord[] = [];
   private nextTweetId = 1;
+  private onTweet: ((record: TweetRecord) => void) | undefined;
 
-  constructor() {
+  constructor(opts?: { onTweet?: (record: TweetRecord) => void }) {
+    this.onTweet = opts?.onTweet;
     this.app = express();
     this.app.use(express.json());
     this.setupRoutes();
@@ -47,20 +50,25 @@ export class MockTweetProxy {
 
     // Mock: accept any zone with a keyid header.
     // Real version queries Ponder for tweet-post permission.
+    const tweetId = `mock-${this.nextTweetId++}`;
+    const url = `https://x.com/TrustZonesBot/status/${tweetId}`;
     const tweet: TweetRecord = {
       zone: keyId,
       content,
-      tweetId: `mock-${this.nextTweetId++}`,
+      tweetId,
+      url,
       timestamp: Date.now(),
     };
 
     this.tweets.push(tweet);
     console.log(`[mock-tweet] ${keyId} posted: "${content.slice(0, 80)}..."`);
 
-    res.status(201).json({
-      tweetId: tweet.tweetId,
-      url: `https://x.com/TrustZonesBot/status/${tweet.tweetId}`,
-    });
+    // Fire-and-forget receipt callback
+    if (this.onTweet) {
+      try { this.onTweet(tweet); } catch { /* don't block response */ }
+    }
+
+    res.status(201).json({ tweetId, url });
   }
 
   getTweets(): TweetRecord[] {

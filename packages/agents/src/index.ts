@@ -28,3 +28,4 @@ export { createClaudeCliGenerate } from "./shared/claude-cli.js";
 export { createTwitterClient, createTwitterClientFromEnv } from "./shared/twitter.js";
 export type { TwitterClient } from "./shared/twitter.js";
 export { createZoneSignerClient } from "./shared/erc8128.js";
+export { TrustZonesAgent, type TrustZonesAgentConfig } from "./tz-agent/index.js";

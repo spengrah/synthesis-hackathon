@@ -2,6 +2,8 @@ import { resolve } from "node:path";
 import { config as loadEnv } from "dotenv";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
+// Load shared env vars (Bonfires, RPC) from repo root
+loadEnv({ path: resolve(import.meta.dirname, "../../../.env") });
 // Load X credentials from agents/.env when REAL_TWEETS=1
 if (process.env.REAL_TWEETS === "1") {
   loadEnv({ path: resolve(import.meta.dirname, "../../agents/.env") });
@@ -52,6 +54,9 @@ import {
   type MonitorConfig,
   type EvaluateTweetsFn,
 } from "@trust-zones/agents";
+
+import { BonfiresClient, createReceiptLogger } from "@trust-zones/bonfires";
+import { startSync, type SyncConfig } from "@trust-zones/bonfires/sync";
 
 import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC, PRE_DEPLOYED } from "../src/constants.js";
 import { deploy, type DeployedContracts } from "../src/deploy.js";
@@ -338,6 +343,7 @@ describe("Reciprocal Demo E2E", () => {
   let agreementAddress: Address;
   let counterPayload: Hex;
   let withdrawalBlockNumber: bigint;
+  let bonfiresSync: { stop: () => void } | null = null;
 
   const deadline = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
   const requestedWithdrawalLimit = 2_000_000_000_000_000n;
@@ -367,12 +373,23 @@ describe("Reciprocal Demo E2E", () => {
 
     backend = createBackend(ponder.url);
 
+    // Wire Bonfires receipt logging if env vars are present
+    const bonfiresUrl = process.env.BONFIRES_API_URL;
+    const bonfiresKey = process.env.BONFIRES_API_KEY;
+    const bonfireId = process.env.BONFIRES_BONFIRE_ID;
+    let onTweet: ((record: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
+    if (bonfiresUrl && bonfiresKey && bonfireId) {
+      const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
+      const logReceipt = createReceiptLogger(bfClient);
+      onTweet = (record) => { logReceipt(record); };
+    }
+
     if (USE_REAL_TWEETS) {
       tweetProxy = createTweetProxyFromEnv(publicClient as any);
       await tweetProxy.start(TWEET_PROXY_PORT);
       tx.result("Real tweet proxy started", { port: TWEET_PROXY_PORT });
     } else {
-      tweetProxy = new MockTweetProxy();
+      tweetProxy = new MockTweetProxy({ onTweet });
       await tweetProxy.start(TWEET_PROXY_PORT);
       tx.result("Mock tweet proxy started", { port: TWEET_PROXY_PORT });
     }
@@ -380,10 +397,25 @@ describe("Reciprocal Demo E2E", () => {
     dataApi = new MockDataApi();
     await dataApi.start(DATA_API_PORT);
     tx.result("Mock data API started", { port: DATA_API_PORT });
+
+    // Start Bonfires sync service if configured
+    if (bonfiresUrl && bonfiresKey && bonfireId) {
+      bonfiresSync = await startSync({
+        ponderUrl: ponder.url,
+        bonfiresUrl,
+        apiKey: bonfiresKey,
+        bonfireId,
+        agentId: process.env.BONFIRES_AGENT_ID,
+        pollIntervalMs: 2_000,
+        uuidFilePath: resolve(import.meta.dirname, "../../../packages/bonfires/.bonfires-uuids.json"),
+      });
+      tx.result("Bonfires sync service started", { ponderUrl: ponder.url, bonfiresUrl });
+    }
   }, 120_000);
 
   afterAll(async () => {
     tx.save("reciprocal-demo-transcript.md");
+    bonfiresSync?.stop();
     await tweetProxy?.stop();
     await dataApi?.stop();
     await ponder?.stop();

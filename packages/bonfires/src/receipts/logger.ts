@@ -1,5 +1,4 @@
 import type { BonfiresClient } from "../client.js";
-import { ENTITY_TYPES } from "../types.js";
 
 export interface TweetReceipt {
   zone: string;
@@ -25,7 +24,6 @@ export function createReceiptLogger(client: BonfiresClient) {
         source: "json",
         source_description: "tweet_proxy_receipt",
         reference_time: new Date(receipt.timestamp).toISOString(),
-        entity_types: [...ENTITY_TYPES],
       });
     } catch (err) {
       console.error(`[bonfires] Failed to log tweet receipt ${receipt.tweetId}:`, err);

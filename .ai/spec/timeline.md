@@ -86,11 +86,12 @@
 
 | Gap | Current state | Fix |
 |-----|---------------|-----|
+| ERC-8128 zone auth | `bad_signature` — TrustZone doesn't implement ERC-1271 | Implement `isValidSignature` on TrustZone or HatValidator |
 | agentId | Hardcoded `0` | Use unique ID per agent (ENS, EOA address) |
 | Reputation query | `{ count: 0 }` hardcoded | Query ERC-8004 registry for prior agreement history |
 | Vault funding | `testClient.setBalance()` (Anvil cheat) | Real ETH deposit via `temptation.deposit()` |
 | USDC balances | `testClient.setStorageAt()` (Anvil cheat) | Real USDC from faucet/transfer |
-| Bonfires receipts | Not implemented | Tweet proxy + data API → Bonfires episodes |
+| ~~Bonfires receipts~~ | ~~Not implemented~~ | **DONE** — tweet proxy → Bonfires episodes, sync service, adjudicator cross-tier queries |
 | Network | Anvil fork (local) | Base Sepolia or mainnet |
 
 Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go away on real network deployment.
@@ -130,22 +131,53 @@ Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go awa
 **Staking categorization fix:**
 - Staking is Incentive (paramType Penalty), not Qualification — fixed across story, skill, x402 spec
 
-### Remaining (day 4): Bonfires
+### DONE (day 4 continued — March 19-20): Bonfires
 
-**Bonfires integration:**
-- Bonfires team provisions bonfire, provides API key
-- `packages/bonfires-client/`: shared client for entities, edges, episodes, delve
-- Ponder → Bonfires sync service
-- Receipt logging: tweet proxy + data API → Bonfires episodes
-- Adjudicator queries: `/delve` for claim context
-- See `context-graph.md` for schema + API mapping
+**Bonfires integration** (`packages/bonfires/`):
+- Bonfire provisioned: `trust-zone-agreements` (slug: `trust-zones`), API key in root `.env`
+- `BonfiresClient`: HTTP wrapper with `X-Bonfire-Id` + `X-Agent-Id` headers, all endpoints (entity, edge, episode, delve, expand, agents)
+- `UuidRegistry`: entity name→UUID map + edge dedup set, persisted to `.bonfires-uuids.json`, concurrent-safe via in-flight dedup
+- **Sync service** (`src/sync/`): Ponder GraphQL → Bonfires knowledge graph
+  - Incremental diff: only syncs agreements with changes (new entities, state transitions, claims, feedback)
+  - Parallel entity/edge creation within each tier
+  - Edge dedup: tracks created edges, skips re-posting
+  - 14 entity builders, 18 edge builders, 5 episode builders
+  - No `entity_types` on episodes (prevents Graphiti auto-extraction noise)
+- **Receipt logging** (`src/receipts/`): `createReceiptLogger()` for tweet proxy — direct push to Bonfires episodes
+- **Adjudicator queries** (`src/queries/`): `getAdjudicationContext()` — parallel `/delve` for tweet receipts, directives, evidence
+- **Wired into tests**: all 3 E2E tests (reciprocal-demo, reputation-game, sync-timing) start sync service + receipt logger when `BONFIRES_*` env vars present
+- data-apis deprecated from scope — receipt logging via tweet proxy only
 
-### Day 5 (March 20): Integration + Live Demo
+### DONE (day 5 — March 20): Integration
 
-**Integration testing:**
-- Full reputation game flow with all real components (8128, Bonfires, LLM adjudicator + counterparty, real tweets)
-- Fix integration issues
-- Receipt flow: tweet proxy → Bonfires → adjudicator queries → verdict
+**Full integration test** (`test/sync-timing.test.ts`):
+- Real tweets posted to X via `@tempt_game_bot` (real `TweetProxy`, not mock)
+- Real LLM evaluation via `claude -p` (both counterparty tweet eval + adjudicator verdict)
+- Real Bonfires sync running alongside, receipt logging on each tweet
+- Production `startCounterparty()` autonomously detects vault + tweet violations, files claims
+- Production `startAdjudicator()` autonomously finds claims, queries Bonfires for cross-tier evidence, evaluates via LLM, submits verdict onchain
+- Full cross-tier receipt flow verified: tweet proxy → Bonfires episode → adjudicator `/delve` query → LLM prompt
+- Realistic agent-speed delays (3-5s between beats)
+
+**Integration bugs fixed:**
+- BonfiresClient: entity response `{ uuid }` not `{ entity: { uuid } }`, edge response `{ edge_uuid }` not `{ edge: { uuid } }`
+- Ponder GraphQL: `$party` variable declared but unused, `verdict_is_null` not valid (filter in JS instead)
+- `agreement.adjudicator` field never populated by Ponder handlers — adjudicator query now falls back to latest proposal's adjudicator
+- Counterparty `lastCheckedBlock` initialized from current block (was 0, tried to scan 43M blocks)
+- `startAdjudicator()` accepts injectable `GenerateObjectFn` (decouples from AI SDK)
+- `startCounterparty()` accepts injectable `EvaluateTweetsFn`
+
+**Known issue — ERC-8128 auth on zone smart accounts:**
+- `publicClient.verifyMessage()` against zone address returns `bad_signature`
+- TrustZone (Hats 6551 account) likely doesn't implement ERC-1271 `isValidSignature`
+- Tweet proxy falls back to `keyid` header auth — tweets still post, receipts still log, but signatures aren't verified onchain
+- **This is a bounty-critical issue** — the ERC-8128 bounty requires working smart account signature verification
+
+### Remaining (day 5): Live Demo + ERC-8128 fix
+
+**ERC-8128 fix (critical for bounty):**
+- Diagnose why TrustZone doesn't verify EOA signatures via ERC-1271
+- May need: TrustZone to implement `isValidSignature` checking hat wearer, or HatValidator to expose signature validation
 
 **Live demo setup:**
 - Deploy contracts to Base (mainnet or Sepolia)
@@ -198,9 +230,10 @@ Contracts + SDK + Compiler + Ponder + E2E (DONE)
   → Temptation + Agents + E2E integration (DONE)
     → Tweet Proxy + Adjudicator + Counterparty LLM (DONE)
       → ERC-8128 + Zone execution + Tweet eval beats (DONE)
-        → Bonfires + Integration polish (day 4)
-          → Integration + Live Demo (day 5)
-            → Demo Video + Submission (day 6-7)
+        → Bonfires + Integration polish (DONE)
+          → Full integration test with production agents (DONE)
+            → ERC-8128 zone auth fix + Live Demo (day 5)
+              → Demo Video + Submission (day 6-7)
 ```
 
 ## Cut lines (if behind)
