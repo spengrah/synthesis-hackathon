@@ -76,7 +76,9 @@
   - Beat 3c: agent posts "Buy my NFTs!" → counterparty LLM detects violation (without filing claim, to preserve later beats)
   - Mock fallback via `MOCK_LLM=1` for deterministic CI
 
-**Test counts**: 364 contracts + 56 SDK + 23 compiler + 36 ponder + 26 agents + 13 lifecycle E2E + 15 reputation game E2E = **533 tests passing**
+**Test counts (day 3)**: 364 contracts + 56 SDK + 23 compiler + 36 ponder + 26 agents + 13 lifecycle E2E + 15 reputation game E2E = **533 tests passing**
+
+**Test counts (day 5)**: +17 reciprocal demo E2E + 1 sync-timing E2E (full production pipeline) + 22 x402-service = **573 tests passing**
 
 ---
 
@@ -148,43 +150,67 @@ Anvil cheats (setBalance, setStorageAt) are inherent to local testing and go awa
 - **Wired into tests**: all 3 E2E tests (reciprocal-demo, reputation-game, sync-timing) start sync service + receipt logger when `BONFIRES_*` env vars present
 - data-apis deprecated from scope — receipt logging via tweet proxy only
 
-### DONE (day 5 — March 20): Integration
+### DONE (day 5 — March 20): Integration + Agent Tooling
 
 **Full integration test** (`test/sync-timing.test.ts`):
-- Real tweets posted to X via `@tempt_game_bot` (real `TweetProxy`, not mock)
+- `TrustZonesAgent` class as the temptee — uses same code paths as MCP tools + CLI
+- Real tweets posted to X via `@tempt_game_bot` (real `TweetProxy` with `REAL_TWEETS=1`)
 - Real LLM evaluation via `claude -p` (both counterparty tweet eval + adjudicator verdict)
 - Real Bonfires sync running alongside, receipt logging on each tweet
 - Production `startCounterparty()` autonomously detects vault + tweet violations, files claims
 - Production `startAdjudicator()` autonomously finds claims, queries Bonfires for cross-tier evidence, evaluates via LLM, submits verdict onchain
+- `staking_info` MCP tool used to discover eligibility module by agent address
 - Full cross-tier receipt flow verified: tweet proxy → Bonfires episode → adjudicator `/delve` query → LLM prompt
 - Realistic agent-speed delays (3-5s between beats)
+
+**TrustZonesAgent** (`packages/agents/src/tz-agent/`):
+- Reference implementation for external agents participating in Trust Zones agreements
+- Methods mirror public interfaces: createAgreement, accept, setUp, stake, activate, complete, discoverZone, postTweet, executeViaZone
+- ERC-8128 signing with automatic HatValidator lookup + keyid fallback
+- Each method comments which tool it corresponds to (MCP or CLI)
+- Future: swap deterministic calls for LLM-driven tool use via skills
+
+**CLI** (`packages/cli/`):
+- `tz sign-http` — ERC-8128 zone auth (reads HatValidator from chain, prefixes signature for ERC-7579 routing)
+- `tz prepare-tx` — zone execution calldata preparation (returns `{ to, data, value }` for any wallet)
+- Available as `tz` (alias) or `trust-zones`
+
+**x402 MCP server updates:**
+- New `staking_info` tool: finds eligibility module by agreement + agent address (queries Ponder + onchain)
+- `graphql` tool reads PONDER_URL at call time (not import time)
+- 8 tools total: compile, decompile, encode, decode_event, graphql, explain, staking_info, ping
+
+**Skills updated:**
+- `temptation-game/SKILL.md` — full agent journey: install trust-zones skill → propose → read terms → accept → find zone → stake → activate → tweet → complete. Staking instructions with both manual contract calls and MCP tool convenience.
+- `trust-zones/SKILL.md` — two-layer tooling: remote MCP server (paid, protocol knowledge) + local CLI (free, signing + zone execution). Install via `npm install -g @trust-zones/cli`.
 
 **Integration bugs fixed:**
 - BonfiresClient: entity response `{ uuid }` not `{ entity: { uuid } }`, edge response `{ edge_uuid }` not `{ edge: { uuid } }`
 - Ponder GraphQL: `$party` variable declared but unused, `verdict_is_null` not valid (filter in JS instead)
 - `agreement.adjudicator` field never populated by Ponder handlers — adjudicator query now falls back to latest proposal's adjudicator
 - Counterparty `lastCheckedBlock` initialized from current block (was 0, tried to scan 43M blocks)
+- Adjudicator evidence: hex-decode claim evidence, parse both `withdrawal` (single) and `vaultEvents` (array) formats
 - `startAdjudicator()` accepts injectable `GenerateObjectFn` (decouples from AI SDK)
 - `startCounterparty()` accepts injectable `EvaluateTweetsFn`
+- `createZoneSignerClient` now async — reads `hatValidator()` from zone contract automatically
 
-**Known issue — ERC-8128 auth on zone smart accounts:**
-- `publicClient.verifyMessage()` against zone address returns `bad_signature`
-- TrustZone (Hats 6551 account) likely doesn't implement ERC-1271 `isValidSignature`
-- Tweet proxy falls back to `keyid` header auth — tweets still post, receipts still log, but signatures aren't verified onchain
-- **This is a bounty-critical issue** — the ERC-8128 bounty requires working smart account signature verification
+**ERC-8128 auth on zone smart accounts:**
+- Root cause diagnosed: OZ `AccountERC7579.isValidSignature` expects signature prefixed with validator module address (first 20 bytes)
+- Fix implemented: `createZoneSignerClient` and CLI `sign-http` read zone's HatValidator address from chain and prefix signatures automatically
+- `HatValidator.isValidSignatureWithSender` already implements ERC-1271 correctly (recovers signer, checks `isWearerOfHat`)
+- **Not yet tested end-to-end** — tweet proxy ERC-8128 verification path needs validation with the prefixed signature
+- Tweet proxy falls back to `keyid` header auth when ERC-8128 fails
 
-### Remaining (day 5): Live Demo + ERC-8128 fix
-
-**ERC-8128 fix (critical for bounty):**
-- Diagnose why TrustZone doesn't verify EOA signatures via ERC-1271
-- May need: TrustZone to implement `isValidSignature` checking hat wearer, or HatValidator to expose signature validation
+### Remaining (day 5): Live Demo
 
 **Live demo setup:**
+- Test ERC-8128 with prefixed signature end-to-end
 - Deploy contracts to Base (mainnet or Sepolia)
 - Deploy counterparty agent + adjudicator to Railway
 - Fund Temptation contract with real ETH (via `deposit()`)
 - Test live: external agent proposes, full flow
 - Write up "how to interact" instructions
+- Clear stale data from Bonfires bonfire (Bonfires team)
 
 ### Day 6 (March 21): Demo Video + Submission Prep
 
@@ -231,8 +257,8 @@ Contracts + SDK + Compiler + Ponder + E2E (DONE)
     → Tweet Proxy + Adjudicator + Counterparty LLM (DONE)
       → ERC-8128 + Zone execution + Tweet eval beats (DONE)
         → Bonfires + Integration polish (DONE)
-          → Full integration test with production agents (DONE)
-            → ERC-8128 zone auth fix + Live Demo (day 5)
+          → Full integration with production agents + TrustZonesAgent + CLI (DONE)
+            → Live Demo + ERC-8128 e2e verification (day 5)
               → Demo Video + Submission (day 6-7)
 ```
 
