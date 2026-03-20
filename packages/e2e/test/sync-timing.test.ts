@@ -17,6 +17,7 @@ loadEnv({ path: resolve(import.meta.dirname, "../../../.env") });
 loadEnv({ path: resolve(import.meta.dirname, "../../agents/.env") });
 
 import {
+  createPublicClient,
   createTestClient,
   http,
   encodeAbiParameters,
@@ -198,9 +199,10 @@ describe("Sync Timing", () => {
         const logReceipt = createReceiptLogger(bfClient);
         onTweet = (r) => { logReceipt(r); };
       }
-      tweetProxy = new MockTweetProxy({ onTweet });
+      const pub = createPublicClient({ chain: base, transport });
+      tweetProxy = new MockTweetProxy({ onTweet, publicClient: pub as any });
       await tweetProxy.start(TWEET_PROXY_PORT);
-      console.log(`[sync-timing] Mock TweetProxy started`);
+      console.log(`[sync-timing] Mock TweetProxy started (ERC-8128 auth)`);
     }
 
     // Bonfires sync
