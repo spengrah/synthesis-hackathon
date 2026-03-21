@@ -34,10 +34,12 @@ export async function waitForState(
   backend: ReadBackend,
   agreement: Address,
   expectedState: string,
+  timeoutMs?: number,
 ): Promise<void> {
   await waitFor(
     () => backend.getAgreementState(agreement),
     (s) => s.currentState === expectedState,
+    timeoutMs,
   );
 }
 
