@@ -46,6 +46,7 @@ export async function waitForZoneCount(
   backend: ReadBackend,
   agreement: Address,
   count: number,
+  timeoutMs?: number,
 ): Promise<void> {
   await waitFor(
     () => backend.getAgreementState(agreement),
@@ -55,6 +56,7 @@ export async function waitForZoneCount(
       );
       return nonZero.length >= count;
     },
+    timeoutMs,
   );
 }
 
@@ -75,10 +77,12 @@ export async function waitForClaimCount(
   backend: ReadBackend,
   agreement: Address,
   count: number,
+  timeoutMs?: number,
 ): Promise<void> {
   await waitFor(
     () => backend.getClaims(agreement),
     (claims) => claims.length >= count,
+    timeoutMs,
   );
 }
 

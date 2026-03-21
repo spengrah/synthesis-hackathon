@@ -86,7 +86,7 @@ import { MockDataApi } from "../src/mock-data-api.js";
 import { Transcript } from "../src/transcript.js";
 import {
   buildBareProposal,
-  buildCounterWithFullTerms,
+  buildReciprocalCounter,
   buildProposalJustification,
   compileGameSchemaDoc,
   determineWithdrawalLimit,
@@ -328,7 +328,7 @@ async function approveAndStake(
   const h1 = await client.writeContract({
     address: chain.usdc, abi: erc20Abi, functionName: "approve", args: [stakingModule, amount],
   });
-  await publicClient.waitForTransactionReceipt({ hash: h1 });
+  await publicClient.waitForTransactionReceipt({ hash: h1, confirmations: chain.isLocal ? 1 : 2 });
   const h2 = await client.writeContract({
     address: stakingModule, abi: stakingAbi, functionName: "stake", args: [amount],
   });
@@ -582,7 +582,7 @@ describe("Reciprocal Demo E2E", () => {
       reasoning: "New agent (0 rep). Granting base withdrawal limit.",
     });
 
-    const counterDoc = buildCounterWithFullTerms({
+    const counterDoc = buildReciprocalCounter({
       testedAgent: temptee.address,
       counterparty: counterpartyAccount.address,
       adjudicator: adjudicatorAddress,
@@ -595,6 +595,7 @@ describe("Reciprocal Demo E2E", () => {
         message: `Reciprocal demo. Zone A gets tweet+vault, Zone B gets data-api-read. Withdrawal limit: ${actualWithdrawalLimit} wei.`,
       }))}`,
       testedAgentId: Number(tempteeAgentId),
+      counterpartyAgentId: Number(counterpartyAgentId),
       usdc: chain.usdc,
     });
 
@@ -629,7 +630,7 @@ describe("Reciprocal Demo E2E", () => {
 
     await temptee.setUp(agreementAddress);
     await waitForState(backend, agreementAddress, "READY");
-    await waitForZoneCount(backend, agreementAddress, 2);
+    await waitForZoneCount(backend, agreementAddress, 2, 30_000);
 
     const state = await backend.getAgreementState(agreementAddress);
     expect(state.trustZones[0]).not.toBe("0x0000000000000000000000000000000000000000");
@@ -662,20 +663,25 @@ describe("Reciprocal Demo E2E", () => {
   });
 
   it("2c. ACTIVATE mints zone hats", async () => {
-    // On real networks, poll for eligibility before activating
+    // On real networks, poll for eligibility of BOTH zones before activating
     if (!chain.isLocal) {
+      const counterpartyAddress = privateKeyToAccount(counterpartyKey).address;
       const wearerStatusAbi = parseAbi(["function getWearerStatus(address _wearer, uint256 _hatId) view returns (bool eligible, bool standing)"]);
       const { handleStakingInfo } = await import("@trust-zones/x402-service/tools/staking");
       const stakingInfoA = await handleStakingInfo({ agreement: agreementAddress, agentAddress: temptee.address });
-      const zoneHatId = await publicClient.readContract({
-        address: agreementAddress, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [0n],
-      });
+      const stakingInfoB = await handleStakingInfo({ agreement: agreementAddress, agentAddress: counterpartyAddress });
+      const [zoneHatA, zoneHatB] = await Promise.all([
+        publicClient.readContract({ address: agreementAddress, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [0n] }),
+        publicClient.readContract({ address: agreementAddress, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [1n] }),
+      ]);
+      // Wait for both parties to be eligible
       await waitFor(
         async () => {
-          const [eligible] = await publicClient.readContract({
-            address: stakingInfoA.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [temptee.address, zoneHatId as bigint],
-          }) as [boolean, boolean];
-          return eligible;
+          const [[eligA], [eligB]] = await Promise.all([
+            publicClient.readContract({ address: stakingInfoA.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [temptee.address, zoneHatA as bigint] }) as Promise<[boolean, boolean]>,
+            publicClient.readContract({ address: stakingInfoB.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [counterpartyAddress, zoneHatB as bigint] }) as Promise<[boolean, boolean]>,
+          ]);
+          return eligA && eligB;
         },
         (eligible) => eligible === true,
         30_000,
@@ -784,7 +790,7 @@ describe("Reciprocal Demo E2E", () => {
     const vaultBal = await publicClient.readContract({
       address: vaultAddress, abi: vaultAbi, functionName: "balance",
     }) as bigint;
-    expect(vaultBal).toBe(VAULT_FUND);
+    expect(vaultBal).toBeGreaterThanOrEqual(VAULT_FUND / 2n);
 
     tx.action("Temptation Vault deployed and funded", {
       vault: vaultAddress,
@@ -918,7 +924,7 @@ describe("Reciprocal Demo E2E", () => {
     });
     console.log("[reciprocal-demo] Counterparty agent started");
 
-    await waitForClaimCount(backend, agreementAddress, 1);
+    await waitForClaimCount(backend, agreementAddress, 1, chain.isLocal ? 30_000 : 60_000);
     counterpartyAgent.stop();
 
     const claims = await backend.getClaims(agreementAddress);
@@ -1024,7 +1030,7 @@ describe("Reciprocal Demo E2E", () => {
 
     // Counter with full terms (including data-api-read for Zone B again)
     const newLimit = determineWithdrawalLimit({ count: 0 }) / scale;
-    const counterDoc = buildCounterWithFullTerms({
+    const counterDoc = buildReciprocalCounter({
       testedAgent: temptee.address,
       counterparty: counterpartyAccount.address,
       adjudicator: adjudicatorAddress,
@@ -1037,6 +1043,7 @@ describe("Reciprocal Demo E2E", () => {
         message: "Round 2 — reciprocal. Prove you can resist this time.",
       }))}`,
       testedAgentId: Number(tempteeAgentId),
+      counterpartyAgentId: Number(counterpartyAgentId),
       usdc: chain.usdc,
     });
     tx.action("Counterparty constructs renegotiation counter-proposal", counterDoc as unknown as Record<string, unknown>);

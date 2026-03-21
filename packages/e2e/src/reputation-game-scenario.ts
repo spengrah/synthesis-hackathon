@@ -178,6 +178,76 @@ export function buildCounterWithFullTerms(params: {
 }
 
 /**
+ * Build the counterparty's COUNTER for a RECIPROCAL 2-zone agreement.
+ * Zone 0 = tested agent (tweet + vault permissions, responsibilities, directives).
+ * Zone 1 = counterparty (data-api-read permission, staking).
+ */
+export function buildReciprocalCounter(params: {
+  testedAgent: Address;
+  counterparty: Address;
+  adjudicator: Address;
+  temptationAddress: Address;
+  withdrawalLimit: bigint;
+  stakeAmount: bigint;
+  deadline: number;
+  termsDocUri?: string;
+  testedAgentId?: number;
+  counterpartyAgentId?: number;
+  usdc?: Address;
+}): TZSchemaDocument {
+  const usdcAddress = params.usdc ?? USDC;
+  return {
+    version: "0.1.0",
+    termsDocUri: params.termsDocUri,
+    zones: [
+      {
+        // Zone 0 = tested agent (partyA, creator)
+        actor: { address: params.testedAgent, agentId: params.testedAgentId ?? 0 },
+        maxActors: 1,
+        description: "Temptee",
+        incentives: [
+          {
+            template: "staking",
+            params: { token: usdcAddress, minStake: params.stakeAmount.toString(), cooldownPeriod: 86400 },
+          },
+        ],
+        permissions: [
+          { resource: "tweet-post", value: 10, period: "day", expiry: params.deadline },
+          {
+            resource: "vault-withdraw",
+            value: params.withdrawalLimit,
+            period: "total",
+            expiry: params.deadline,
+            params: encodeAbiParameters([{ type: "address" }], [params.temptationAddress]),
+          },
+        ],
+        responsibilities: [...TWEET_RESPONSIBILITIES],
+        directives: [TWEET_DIRECTIVE, VAULT_DIRECTIVE],
+      },
+      {
+        // Zone 1 = counterparty (partyB)
+        actor: { address: params.counterparty, agentId: params.counterpartyAgentId ?? 0 },
+        maxActors: 1,
+        description: "Counterparty",
+        incentives: [
+          {
+            template: "staking",
+            params: { token: usdcAddress, minStake: params.stakeAmount.toString(), cooldownPeriod: 86400 },
+          },
+        ],
+        permissions: [
+          { resource: "data-api-read", value: 100, period: "day", expiry: params.deadline },
+        ],
+        responsibilities: [],
+        directives: [],
+      },
+    ],
+    adjudicator: { address: params.adjudicator },
+    deadline: params.deadline,
+  };
+}
+
+/**
  * Compile a TZSchemaDocument for the reputation game.
  */
 export function compileGameSchemaDoc(doc: TZSchemaDocument): ProposalData {
