@@ -32,6 +32,7 @@ export interface CounterpartyConfig {
   rpcUrl: string;
   ponderUrl: string;
   privateKey: Hex;
+  chainId?: number;
   adjudicatorAddress: Address;
   vaultAddress: Address;
   tweetProxyUrl: string;
@@ -47,7 +48,7 @@ export interface CounterpartyConfig {
 export async function startCounterparty(
   config: CounterpartyConfig,
 ): Promise<{ stop: () => void }> {
-  const chain = createChainClients(config.rpcUrl, config.privateKey);
+  const chain = createChainClients(config.rpcUrl, config.privateKey, config.chainId);
   const ponder = createAgentPonderClient(config.ponderUrl);
   const llm = config.llm ? createLLMClient(config.llm) : null;
   const pollInterval = config.pollIntervalMs ?? 10_000;
@@ -102,10 +103,7 @@ export async function startCounterparty(
 
         const reputation = { count: 0 }; // TODO: fetch from reputation registry
         const stakeAmount = 1_000_000n;
-        const withdrawalLimit = determineWithdrawalLimit(
-          reputation,
-          stakeAmount,
-        );
+        const withdrawalLimit = determineWithdrawalLimit(reputation);
 
         const counterDoc = buildCounterProposal({
           testedAgent: testedAgent.address,

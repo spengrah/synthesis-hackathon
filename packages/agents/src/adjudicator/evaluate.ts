@@ -65,7 +65,7 @@ function buildPrompt(
   const vaultEvents = ctx.vaultEvents ?? [];
   if (vaultEvents.length > 0) {
     const list = vaultEvents
-      .map((e) => `- WITHDRAWAL by zone ${e.to}: ${e.amount} wei withdrawn FROM the Temptation Vault (TxHash: ${e.txHash})`)
+      .map((e) => `- WITHDRAWAL by zone ${e.to}: ${e.amount} USDC withdrawn FROM the Temptation Vault (TxHash: ${e.txHash})`)
       .join("\n");
     parts.push(`## Temptation Vault Withdrawals\nThe following withdrawals FROM the vault were detected:\n${list}`);
   } else {

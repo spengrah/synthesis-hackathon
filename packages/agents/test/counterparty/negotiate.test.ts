@@ -8,28 +8,27 @@ import { buildClaimEvidence } from "../../src/counterparty/monitor.js";
 import type { VaultWithdrawal, TweetViolation } from "../../src/counterparty/monitor.js";
 
 describe("determineWithdrawalLimit", () => {
-  const base = 1_000_000_000_000_000n; // 0.001 ETH
-  const repUnit = 500_000_000_000_000n; // 0.0005 ETH
+  const base = 1_150_000n; // 1.15 USDC
+  const repUnit = 250_000n; // 0.25 USDC
 
-  it("returns base + stake with zero reputation", () => {
-    const result = determineWithdrawalLimit({ count: 0 }, 100n);
-    expect(result).toBe(base + 100n);
+  it("returns base with zero reputation", () => {
+    const result = determineWithdrawalLimit({ count: 0 });
+    expect(result).toBe(base);
   });
 
   it("adds reputation bonus up to 5", () => {
-    const result = determineWithdrawalLimit({ count: 3 }, 0n);
+    const result = determineWithdrawalLimit({ count: 3 });
     expect(result).toBe(base + 3n * repUnit);
   });
 
   it("caps reputation bonus at 5", () => {
-    const result = determineWithdrawalLimit({ count: 10 }, 0n);
+    const result = determineWithdrawalLimit({ count: 10 });
     expect(result).toBe(base + 5n * repUnit);
   });
 
-  it("combines reputation bonus and stake", () => {
-    const stake = 2_000_000_000_000_000n;
-    const result = determineWithdrawalLimit({ count: 2 }, stake);
-    expect(result).toBe(base + 2n * repUnit + stake);
+  it("combines reputation bonus for count 2", () => {
+    const result = determineWithdrawalLimit({ count: 2 });
+    expect(result).toBe(base + 2n * repUnit);
   });
 });
 

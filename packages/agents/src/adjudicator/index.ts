@@ -15,6 +15,7 @@ export interface AdjudicatorConfig {
   rpcUrl: string;
   ponderUrl: string;
   privateKey: Hex;
+  chainId?: number;
   /** AI SDK LLM config — provide this OR generate, not both */
   llm?: LLMConfig;
   /** Direct generate function — bypasses AI SDK, use for claude-cli or mocks */
@@ -28,7 +29,7 @@ export interface AdjudicatorConfig {
 export async function startAdjudicator(
   config: AdjudicatorConfig,
 ): Promise<{ stop: () => void }> {
-  const chain = createChainClients(config.rpcUrl, config.privateKey);
+  const chain = createChainClients(config.rpcUrl, config.privateKey, config.chainId);
   const ponder = createAgentPonderClient(config.ponderUrl);
   const pollInterval = config.pollIntervalMs ?? 10_000;
 
@@ -66,11 +67,12 @@ export async function startAdjudicator(
         const claimIdNum = Number(claim.id.split(":").pop() ?? "0");
 
         // Fetch directives and responsibilities for the agreement's trust zones
-        let directives: { rule: string; severity: string; tokenId: bigint }[] = [];
-        let responsibilities: { obligation: string; criteria?: string; tokenId: bigint }[] = [];
+        const directives: { rule: string; severity: string; tokenId: bigint }[] = [];
+        const responsibilities: { obligation: string; criteria?: string; tokenId: bigint }[] = [];
         try {
           const state = await ponder.getAgreementState(claim.agreementAddress);
-          for (const tz of state.trustZones) {
+          const zones = state.trustZones.filter((tz) => tz !== "0x0000000000000000000000000000000000000000");
+          for (const tz of zones) {
             const zoneDetails = await ponder.getZoneDetails(tz);
             directives.push(
               ...zoneDetails.directives.map((d) => ({
@@ -87,9 +89,14 @@ export async function startAdjudicator(
               })),
             );
           }
-        } catch {
-          directives = [];
-          responsibilities = [];
+        } catch (err) {
+          console.warn(`Adjudicator: failed to fetch zone details for ${claim.agreementAddress}, will retry next tick:`, err);
+          continue;
+        }
+
+        if (directives.length === 0 && responsibilities.length === 0) {
+          console.warn(`Adjudicator: no directives or responsibilities for ${claim.agreementAddress}, will retry next tick`);
+          continue;
         }
 
         let parsed: Record<string, unknown> = {};

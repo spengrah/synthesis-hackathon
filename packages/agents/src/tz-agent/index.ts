@@ -46,13 +46,14 @@ import {
   type Account,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { base } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
 import { createZoneSignerClient } from "../shared/erc8128.js";
 
 export interface TrustZonesAgentConfig {
   privateKey: Hex;
   rpcUrl: string;
   ponderUrl: string;
+  chainId?: number;
 }
 
 export class TrustZonesAgent {
@@ -69,9 +70,10 @@ export class TrustZonesAgent {
   constructor(cfg: TrustZonesAgentConfig) {
     this.account = privateKeyToAccount(cfg.privateKey);
     this.address = this.account.address;
+    const chain = cfg.chainId === 84532 ? baseSepolia : base;
     const transport = http(cfg.rpcUrl);
-    this.publicClient = createPublicClient({ chain: base, transport }) as unknown as PublicClient;
-    this.wallet = createWalletClient({ account: this.account, chain: base, transport }) as unknown as WalletClient<Transport, Chain, Account>;
+    this.publicClient = createPublicClient({ chain, transport }) as unknown as PublicClient;
+    this.wallet = createWalletClient({ account: this.account, chain, transport }) as unknown as WalletClient<Transport, Chain, Account>;
     this.ponderUrl = cfg.ponderUrl;
     this.backend = createPonderBackend(cfg.ponderUrl);
   }
@@ -173,9 +175,9 @@ export class TrustZonesAgent {
     const stakingAbi = [{ name: "stake", type: "function", inputs: [{ name: "_amount", type: "uint248" }], outputs: [], stateMutability: "nonpayable" }] as const;
 
     const h1 = await this.wallet.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [stakingModule, amount] });
-    await this.publicClient.waitForTransactionReceipt({ hash: h1 });
+    await this.publicClient.waitForTransactionReceipt({ hash: h1, confirmations: 2 });
     const h2 = await this.wallet.writeContract({ address: stakingModule, abi: stakingAbi, functionName: "stake", args: [amount] });
-    await this.publicClient.waitForTransactionReceipt({ hash: h2 });
+    await this.publicClient.waitForTransactionReceipt({ hash: h2, });
   }
 
   /** Complete with feedback. (MCP: encode complete → wallet: submit) */

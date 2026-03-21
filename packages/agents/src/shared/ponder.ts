@@ -163,6 +163,8 @@ export function createAgentPonderClient(ponderUrl: string): AgentPonderClient {
       .filter((c: any) => {
         // Only unadjudicated claims (verdict is null)
         if (c.verdict !== null) return false;
+        // Only claims from ACTIVE agreements (skip stale claims from closed/expired agreements)
+        if (c.agreement?.state !== "ACTIVE") return false;
         if (!adjudicatorAddress) return true;
         // Check agreement.adjudicator first, fall back to latest proposal's adjudicator
         const agAdj = c.agreement?.adjudicator;

@@ -10,7 +10,7 @@ import {
   type Account,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { base } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
 
 export interface ChainClients {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,16 +23,18 @@ export interface ChainClients {
 export function createChainClients(
   rpcUrl: string,
   privateKey: Hex,
+  chainId?: number,
 ): ChainClients {
+  const chain = chainId === 84532 ? baseSepolia : base;
   const account = privateKeyToAccount(privateKey);
 
   const pub = createPublicClient({
-    chain: base,
+    chain,
     transport: http(rpcUrl),
   });
 
   const wallet = createWalletClient({
-    chain: base,
+    chain,
     transport: http(rpcUrl),
     account,
   });
