@@ -66,8 +66,8 @@ export async function startAdjudicator(
         const claimIdNum = Number(claim.id.split(":").pop() ?? "0");
 
         // Fetch directives and responsibilities for the agreement's trust zones
-        let directives: { rule: string; severity: string }[] = [];
-        let responsibilities: { obligation: string; criteria?: string }[] = [];
+        let directives: { rule: string; severity: string; tokenId: bigint }[] = [];
+        let responsibilities: { obligation: string; criteria?: string; tokenId: bigint }[] = [];
         try {
           const state = await ponder.getAgreementState(claim.agreementAddress);
           for (const tz of state.trustZones) {
@@ -76,12 +76,14 @@ export async function startAdjudicator(
               ...zoneDetails.directives.map((d) => ({
                 rule: d.rule,
                 severity: d.severity ?? "low",
+                tokenId: d.tokenId,
               })),
             );
             responsibilities.push(
               ...zoneDetails.responsibilities.map((r) => ({
                 obligation: r.obligation,
                 criteria: r.criteria ?? undefined,
+                tokenId: r.tokenId,
               })),
             );
           }
@@ -158,7 +160,13 @@ export async function startAdjudicator(
         const verdict = await evaluateClaim(ctx, llm, generate);
 
         if (verdict.violated) {
-          const actions = mapVerdictToActions(verdict);
+          const actions = mapVerdictToActions(verdict, {
+            agreementAddress: claim.agreementAddress,
+            claimId: claimIdNum,
+            directives,
+            responsibilities,
+            targetIndex: 0, // TODO: determine which party violated from evidence
+          });
           const { inputId, payload } = encodeAdjudicate(claimIdNum, actions);
 
           const txHash = await chain.wallet.writeContract({
