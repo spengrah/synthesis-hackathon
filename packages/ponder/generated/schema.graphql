@@ -160,6 +160,7 @@ type proposal {
   deadline: BigInt
   zoneCount: Int
   rawProposalData: String
+  txHash: String
   agreement: agreement
   proposer: actor
 }
@@ -269,6 +270,16 @@ input proposalFilter {
   rawProposalData_ends_with: String
   rawProposalData_not_starts_with: String
   rawProposalData_not_ends_with: String
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
 }
 
 type trustZonePage {
@@ -285,6 +296,7 @@ type trustZone {
   zoneIndex: Int!
   active: Boolean!
   createdAt: BigInt!
+  txHash: String
   agreement: agreement
   actor: actor
   permissions(where: permissionFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): permissionPage
@@ -905,6 +917,16 @@ input trustZoneFilter {
   createdAt_lt: BigInt
   createdAt_gte: BigInt
   createdAt_lte: BigInt
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
 }
 
 type claimPage {
@@ -923,6 +945,7 @@ type claim {
   actionTypes: String
   timestamp: BigInt!
   adjudicatedAt: BigInt
+  txHash: String
   agreement: agreement
   claimant: actor
 }
@@ -1008,6 +1031,16 @@ input claimFilter {
   adjudicatedAt_lt: BigInt
   adjudicatedAt_gte: BigInt
   adjudicatedAt_lte: BigInt
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
 }
 
 type reputationFeedbackPage {
@@ -1021,9 +1054,11 @@ type reputationFeedback {
   agreementId: String!
   actorId: String
   tag: String!
+  value: Int!
   feedbackURI: String!
   feedbackHash: String!
   timestamp: BigInt!
+  txHash: String
   agreement: agreement
   actor: actor
 }
@@ -1071,6 +1106,14 @@ input reputationFeedbackFilter {
   tag_ends_with: String
   tag_not_starts_with: String
   tag_not_ends_with: String
+  value: Int
+  value_not: Int
+  value_in: [Int]
+  value_not_in: [Int]
+  value_gt: Int
+  value_lt: Int
+  value_gte: Int
+  value_lte: Int
   feedbackURI: String
   feedbackURI_not: String
   feedbackURI_in: [String]
@@ -1099,6 +1142,16 @@ input reputationFeedbackFilter {
   timestamp_lt: BigInt
   timestamp_gte: BigInt
   timestamp_lte: BigInt
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
 }
 
 type agreementPage {

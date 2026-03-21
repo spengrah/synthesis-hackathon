@@ -453,7 +453,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     _requireParty($, caller);
 
     AgreementTypes.ProposalData memory data = abi.decode($._storedProposalData, (AgreementTypes.ProposalData));
-    if (data.zones.length != 2) revert InvalidZoneCount();
+    if (data.zones.length == 0 || data.zones.length > 2) revert InvalidZoneCount();
     if (data.deadline <= block.timestamp) revert DeadlineReached(data.deadline);
 
     $._adjudicator = data.adjudicator;
@@ -462,7 +462,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     }
     $._deadline = data.deadline;
 
-    for (uint256 i = 0; i < 2; i++) {
+    for (uint256 i = 0; i < data.zones.length; i++) {
       _setUpZone($, data.zones[i], i);
     }
 
@@ -479,8 +479,11 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     _requireParty($, caller);
 
     // Mint zone hats — Hats Protocol enforces eligibility at mintHat() time
+    // Skip zones that weren't set up (zoneHatId == 0)
     for (uint256 i = 0; i < 2; i++) {
-      HATS.mintHat($._zoneHatIds[i], $._parties[i]);
+      if ($._zoneHatIds[i] != 0) {
+        HATS.mintHat($._zoneHatIds[i], $._parties[i]);
+      }
     }
 
     $._currentState = AgreementTypes.ACTIVE;
@@ -832,7 +835,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         (string memory feedbackURI, bytes32 feedbackHash) = abi.decode(action.params, (string, bytes32));
         REPUTATION_REGISTRY.giveFeedback(
           agentId,
-          0,
+          -1,
           0,
           "trust-zone-agreement",
           "ADJUDICATED",
@@ -943,12 +946,23 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   /// @dev Write ERC-8004 reputation feedback for each party with an agentId.
+  ///      Skipped for ADJUDICATED — the adjudicator already wrote targeted FEEDBACK actions.
   function _writeReputationFeedback(AgreementStorage storage $, bytes32 _outcome) internal {
+    // Adjudicated outcomes are handled by the FEEDBACK adjudication action — skip close-time feedback
+    if (_outcome == keccak256("ADJUDICATED")) return;
+
     string memory outcomeStr;
-    if (_outcome == keccak256("COMPLETED")) outcomeStr = "COMPLETED";
-    else if (_outcome == keccak256("EXITED")) outcomeStr = "EXITED";
-    else if (_outcome == keccak256("EXPIRED")) outcomeStr = "EXPIRED";
-    else if (_outcome == keccak256("ADJUDICATED")) outcomeStr = "ADJUDICATED";
+    int128 value;
+    if (_outcome == keccak256("COMPLETED")) {
+      outcomeStr = "COMPLETED";
+      value = 1;
+    } else if (_outcome == keccak256("EXITED")) {
+      outcomeStr = "EXITED";
+      value = 0;
+    } else if (_outcome == keccak256("EXPIRED")) {
+      outcomeStr = "EXPIRED";
+      value = 0;
+    }
 
     string memory endpoint = Strings.toHexString(uint160(address(this)), 20);
 
@@ -965,13 +979,13 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
           feedbackURI = $._exitFeedbackURI[otherIdx];
           feedbackHash = $._exitFeedbackHash[otherIdx];
         } else {
-          // EXPIRED / ADJUDICATED — no peer feedback, use agreement reference
+          // EXPIRED — no peer feedback, use agreement reference
           feedbackURI = endpoint;
           feedbackHash = keccak256(abi.encodePacked(endpoint));
         }
 
         REPUTATION_REGISTRY.giveFeedback(
-          $._agentIds[i], 0, 0, "trust-zone-agreement", outcomeStr, endpoint, feedbackURI, feedbackHash
+          $._agentIds[i], value, 0, "trust-zone-agreement", outcomeStr, endpoint, feedbackURI, feedbackHash
         );
 
         emit ReputationFeedbackWritten($._agentIds[i], outcomeStr, feedbackURI, feedbackHash);

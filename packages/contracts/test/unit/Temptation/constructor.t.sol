@@ -8,6 +8,10 @@ contract Constructor_Test is TemptationTestBase {
     assertEq(address(temptation.REGISTRY()), registry);
   }
 
+  function test_Constructor_SetsToken() public view {
+    assertEq(address(temptation.TOKEN()), token);
+  }
+
   function test_Constructor_SetsOwner() public view {
     assertEq(temptation.owner(), address(this));
   }

@@ -197,10 +197,11 @@ export const claim = onchainTable("claim", (t) => ({
 }));
 
 export const reputationFeedback = onchainTable("reputation_feedback", (t) => ({
-  id: t.text().primaryKey(), // `${agreement}:${agentId}`
+  id: t.text().primaryKey(), // `${agreement}:${agentId}:${logIndex}`
   agreementId: t.hex().notNull(),
   actorId: t.text(),
   tag: t.text().notNull(),
+  value: t.integer().notNull().default(0),
   feedbackURI: t.text().notNull(),
   feedbackHash: t.hex().notNull(),
   timestamp: t.bigint().notNull(),

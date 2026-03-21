@@ -5,33 +5,38 @@ import { Test } from "forge-std/Test.sol";
 
 import { Temptation } from "../../src/Temptation.sol";
 import { ResourceTokenRegistry } from "../../src/ResourceTokenRegistry.sol";
+import { ERC20Mock } from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
 /// @notice Integration tests for Temptation contract with a real ResourceTokenRegistry.
 ///         Permission tokens are minted with real metadata — no vm.mockCall.
 contract TemptationIntegrationTest is Test {
   Temptation internal temptation;
   ResourceTokenRegistry internal rtr;
+  ERC20Mock internal usdc;
 
   address internal owner;
   address internal agent; // simulates a TZ account / zone smart account
 
-  uint256 internal constant MAX_WITHDRAWAL = 5 ether;
+  uint256 internal constant MAX_WITHDRAWAL = 5_000_000; // 5 USDC (6 decimals)
   uint8 internal constant PERMISSION_TYPE = 0x01;
 
   function setUp() public {
     owner = makeAddr("owner");
     agent = makeAddr("agent");
 
+    // Deploy mock USDC
+    usdc = new ERC20Mock();
+
     // Deploy RTR with this test contract as owner (so we can register minters)
     vm.prank(owner);
     rtr = new ResourceTokenRegistry(owner);
 
-    // Deploy Temptation with real RTR
+    // Deploy Temptation with real RTR and token
     vm.prank(owner);
-    temptation = new Temptation(address(rtr));
+    temptation = new Temptation(address(rtr), address(usdc));
 
-    // Fund the temptation contract
-    vm.deal(address(temptation), 10 ether);
+    // Fund the temptation contract with 10 USDC
+    usdc.mint(address(temptation), 10_000_000);
 
     // Register this test contract as a minter (so we can mint permission tokens)
     vm.prank(owner);
@@ -66,13 +71,13 @@ contract TemptationIntegrationTest is Test {
     assertEq(decodedAddr, address(temptation));
     assertEq(decodedMax, MAX_WITHDRAWAL);
 
-    // Agent withdraws
-    uint256 agentBalBefore = agent.balance;
+    // Agent withdraws 1 USDC
+    uint256 agentBalBefore = usdc.balanceOf(agent);
     vm.prank(agent);
-    temptation.withdraw(1 ether, tokenId);
+    temptation.withdraw(1_000_000, tokenId);
 
-    assertEq(agent.balance, agentBalBefore + 1 ether);
-    assertEq(temptation.balance(), 9 ether);
+    assertEq(usdc.balanceOf(agent), agentBalBefore + 1_000_000);
+    assertEq(temptation.balance(), 9_000_000);
   }
 
   function test_Withdraw_ExactMaxAmount() public {
@@ -81,7 +86,7 @@ contract TemptationIntegrationTest is Test {
     vm.prank(agent);
     temptation.withdraw(MAX_WITHDRAWAL, tokenId);
 
-    assertEq(temptation.balance(), 5 ether);
+    assertEq(temptation.balance(), 5_000_000);
   }
 
   // ====================
@@ -94,7 +99,7 @@ contract TemptationIntegrationTest is Test {
 
     vm.prank(agent);
     vm.expectRevert(abi.encodeWithSelector(Temptation.InvalidTemptation.selector, address(temptation), wrongTemptation));
-    temptation.withdraw(1 ether, tokenId);
+    temptation.withdraw(1_000_000, tokenId);
   }
 
   // ====================
@@ -122,7 +127,7 @@ contract TemptationIntegrationTest is Test {
 
     vm.prank(stranger);
     vm.expectRevert(Temptation.NoPermissionToken.selector);
-    temptation.withdraw(1 ether, tokenId);
+    temptation.withdraw(1_000_000, tokenId);
   }
 
   // ====================
@@ -134,23 +139,23 @@ contract TemptationIntegrationTest is Test {
     address agentB = makeAddr("agentB");
 
     // Different max amounts for different agents
-    uint256 tokenA = _mintTemptationPermission(agentA, address(temptation), 2 ether);
-    uint256 tokenB = _mintTemptationPermission(agentB, address(temptation), 3 ether);
+    uint256 tokenA = _mintTemptationPermission(agentA, address(temptation), 2_000_000);
+    uint256 tokenB = _mintTemptationPermission(agentB, address(temptation), 3_000_000);
 
-    // Agent A can withdraw up to 2 ETH
+    // Agent A can withdraw up to 2 USDC
     vm.prank(agentA);
-    temptation.withdraw(2 ether, tokenA);
+    temptation.withdraw(2_000_000, tokenA);
 
-    // Agent B can withdraw up to 3 ETH
+    // Agent B can withdraw up to 3 USDC
     vm.prank(agentB);
-    temptation.withdraw(3 ether, tokenB);
+    temptation.withdraw(3_000_000, tokenB);
 
-    assertEq(temptation.balance(), 5 ether); // 10 - 2 - 3
+    assertEq(temptation.balance(), 5_000_000); // 10 - 2 - 3
 
     // Agent A can't use Agent B's token
     vm.prank(agentA);
     vm.expectRevert(Temptation.NoPermissionToken.selector);
-    temptation.withdraw(1 ether, tokenB);
+    temptation.withdraw(1_000_000, tokenB);
   }
 
   // ====================
@@ -181,9 +186,9 @@ contract TemptationIntegrationTest is Test {
     uint256 tokenId = _mintTemptationPermission(agent, address(temptation), MAX_WITHDRAWAL);
 
     vm.expectEmit(true, true, false, true, address(temptation));
-    emit Temptation.Withdrawn(agent, 1 ether, tokenId);
+    emit Temptation.Withdrawn(agent, 1_000_000, tokenId);
 
     vm.prank(agent);
-    temptation.withdraw(1 ether, tokenId);
+    temptation.withdraw(1_000_000, tokenId);
   }
 }

@@ -75,8 +75,10 @@ Agreement_handleSetUp
 └── when caller is a party and state is ACCEPTED
     ├── given a zone has agentId != 0 and ownerOf(agentId) != party
     │   └── it should revert with AgentIdVerificationFailed
-    ├── given zones length is not 2
+    ├── given zones length is 0 or > 2
     │   └── it should revert with InvalidZoneCount
+    ├── given zones length is 1
+    │   └── it should set up zone 0 only and transition to READY
     ├── given a zone party does not match the agreement party
     │   └── it should revert with NotAParty
     ├── given deadline is in the past or zero

@@ -30,7 +30,7 @@ ponder.on("AgreementRegistry:AgreementCreated", async ({ event, context }) => {
     state: "PROPOSED",
     agreementHatId,
     createdAt: event.block.timestamp,
-  });
+  }).onConflictDoNothing();
 
   // Create agreement parties
   await db.insert(agreementParty).values({
@@ -38,11 +38,11 @@ ponder.on("AgreementRegistry:AgreementCreated", async ({ event, context }) => {
     agreementId,
     actorId: partyAId,
     partyIndex: 0,
-  });
+  }).onConflictDoNothing();
   await db.insert(agreementParty).values({
     id: `${agreementId}:${partyBId}`,
     agreementId,
     actorId: partyBId,
     partyIndex: 1,
-  });
+  }).onConflictDoNothing();
 });

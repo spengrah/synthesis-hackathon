@@ -246,7 +246,7 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (agentIdA, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
+        (agentIdA, int128(-1), 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
       )
     );
 
@@ -484,7 +484,7 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (42, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
+        (42, int128(-1), 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
       )
     );
 
@@ -515,7 +515,7 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (42, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
+        (42, int128(-1), 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
       )
     );
 
@@ -620,7 +620,7 @@ contract Agreement_HarnessAdjudication is AgreementHarnessBase {
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (agentIdB, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
+        (agentIdB, int128(-1), 0, "trust-zone-agreement", "ADJUDICATED", endpoint, feedbackURI, feedbackHash)
       )
     );
 

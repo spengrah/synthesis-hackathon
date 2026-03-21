@@ -677,7 +677,8 @@ contract AgreementInvariantHandler is Test {
 
   function _validateCloseFeedbackWrites(uint256 beforeCount, bytes32 expectedOutcome) internal {
     uint256 afterCount = reputationRegistry.feedbackCount();
-    uint256 expectedWrites = _expectedCloseWriteCount();
+    // ADJUDICATED outcomes skip close-time feedback — adjudicator handles via FEEDBACK actions
+    uint256 expectedWrites = expectedOutcome == keccak256("ADJUDICATED") ? 0 : _expectedCloseWriteCount();
     if (afterCount != beforeCount + expectedWrites) {
       _sawCloseFeedbackRoutingMismatch = true;
       return;

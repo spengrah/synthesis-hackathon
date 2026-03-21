@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.28;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IResourceTokenRegistry } from "./interfaces/IResourceTokenRegistry.sol";
 
 /// @title Temptation
-/// @notice Simple ETH holder with permission-token-gated withdrawal.
+/// @notice ERC-20 holder with permission-token-gated withdrawal.
 /// @dev Withdrawals require the caller to hold a permission token whose metadata
 ///      encodes the standard format: `(string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)`
 ///      where params contains `abi.encode(address temptation)`.
 contract Temptation {
+  using SafeERC20 for IERC20;
+
   // ─── Errors
   // ───────────────────────────────────────────────────────
 
@@ -16,7 +20,6 @@ contract Temptation {
   error ExceedsPermittedAmount(uint256 requested, uint256 permitted);
   error InvalidTemptation(address expected, address actual);
   error InsufficientBalance(uint256 requested, uint256 available);
-  error TransferFailed();
   error PermissionExpired();
 
   // ─── Events
@@ -29,6 +32,7 @@ contract Temptation {
   // ────────────────────────────────────────────────────────
 
   IResourceTokenRegistry public immutable REGISTRY;
+  IERC20 public immutable TOKEN;
   address public owner;
   mapping(uint256 => uint256) public cumulativeWithdrawn;
 
@@ -49,21 +53,24 @@ contract Temptation {
   // ─── Constructor
   // ──────────────────────────────────────────────────
 
-  constructor(address registry) {
+  constructor(address registry, address token) {
     REGISTRY = IResourceTokenRegistry(registry);
+    TOKEN = IERC20(token);
     owner = msg.sender;
   }
 
   // ─── External functions
   // ───────────────────────────────────────────
 
-  /// @notice Deposit ETH into the temptation contract.
-  function deposit() external payable {
-    emit Deposited(msg.sender, msg.value);
+  /// @notice Deposit tokens into the temptation contract.
+  /// @param amount The amount of tokens to deposit.
+  function deposit(uint256 amount) external {
+    TOKEN.safeTransferFrom(msg.sender, address(this), amount);
+    emit Deposited(msg.sender, amount);
   }
 
-  /// @notice Withdraw ETH. Caller must hold the given permission token.
-  /// @param amount The amount of ETH to withdraw.
+  /// @notice Withdraw tokens. Caller must hold the given permission token.
+  /// @param amount The amount of tokens to withdraw.
   /// @param permissionTokenId The permission token ID authorising the withdrawal.
   function withdraw(uint256 amount, uint256 permissionTokenId) external nonReentrant {
     // 0. Token must be a Permission type (0x01 encoded in low byte of token ID)
@@ -101,26 +108,19 @@ contract Temptation {
     }
 
     // 5. Sufficient balance
-    if (amount > address(this).balance) {
-      revert InsufficientBalance(amount, address(this).balance);
+    uint256 bal = TOKEN.balanceOf(address(this));
+    if (amount > bal) {
+      revert InsufficientBalance(amount, bal);
     }
 
-    // 6. Transfer ETH
-    (bool success,) = msg.sender.call{ value: amount }("");
-    if (!success) {
-      revert TransferFailed();
-    }
+    // 6. Transfer tokens
+    TOKEN.safeTransfer(msg.sender, amount);
 
     emit Withdrawn(msg.sender, amount, permissionTokenId);
   }
 
-  /// @notice Returns the contract's ETH balance.
+  /// @notice Returns the contract's token balance.
   function balance() external view returns (uint256) {
-    return address(this).balance;
-  }
-
-  /// @notice Allow the contract to receive ETH directly.
-  receive() external payable {
-    emit Deposited(msg.sender, msg.value);
+    return TOKEN.balanceOf(address(this));
   }
 }

@@ -59,7 +59,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
   try {
     const parsed = parseProposalData(proposalDataBytes);
 
-    // Create proposal
+    // Create proposal (upsert to handle re-indexing)
     await db.insert(proposal).values({
       id: proposalId,
       agreementId,
@@ -73,7 +73,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
       zoneCount: parsed.zones.length,
       rawProposalData: proposalDataBytes,
       txHash: event.log.transactionHash,
-    });
+    }).onConflictDoNothing();
 
     // Update agreement termsHash
     await db
@@ -102,7 +102,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           case PARAM_TYPE.Eligibility:
             await db.insert(eligibility).values({
@@ -114,7 +114,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           case PARAM_TYPE.Reward:
             await db.insert(incentive).values({
@@ -127,7 +127,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           case PARAM_TYPE.Penalty:
             await db.insert(incentive).values({
@@ -140,7 +140,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           case PARAM_TYPE.PrincipalAlignment:
             await db.insert(principalAlignment).values({
@@ -152,7 +152,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           case PARAM_TYPE.DecisionModel:
             await db.insert(decisionModel).values({
@@ -164,7 +164,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               moduleKind,
               data: mech.data,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
         }
       }
@@ -188,7 +188,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               expiry: meta.expiry,
               params: meta.params,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           }
           case TOKEN_TYPE.Responsibility: {
@@ -202,7 +202,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               criteria: meta.criteria,
               deadline: meta.deadline,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           }
           case TOKEN_TYPE.Directive: {
@@ -216,7 +216,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
               severity: meta.severity,
               params: meta.params,
               createdAt: event.block.timestamp,
-            });
+            }).onConflictDoNothing();
             break;
           }
         }
@@ -231,7 +231,7 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
       sequence,
       termsHash,
       timestamp: event.block.timestamp,
-    });
+    }).onConflictDoNothing();
   }
 });
 
@@ -306,7 +306,7 @@ ponder.on("Agreement:ZoneDeployed", async ({ event, context }) => {
     active: true,
     createdAt: event.block.timestamp,
     txHash: event.log.transactionHash,
-  });
+  }).onConflictDoNothing();
 });
 
 // ─── MechanismRegistered ─────────────────────────────────────────
@@ -438,7 +438,7 @@ ponder.on("Agreement:ResourceTokenAssigned", async ({ event, context }) => {
         expiry: meta?.expiry,
         params: meta?.params,
         createdAt: event.block.timestamp,
-      });
+      }).onConflictDoNothing();
       break;
     }
     case TOKEN_TYPE.Responsibility: {
@@ -453,7 +453,7 @@ ponder.on("Agreement:ResourceTokenAssigned", async ({ event, context }) => {
         criteria: meta?.criteria,
         deadline: meta?.deadline,
         createdAt: event.block.timestamp,
-      });
+      }).onConflictDoNothing();
       break;
     }
     case TOKEN_TYPE.Directive: {
@@ -468,7 +468,7 @@ ponder.on("Agreement:ResourceTokenAssigned", async ({ event, context }) => {
         severity: meta?.severity,
         params: meta?.params,
         createdAt: event.block.timestamp,
-      });
+      }).onConflictDoNothing();
       break;
     }
   }
@@ -498,7 +498,7 @@ ponder.on("Agreement:ClaimFiled", async ({ event, context }) => {
     evidence: event.args.evidence as Hex,
     timestamp: event.block.timestamp,
     txHash: event.log.transactionHash,
-  });
+  }).onConflictDoNothing();
 });
 
 // ─── AdjudicationDelivered ───────────────────────────────────────
@@ -599,6 +599,7 @@ ponder.on(
     const { db } = context;
     const agreementId = event.log.address.toLowerCase() as Hex;
     const agentIdVal = event.args.agentId;
+    const tag = event.args.tag2;
 
     // Try to find the actor by agentId
     const actors = await db.sql
@@ -607,17 +608,22 @@ ponder.on(
       .where(eq(actor.agentId, agentIdVal));
     const actorRecord = actors[0];
 
-    const feedbackId = `${agreementId}:${agentIdVal}`;
+    // Include logIndex in ID to handle multiple feedback events per agent per tx
+    const feedbackId = `${agreementId}:${agentIdVal}:${event.log.logIndex}`;
+
+    // Infer value from tag (contract passes value to 8004 registry but event doesn't carry it)
+    const value = tag === "COMPLETED" ? 1 : tag === "ADJUDICATED" ? -1 : 0;
 
     await db.insert(reputationFeedback).values({
       id: feedbackId,
       agreementId,
       actorId: actorRecord?.id ?? null,
-      tag: event.args.tag2,
+      tag,
+      value,
       feedbackURI: event.args.feedbackURI,
       feedbackHash: event.args.feedbackHash as Hex,
       timestamp: event.block.timestamp,
       txHash: event.log.transactionHash,
-    });
+    }).onConflictDoNothing();
   }
 );

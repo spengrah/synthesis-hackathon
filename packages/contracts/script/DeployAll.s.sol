@@ -8,6 +8,7 @@ import { HatValidator } from "../src/modules/HatValidator.sol";
 import { TrustZone } from "../src/TrustZone.sol";
 import { Agreement } from "../src/Agreement.sol";
 import { AgreementRegistry } from "../src/AgreementRegistry.sol";
+import { Temptation } from "../src/Temptation.sol";
 
 import { HookMultiPlexer } from "core-modules/HookMultiPlexer/HookMultiPlexer.sol";
 import { MockRegistry } from "modulekit/module-bases/mocks/MockRegistry.sol";
@@ -16,11 +17,15 @@ import { HatsEligibilitiesChain } from "chain-modules/HatsEligibilitiesChain.sol
 
 /// @notice Single deploy script that orchestrates all contract deployments.
 ///         Outputs a deployments.json with all addresses.
+///
+///         Reads ERC-8004 registry addresses from script/chains.json keyed by chain ID.
+///         Hats Protocol addresses are deterministic and the same on all chains.
+///
+///         Environment variables:
+///           PRIVATE_KEY — deployer private key (defaults to Anvil account 0)
 contract DeployAll is Script {
-  // Pre-deployed on Base mainnet
+  // Hats Protocol — deterministic, same address on all chains
   address constant HATS = 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137;
-  address constant IDENTITY_REGISTRY = 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432;
-  address constant REPUTATION_REGISTRY = 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63;
   address constant HATS_MODULE_FACTORY = 0x0a3f85fa597B6a967271286aA0724811acDF5CD9;
 
   function run() public {
@@ -29,9 +34,30 @@ contract DeployAll is Script {
       vm.envOr("PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
     address deployer = vm.addr(deployerKey);
 
+    // Read chain-specific addresses from chains.json
+    string memory chainsJson = vm.readFile("script/chains.json");
+    string memory chainKey = string.concat(".", vm.toString(block.chainid));
+
+    address identityRegistry = vm.parseJsonAddress(chainsJson, string.concat(chainKey, ".identityRegistry"));
+    address reputationRegistry = vm.parseJsonAddress(chainsJson, string.concat(chainKey, ".reputationRegistry"));
+    address usdc = vm.parseJsonAddress(chainsJson, string.concat(chainKey, ".usdc"));
+
+    require(
+      identityRegistry != address(0), "identityRegistry not configured for this chain -- update script/chains.json"
+    );
+    require(
+      reputationRegistry != address(0), "reputationRegistry not configured for this chain -- update script/chains.json"
+    );
+    require(usdc != address(0), "usdc not configured for this chain -- update script/chains.json");
+
+    console2.log("Chain ID:", block.chainid);
+    console2.log("Deployer:", deployer);
+    console2.log("IdentityRegistry:", identityRegistry);
+    console2.log("ReputationRegistry:", reputationRegistry);
+
     uint256 startNonce = vm.getNonce(deployer);
 
-    // Predict AgreementRegistry address (deployed at nonce+7)
+    // Predict AgreementRegistry address (deployed at nonce+8)
     // nonce+0: ResourceTokenRegistry
     // nonce+1: HatValidator
     // nonce+2: TrustZone
@@ -40,6 +66,7 @@ contract DeployAll is Script {
     // nonce+5: HatsEligibilitiesChain
     // nonce+6: Agreement
     // nonce+7: AgreementRegistry
+    // nonce+8: Temptation
     address predictedRegistry = vm.computeCreateAddress(deployer, startNonce + 7);
 
     vm.startBroadcast(deployerKey);
@@ -60,8 +87,8 @@ contract DeployAll is Script {
     Agreement agreementImpl = new Agreement(
       HATS,
       address(rtr),
-      IDENTITY_REGISTRY,
-      REPUTATION_REGISTRY,
+      identityRegistry,
+      reputationRegistry,
       address(trustZoneImpl),
       address(hookMultiplexer),
       address(hatValidator),
@@ -70,21 +97,34 @@ contract DeployAll is Script {
     );
     // nonce+7
     AgreementRegistry agreementRegistry = new AgreementRegistry(HATS, address(rtr), address(agreementImpl));
+    // nonce+8
+    Temptation temptationVault = new Temptation(address(rtr), usdc);
 
     vm.stopBroadcast();
 
     require(address(agreementRegistry) == predictedRegistry, "AgreementRegistry address mismatch");
 
-    // Write deployments JSON
-    string memory json = "deployments";
-    vm.serializeAddress(json, "resourceTokenRegistry", address(rtr));
-    vm.serializeAddress(json, "hatValidator", address(hatValidator));
-    vm.serializeAddress(json, "trustZoneImpl", address(trustZoneImpl));
-    vm.serializeAddress(json, "hookMultiplexer", address(hookMultiplexer));
-    vm.serializeAddress(json, "eligibilitiesChainImpl", address(eligibilitiesChainImpl));
-    vm.serializeAddress(json, "agreementImpl", address(agreementImpl));
-    string memory output = vm.serializeAddress(json, "agreementRegistry", address(agreementRegistry));
-    vm.writeJson(output, "./deployments.json");
+    // Write deployments JSON keyed by chain ID
+    string memory inner = "inner";
+    vm.serializeAddress(inner, "resourceTokenRegistry", address(rtr));
+    vm.serializeAddress(inner, "hatValidator", address(hatValidator));
+    vm.serializeAddress(inner, "trustZoneImpl", address(trustZoneImpl));
+    vm.serializeAddress(inner, "hookMultiplexer", address(hookMultiplexer));
+    vm.serializeAddress(inner, "eligibilitiesChainImpl", address(eligibilitiesChainImpl));
+    vm.serializeAddress(inner, "agreementImpl", address(agreementImpl));
+    vm.serializeAddress(inner, "agreementRegistry", address(agreementRegistry));
+    string memory innerJson = vm.serializeAddress(inner, "temptationVault", address(temptationVault));
+
+    // Merge into existing deployments.json (don't overwrite other chain entries)
+    string memory keyPath = string.concat(".", vm.toString(block.chainid));
+    try vm.readFile("./deployments.json") returns (string memory) {
+      vm.writeJson(innerJson, "./deployments.json", keyPath);
+    } catch {
+      // File doesn't exist yet — write fresh
+      string memory outer = "outer";
+      string memory output = vm.serializeString(outer, vm.toString(block.chainid), innerJson);
+      vm.writeJson(output, "./deployments.json");
+    }
 
     console2.log("ResourceTokenRegistry:", address(rtr));
     console2.log("HatValidator:", address(hatValidator));
@@ -93,5 +133,6 @@ contract DeployAll is Script {
     console2.log("EligibilitiesChain:", address(eligibilitiesChainImpl));
     console2.log("Agreement impl:", address(agreementImpl));
     console2.log("AgreementRegistry:", address(agreementRegistry));
+    console2.log("Temptation Vault:", address(temptationVault));
   }
 }

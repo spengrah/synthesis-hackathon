@@ -183,20 +183,20 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
       Constants.REPUTATION_REGISTRY, abi.encodeWithSelector(IReputationRegistry.giveFeedback.selector), abi.encode()
     );
 
-    // Expect: for agentIdA (index 0), feedback comes from counterparty B's submission
+    // Expect: for agentIdA (index 0), feedback comes from counterparty B's submission, value=+1
     vm.expectCall(
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (agentIdA, 0, 0, "trust-zone-agreement", "COMPLETED", endpoint, feedbackURIB, feedbackHashB)
+        (agentIdA, int128(1), 0, "trust-zone-agreement", "COMPLETED", endpoint, feedbackURIB, feedbackHashB)
       )
     );
-    // Expect: for agentIdB (index 1), feedback comes from counterparty A's submission
+    // Expect: for agentIdB (index 1), feedback comes from counterparty A's submission, value=+1
     vm.expectCall(
       Constants.REPUTATION_REGISTRY,
       abi.encodeCall(
         IReputationRegistry.giveFeedback,
-        (agentIdB, 0, 0, "trust-zone-agreement", "COMPLETED", endpoint, feedbackURIA, feedbackHashA)
+        (agentIdB, int128(1), 0, "trust-zone-agreement", "COMPLETED", endpoint, feedbackURIA, feedbackHashA)
       )
     );
 
@@ -289,9 +289,9 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     assertEq(clone.outcome(), keccak256("EXPIRED"));
   }
 
-  // ---- test_Close_AdjudicatedUsesAgreementReference ----
+  // ---- test_Close_AdjudicatedSkipsReputationFeedback ----
 
-  function test_Close_AdjudicatedUsesAgreementReference() public {
+  function test_Close_AdjudicatedSkipsReputationFeedback() public {
     uint256 agentIdA = 42;
     uint256 agentIdB = 43;
 
@@ -302,27 +302,15 @@ contract Agreement_HarnessClose is AgreementHarnessBase {
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.CLAIM, abi.encode(uint256(0), bytes("evidence")));
 
-    string memory endpoint = Strings.toHexString(uint160(address(clone)), 20);
-    bytes32 expectedHash = keccak256(abi.encodePacked(endpoint));
-
     vm.mockCall(
       Constants.REPUTATION_REGISTRY, abi.encodeWithSelector(IReputationRegistry.giveFeedback.selector), abi.encode()
     );
 
-    // ADJUDICATED uses agreement reference (same as EXPIRED)
+    // ADJUDICATED close should NOT call giveFeedback — adjudicator handles feedback via FEEDBACK actions
     vm.expectCall(
       Constants.REPUTATION_REGISTRY,
-      abi.encodeCall(
-        IReputationRegistry.giveFeedback,
-        (agentIdA, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, endpoint, expectedHash)
-      )
-    );
-    vm.expectCall(
-      Constants.REPUTATION_REGISTRY,
-      abi.encodeCall(
-        IReputationRegistry.giveFeedback,
-        (agentIdB, 0, 0, "trust-zone-agreement", "ADJUDICATED", endpoint, endpoint, expectedHash)
-      )
+      abi.encodeWithSelector(IReputationRegistry.giveFeedback.selector),
+      0 // exactly 0 calls
     );
 
     // Close via adjudication

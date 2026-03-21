@@ -34,7 +34,7 @@ ponder.on(
       creator,
       metadata,
       createdAt: event.block.timestamp,
-    });
+    }).onConflictDoNothing();
 
     // If a deployed typed entity already exists for this tokenId,
     // decode metadata and update its parsed fields

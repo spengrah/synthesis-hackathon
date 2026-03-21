@@ -13,9 +13,9 @@ import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract Agreement_HarnessActivation is AgreementHarnessBase {
-  // ---- test_RevertIf_InvalidZoneCount (1 zone) ----
+  // ---- test_OneZone_SetUpAndActivateSucceeds ----
 
-  function test_RevertIf_InvalidZoneCount_OneZone() public {
+  function test_OneZone_SetUpAndActivateSucceeds() public {
     TZTypes.TZConfig[] memory zones = new TZTypes.TZConfig[](1);
     zones[0] = Defaults.tzConfig(partyA, 0);
 
@@ -25,14 +25,24 @@ contract Agreement_HarnessActivation is AgreementHarnessBase {
 
     (AgreementHarness clone,) = _createHarnessClone(payload);
 
-    // Accept
     vm.prank(partyB);
     clone.submitInput(AgreementTypes.ACCEPT, payload);
 
-    // SET_UP should revert (validation happens here)
-    vm.expectRevert(IAgreementErrors.InvalidZoneCount.selector);
+    // SET_UP succeeds with 1 zone
     vm.prank(partyA);
     clone.submitInput(AgreementTypes.SET_UP, "");
+    assertEq(clone.currentState(), AgreementTypes.READY);
+
+    // Zone 0 deployed, zone 1 empty
+    assertTrue(clone.trustZones(0) != address(0), "zone 0 should be deployed");
+    assertEq(clone.trustZones(1), address(0), "zone 1 should be empty");
+    assertTrue(clone.zoneHatIds(0) != 0, "zone 0 hat should exist");
+    assertEq(clone.zoneHatIds(1), 0, "zone 1 hat should be zero");
+
+    // ACTIVATE succeeds — only mints hat for zone 0
+    vm.prank(partyA);
+    clone.submitInput(AgreementTypes.ACTIVATE, "");
+    assertEq(clone.currentState(), AgreementTypes.ACTIVE);
   }
 
   // ---- test_RevertIf_InvalidZoneCount (3 zones) ----
