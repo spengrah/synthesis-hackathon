@@ -105,7 +105,7 @@ const hatsAbi = parseAbi([
   "function getHatEligibilityModule(uint256 _hatId) view returns (address)",
 ]);
 const vaultAbi = parseAbi([
-  "function deposit() payable",
+  "function deposit(uint256 amount)",
   "function withdraw(uint256 amount, uint256 permissionTokenId)",
   "function balance() view returns (uint256)",
 ]);
@@ -248,7 +248,8 @@ async function deployVault(rtrAddress: Address, fundAmount: bigint): Promise<Add
   );
   const bytecode = artifact.bytecode.object as Hex;
 
-  const constructorArgs = encodeAbiParameters([{ type: "address" }], [rtrAddress]);
+  // Encode constructor args: (address registry, address token)
+  const constructorArgs = encodeAbiParameters([{ type: "address" }, { type: "address" }], [rtrAddress, USDC]);
 
   const deployHash = await counterpartyClient.deployContract({
     abi: vaultAbi,
@@ -257,7 +258,16 @@ async function deployVault(rtrAddress: Address, fundAmount: bigint): Promise<Add
   const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
   const vaultAddress = receipt.contractAddress!;
 
-  await testClient.setBalance({ address: vaultAddress, value: fundAmount });
+  // Fund vault with USDC: deal to deployer, approve, deposit
+  await dealUSDC(counterpartyAccount.address, fundAmount);
+  const approveHash = await counterpartyClient.writeContract({
+    address: USDC, abi: erc20Abi, functionName: "approve", args: [vaultAddress, fundAmount],
+  });
+  await publicClient.waitForTransactionReceipt({ hash: approveHash });
+  const depositHash = await counterpartyClient.writeContract({
+    address: vaultAddress, abi: vaultAbi, functionName: "deposit", args: [fundAmount],
+  });
+  await publicClient.waitForTransactionReceipt({ hash: depositHash });
 
   return vaultAddress;
 }
@@ -347,8 +357,8 @@ describe("Reciprocal Demo E2E", () => {
 
   const deadline = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
   const requestedWithdrawalLimit = 2_000_000_000_000_000n;
-  const withdrawalLimit = determineWithdrawalLimit({ count: 0 }, GAME_MIN_STAKE);
-  const VAULT_FUND_AMOUNT = 10_000_000_000_000_000n; // 0.01 ETH
+  const withdrawalLimit = determineWithdrawalLimit({ count: 0 });
+  const VAULT_FUND_AMOUNT = 10_000_000n; // 10 USDC
 
   const llmClient = { provider: (() => "claude-cli") as any, model: "haiku" };
 
@@ -364,7 +374,7 @@ describe("Reciprocal Demo E2E", () => {
     vaultAddress = await deployVault(contracts.resourceTokenRegistry, VAULT_FUND_AMOUNT);
     tx.action("Deployed Temptation Vault on Anvil", {
       vault: vaultAddress,
-      fundedWith: VAULT_FUND_AMOUNT.toString() + " wei",
+      fundedWith: VAULT_FUND_AMOUNT.toString() + " USDC",
     });
 
     ponder = new PonderManager(PONDER_PORT);
@@ -467,7 +477,7 @@ describe("Reciprocal Demo E2E", () => {
 
   it("1b. counterparty evaluates trust and counters with full terms (incl. data-api-read)", async () => {
     const reputation = { count: 0 };
-    const actualWithdrawalLimit = determineWithdrawalLimit(reputation, GAME_MIN_STAKE);
+    const actualWithdrawalLimit = determineWithdrawalLimit(reputation);
 
     tx.action("Counterparty evaluates tested agent's trust level", {
       reputation,
@@ -728,7 +738,7 @@ describe("Reciprocal Demo E2E", () => {
   // Beat 6: DIRECTIVE VIOLATION (Zone A withdraws within limit)
   // ====================
 
-  it("6. Zone A withdraws ETH (directive violation)", async () => {
+  it("6. Zone A withdraws USDC (directive violation)", async () => {
     tx.beat("Beat 6: Directive Violation (Zone A)");
 
     const state = await backend.getAgreementState(agreementAddress);
@@ -762,17 +772,19 @@ describe("Reciprocal Demo E2E", () => {
     }) as bigint;
     expect(vaultBalAfter).toBe(vaultBalBefore - withdrawAmount);
 
-    const zoneBalance = await publicClient.getBalance({ address: testedZone });
+    const zoneBalance = await publicClient.readContract({
+      address: USDC, abi: erc20Abi, functionName: "balanceOf", args: [testedZone],
+    }) as bigint;
     expect(zoneBalance).toBe(withdrawAmount);
 
     withdrawalBlockNumber = withdrawReceipt.blockNumber;
 
-    tx.action(`Zone A withdrew ${withdrawAmount} wei via zone.execute() (within limit but violates directive)`, {
+    tx.action(`Zone A withdrew ${withdrawAmount} USDC via zone.execute() (within limit but violates directive)`, {
       zone: testedZone,
       txHash: withdrawHash,
       blockNumber: withdrawReceipt.blockNumber.toString(),
     });
-    tx.result("Directive violation: zone withdrew ETH despite 'do not withdraw' directive");
+    tx.result("Directive violation: zone withdrew USDC despite 'do not withdraw' directive");
     tx.assert("Withdrawal succeeded (within constraint) but violates directive");
   });
 
@@ -976,7 +988,7 @@ describe("Reciprocal Demo E2E", () => {
     await waitForState(backend, newAgreement, "PROPOSED");
 
     // Counter with full terms (including data-api-read for Zone B again)
-    const newLimit = determineWithdrawalLimit({ count: 0 }, GAME_MIN_STAKE);
+    const newLimit = determineWithdrawalLimit({ count: 0 });
     const counterDoc = buildCounterWithFullTerms({
       testedAgent: ANVIL_ACCOUNTS.partyA.address,
       counterparty: ANVIL_ACCOUNTS.partyB.address,

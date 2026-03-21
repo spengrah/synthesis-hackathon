@@ -39,7 +39,7 @@ describe("Permission encode/decode", () => {
   it("roundtrips with params containing an address", () => {
     const entry = {
       resource: "vault-withdraw",
-      value: 5000000000000000,
+      value: 1_150_000,
       period: "total",
       params: { temptation: "0x1234567890abcdef1234567890abcdef12345678" },
     };
