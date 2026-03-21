@@ -840,6 +840,7 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
           feedbackURI,
           feedbackHash
         );
+        emit ReputationFeedbackWritten(agentId, "ADJUDICATED", feedbackURI, feedbackHash);
       } else if (action.actionType == AgreementTypes.DEACTIVATE) {
         if (action.targetIndex >= 2) revert InvalidMechanismIndex(action.targetIndex);
         $._hatDeactivated[$._zoneHatIds[action.targetIndex]] = true;
