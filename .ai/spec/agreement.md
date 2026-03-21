@@ -42,6 +42,12 @@ State machine + zone manager + mechanism router. All interactions flow through `
 - Both parties set in constructor (from `createAgreement(partyA, partyB)`)
 - During negotiation: strict turn alternation, `msg.sender` must be a party
 
+### Zones
+- 1 or 2 trust zones per agreement (not necessarily one per party)
+- Each zone belongs to a specific party (`zones[i].party == parties[i]`)
+- When 1 zone: only `parties[0]` gets a zone; `parties[1]` participates in negotiation, completion, and exit but has no zone infrastructure (no smart account, no hat, no mechanisms)
+- Storage arrays (`trustZones[2]`, `zoneHatIds[2]`, `agentIds[2]`) are fixed at 2 — unused entries stay zeroed
+
 ### Shodai-compatible interface
 
 ```solidity
@@ -211,7 +217,7 @@ ACTIVE      ─[FINALIZE]──→ CLOSED      (deadline must have passed)
 
 `SET_UP` deploys all runtime infrastructure. After setup, the agreement is in `READY` state: all artifacts exist but zone hats are not yet worn.
 
-For each zone (`TZConfig`):
+For each zone in `data.zones` (1 or 2 zones):
 1. **Verify zone party** matches `parties[zoneIndex]`
 2. **Verify `agentId`**: if `agentId != 0`, check `identityRegistry.ownerOf(agentId) == party`
 3. **Create zone hat** (child of agreement hat) via Hats Protocol
@@ -245,10 +251,11 @@ Emit `AgreementSetUp`, `ZoneDeployed`, `MechanismRegistered`, `ResourceTokenAssi
 
 `ACTIVATE` mints zone hats and makes the agreement live. This is intentionally minimal.
 
-1. For each zone: `HATS.mintHat(zoneHatId, party)`
+1. For each zone with a non-zero `zoneHatId`: `HATS.mintHat(zoneHatId, party)`
+   - Zones that weren't set up (zoneHatId == 0) are skipped
    - Hats Protocol enforces eligibility at `mintHat()` time
    - If the party does not satisfy the deployed eligibility modules, Hats reverts with `NotEligible()`
-2. Both mints must succeed atomically — if either fails, the entire transaction reverts and the agreement stays in `READY`
+2. All mints must succeed atomically — if any fails, the entire transaction reverts and the agreement stays in `READY`
 3. Set state to `ACTIVE`
 4. Emit `AgreementActivated`, `AgreementStateChanged(READY, ACTIVE)`
 
@@ -476,28 +483,79 @@ FINALIZE is still needed to formalize the state change and emit events, but the 
 
 ## 8004 Reputation integration
 
-On CLOSED, the agreement writes one `giveFeedback()` call per party that has an `agentId != 0`:
+### Close-time feedback
+
+On CLOSED, the agreement writes one `giveFeedback()` call per party that has an `agentId != 0`, **except for ADJUDICATED outcomes** (where the adjudicator already wrote targeted feedback via FEEDBACK actions):
+
+| Outcome | `value` | feedbackURI source |
+|---------|---------|-------------------|
+| COMPLETED | +1 | Peer feedback from counterparty's COMPLETE signal |
+| EXITED | 0 | Peer feedback from counterparty's EXIT signal |
+| EXPIRED | 0 | Agreement contract address (generic reference) |
+| ADJUDICATED | — | **Skipped** — adjudicator handles via FEEDBACK action |
 
 ```solidity
 reputationRegistry.giveFeedback(
     agentId,                              // the party's 8004 identity
-    0,                                    // value: neutral (let consumers interpret)
+    value,                                // +1 (COMPLETED), 0 (EXITED/EXPIRED)
     0,                                    // valueDecimals
     "trust-zone-agreement",               // tag1
-    outcomeString,                        // tag2: "COMPLETED", "EXITED", "EXPIRED", "ADJUDICATED"
+    outcomeString,                        // tag2: "COMPLETED", "EXITED", "EXPIRED"
     Strings.toHexString(address(this)),   // endpoint: agreement contract address
     counterpartyFeedbackURI,              // feedbackURI: peer feedback from the other party
     counterpartyFeedbackHash              // feedbackHash
 );
 ```
 
-Downstream consumers of 8004 data:
-1. See the feedback entry tagged `trust-zone-agreement`
-2. Follow the `endpoint` to the agreement contract
-3. Read the agreement's full state, outcome, claims, and adjudications
-4. Form their own assessment of the agent's behavior
+### FEEDBACK adjudication action
 
-The agreement contract does not assign scores — it just records "this happened."
+The adjudicator targets the violating party with `value = -1`:
+
+```solidity
+reputationRegistry.giveFeedback(
+    agentId,                              // the violating party's 8004 identity
+    -1,                                   // value: negative (violation)
+    0,                                    // valueDecimals
+    "trust-zone-agreement",               // tag1
+    "ADJUDICATED",                        // tag2
+    Strings.toHexString(address(this)),   // endpoint
+    feedbackURI,                          // structured JSON with violated directives
+    feedbackHash                          // hash of feedback content
+);
+```
+
+The non-violating party receives **no feedback** from the adjudication — silence is neutral.
+
+### Structured feedback content
+
+**FEEDBACK action (adjudication):**
+```json
+{
+  "outcome": "FAILED",
+  "agreement": "0x...",
+  "claimId": 0,
+  "violatedDirectives": ["259", "515"],
+  "unfulfilledResponsibilities": []
+}
+```
+
+**COMPLETE peer feedback (convention, not enforced):**
+```json
+{
+  "type": "completion-feedback",
+  "agreement": "0x...",
+  "fulfilledResponsibilities": ["259", "260", "261"],
+  "unfulfilledResponsibilities": [],
+  "notes": "Agent completed all responsibilities on time"
+}
+```
+
+### Downstream consumers
+
+1. See the feedback entry tagged `trust-zone-agreement`
+2. Use `value` (+1/-1/0) for aggregate reputation scoring
+3. Follow the `endpoint` to the agreement contract for full context
+4. Parse `feedbackURI` for structured details (violated directives, fulfilled responsibilities)
 
 ---
 

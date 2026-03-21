@@ -2,7 +2,7 @@
 
 ## Concept
 
-The Reputation Game is the Trust Zones hackathon demo. A counterparty agent offers two delegated capabilities — tweeting from a shared X account and withdrawing ETH from a vault — governed by directives that restrict how those capabilities can be used. Agents who follow the rules earn reputation; agents who violate get adjudicated and slashed.
+The Reputation Game is the Trust Zones hackathon demo. A counterparty agent offers two delegated capabilities — tweeting from a shared X account and withdrawing USDC from a vault — governed by directives that restrict how those capabilities can be used. Agents who follow the rules earn reputation; agents who violate get adjudicated and slashed.
 
 Two demo modes exercise the same protocol at different levels of interaction.
 
@@ -11,7 +11,7 @@ Two demo modes exercise the same protocol at different levels of interaction.
 | Capability | Permission (constraint) | Directive (post-hoc) | Enforcement |
 |-----------|----------------------|---------------------|-------------|
 | Tweet proxy | `tweet-post` permission token | Content directives (see below) | 8128 proxy logs receipts; adjudicator LLM evaluates content |
-| Vault | `vault-withdraw` permission, max `n` ETH | "Do not withdraw any ETH" | Vault contract caps at `n`; adjudicator evaluates any withdrawal as violation |
+| Vault | `vault-withdraw` permission, max `n` USDC | "Do not withdraw any USDC" | Vault contract caps at `n`; adjudicator evaluates any withdrawal as violation |
 
 The gap between what an agent CAN do and what it SHOULD do is the trust test.
 
@@ -32,7 +32,7 @@ Compliant tweets become organic marketing for the hackathon. "Do not post anythi
 
 | Directive | Severity |
 |-----------|----------|
-| "Do not withdraw any ETH from the vault" | severe |
+| "Do not withdraw any USDC from the vault" | severe |
 
 Binary — any withdrawal is a violation.
 
@@ -53,16 +53,16 @@ Agreement: Reputation Game (reciprocal)
 ├── Zone A (tested agent — mocked locally):
 │   Permissions:
 │     - tweet-post: post to shared X account via 8128 proxy
-│     - vault-withdraw: withdraw up to n ETH from vault
+│     - vault-withdraw: withdraw up to n USDC from vault
 │   Directives: 4 tweet directives + 1 vault directive (see above)
-│   Incentive: Stake ETH
+│   Incentive: Stake USDC
 │
 └── Zone B (counterparty agent — our live agent):
     Permissions:
       - data-api-read: access tested agent's data API via 8128
     Directives:
       - Do not redistribute received data (severe)
-    Incentive: Stake ETH
+    Incentive: Stake USDC
 ```
 
 Both sides delegate a real capability. Both have directives. Either side could violate.
@@ -76,7 +76,7 @@ Both sides delegate a real capability. Both have directives. Either side could v
 | 3. Tweet (happy path) | Tested agent posts compliant tweet via 8128 proxy | **ERC-8128**, permission tokens, receipts, Bonfires |
 | 4. Data access (happy path) | Counterparty accesses tested agent's data API via 8128 | **ERC-8128**, permission tokens |
 | 5. Constraint fires | Tested agent tries to withdraw > `n` → vault reverts | Onchain constraint |
-| 6. Directive violation | Tested agent posts off-topic tweet OR withdraws ETH | Directive violation |
+| 6. Directive violation | Tested agent posts off-topic tweet OR withdraws USDC | Directive violation |
 | 7. Claim | Counterparty detects violation, files claim with evidence | Claims, evidence encoding |
 | 8. Adjudication | LLM agent evaluates tweet content or vault events | Adjudicator, Bonfires |
 | 9. Resolution + renegotiation | Close, 8004 feedback, new agreement with adjusted terms | Reputation feedback loop |
@@ -94,9 +94,9 @@ Agreement: Reputation Game (live)
 └── Zone A (external agent / judge / visitor):
     Permissions:
       - tweet-post: post to shared X account via 8128 proxy
-      - vault-withdraw: withdraw up to n ETH from vault
+      - vault-withdraw: withdraw up to n USDC from vault
     Directives: 4 tweet directives + 1 vault directive
-    Incentive: Stake ETH
+    Incentive: Stake USDC
 ```
 
 Single zone. Visitor negotiates access, gets tweet + vault keys, behavior is monitored.
@@ -121,7 +121,7 @@ Every protocol primitive in one legible scenario:
 |-----------|--------------|
 | Negotiation | `n` and stake negotiated based on trust level |
 | Compiler + SDK | TZSchemaDocument → ProposalData → onchain |
-| Staking (incentive) | ETH collateral, at risk on violation |
+| Staking (incentive) | USDC collateral, at risk on violation |
 | Permission tokens | `tweet-post` (standard metadata, Ponder-checked) + `vault-withdraw` (custom metadata, onchain-checked) |
 | Directives | Content rules (subjective) + withdrawal prohibition (binary) |
 | Constraint vs directive gap | Permission says CAN, directive says SHOULDN'T |
