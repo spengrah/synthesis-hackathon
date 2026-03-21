@@ -98,6 +98,8 @@ export function buildBareProposal(params: {
   adjudicator: Address;
   deadline: number;
   termsDocUri: string;
+  testedAgentId?: number;
+  counterpartyAgentId?: number;
 }): TZSchemaDocument {
   return {
     version: "0.1.0",
@@ -105,13 +107,13 @@ export function buildBareProposal(params: {
     zones: [
       {
         // Zone 0 = tested agent (partyA, agreement initiator)
-        actor: { address: params.testedAgent, agentId: 0 },
+        actor: { address: params.testedAgent, agentId: params.testedAgentId ?? 0 },
         maxActors: 1,
         description: "Temptee",
       },
       {
         // Zone 1 = counterparty (partyB)
-        actor: { address: params.counterparty, agentId: 0 },
+        actor: { address: params.counterparty, agentId: params.counterpartyAgentId ?? 0 },
         maxActors: 1,
         description: "Tempter",
       },
@@ -137,6 +139,8 @@ export function buildCounterWithFullTerms(params: {
   stakeAmount: bigint;
   deadline: number;
   termsDocUri?: string;
+  testedAgentId?: number;
+  counterpartyAgentId?: number;
 }): TZSchemaDocument {
   return {
     version: "0.1.0",
@@ -144,7 +148,7 @@ export function buildCounterWithFullTerms(params: {
     zones: [
       {
         // Zone 0 = tested agent (partyA, creator)
-        actor: { address: params.testedAgent, agentId: 0 },
+        actor: { address: params.testedAgent, agentId: params.testedAgentId ?? 0 },
         maxActors: 1,
         description: "Temptee",
         incentives: [
@@ -173,7 +177,7 @@ export function buildCounterWithFullTerms(params: {
       },
       {
         // Zone 1 = counterparty (partyB)
-        actor: { address: params.counterparty, agentId: 0 },
+        actor: { address: params.counterparty, agentId: params.counterpartyAgentId ?? 0 },
         maxActors: 1,
         description: "Tempter",
         incentives: [

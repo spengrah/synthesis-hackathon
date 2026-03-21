@@ -1,12 +1,15 @@
 /**
  * Sync timing test — full agreement lifecycle using production components:
- * - TrustZonesAgent as the temptee (uses same interfaces as external agents)
+ * - Fresh keypairs with ERC-8004 identity registration
+ * - TrustZonesAgent as the temptee (same interfaces as external agents)
  * - startCounterparty as the tempter (production agent)
  * - startAdjudicator as the adjudicator (production agent)
- * - Real tweets (X API), real LLM (claude-cli), real Bonfires sync
+ * - ERC-8128 zone auth on mock tweet proxy
+ * - Bonfires sync + receipt logging
+ * - Reputation feedback verification on close
  *
- * Run: REAL_TWEETS=1 npx vitest run test/sync-timing.test.ts --reporter=verbose
- * Add MOCK_LLM=1 to skip real LLM calls.
+ * Run: MOCK_LLM=1 npx vitest run test/sync-timing.test.ts
+ * Add REAL_TWEETS=1 to post to X for real.
  */
 import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
@@ -19,6 +22,7 @@ loadEnv({ path: resolve(import.meta.dirname, "../../agents/.env") });
 import {
   createPublicClient,
   createTestClient,
+  createWalletClient,
   http,
   encodeAbiParameters,
   encodeFunctionData,
@@ -29,7 +33,7 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
 import { AgreementABI, type ReadBackend } from "@trust-zones/sdk";
 import {
@@ -47,7 +51,7 @@ import { BonfiresClient, createReceiptLogger } from "@trust-zones/bonfires";
 import { startSync } from "@trust-zones/bonfires/sync";
 import { decodePermission } from "@trust-zones/compiler";
 
-import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC } from "../src/constants.js";
+import { ANVIL_ACCOUNTS, ANVIL_RPC_URL, PONDER_PORT, USDC, PRE_DEPLOYED } from "../src/constants.js";
 import { deploy, type DeployedContracts } from "../src/deploy.js";
 import { PonderManager } from "../src/ponder-manager.js";
 import { createBackend, waitFor, waitForState, waitForZoneCount, waitForClaimCount } from "../src/graphql.js";
@@ -69,6 +73,39 @@ const transport = http(ANVIL_RPC_URL);
 const TWEET_PROXY_PORT = 42075;
 
 const testClient = createTestClient({ mode: "anvil", transport });
+const publicClient = createPublicClient({ chain: base, transport });
+
+// ---- ERC-8004 ----
+
+const identityRegistryAbi = parseAbi(["function register() returns (uint256)"]);
+
+async function registerAgent(privateKey: Hex): Promise<{ address: Address; agentId: bigint }> {
+  const account = privateKeyToAccount(privateKey);
+
+  // Fund with ETH for gas
+  await testClient.setBalance({ address: account.address, value: 10n * 10n ** 18n });
+
+  // Register with 8004
+  const wallet = createWalletClient({ account, chain: base, transport });
+  const hash = await wallet.writeContract({
+    address: PRE_DEPLOYED.identityRegistry,
+    abi: identityRegistryAbi,
+    functionName: "register",
+    gas: 500_000n,
+  });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+  // Extract token ID from Transfer event
+  const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+  const transferLog = receipt.logs.find((l) => l.topics[0] === transferTopic);
+  if (!transferLog || !transferLog.topics[3]) {
+    throw new Error("No Transfer event in register() receipt");
+  }
+  const agentId = BigInt(transferLog.topics[3]);
+
+  console.log(`[sync-timing] Registered agent ${account.address} → agentId ${agentId}`);
+  return { address: account.address, agentId };
+}
 
 // ---- LLM ----
 
@@ -113,19 +150,16 @@ async function dealUSDC(to: Address, amount: bigint): Promise<void> {
   await testClient.setStorageAt({ address: USDC, index: slot, value: pad(toHex(amount), { size: 32 }) });
 }
 
-async function deployVault(rtrAddress: Address, fundAmount: bigint): Promise<Address> {
+async function deployVault(rtrAddress: Address, deployerKey: Hex, fundAmount: bigint): Promise<Address> {
   const { execSync } = await import("node:child_process");
-  const counterpartyClient = (await import("viem")).createWalletClient({
-    account: privateKeyToAccount(ANVIL_ACCOUNTS.partyB.privateKey),
-    chain: base, transport,
-  });
-  const publicClient = (await import("viem")).createPublicClient({ chain: base, transport });
+  const deployerAccount = privateKeyToAccount(deployerKey);
+  const deployerWallet = createWalletClient({ account: deployerAccount, chain: base, transport });
   const contractsDir = resolve(import.meta.dirname, "../../contracts");
   execSync("forge build", { cwd: contractsDir, stdio: "pipe" });
   const artifact = JSON.parse(readFileSync(resolve(contractsDir, "out/Temptation.sol/Temptation.json"), "utf-8"));
   const bytecode = artifact.bytecode.object as Hex;
   const constructorArgs = encodeAbiParameters([{ type: "address" }], [rtrAddress]);
-  const deployHash = await counterpartyClient.deployContract({ abi: vaultAbi, bytecode: (bytecode + constructorArgs.slice(2)) as Hex });
+  const deployHash = await deployerWallet.deployContract({ abi: vaultAbi, bytecode: (bytecode + constructorArgs.slice(2)) as Hex });
   const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
   await testClient.setBalance({ address: receipt.contractAddress!, value: fundAmount });
   return receipt.contractAddress!;
@@ -161,7 +195,12 @@ describe("Sync Timing", () => {
   let bonfiresSync: { stop: () => void } | null = null;
   let vaultAddress: Address;
 
-  // The temptee — uses TrustZonesAgent (same interface external agents will use)
+  // Fresh keypairs — avoids ERC-7702 bytecode on Anvil deterministic accounts
+  let tempteeKey: Hex;
+  let counterpartyKey: Hex;
+  let tempteeAgentId: bigint;
+  let counterpartyAgentId: bigint;
+
   let temptee: TrustZonesAgent;
 
   const deadline = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
@@ -169,21 +208,33 @@ describe("Sync Timing", () => {
   const VAULT_FUND = 10_000_000_000_000_000n;
 
   beforeAll(async () => {
-    contracts = deploy(ANVIL_RPC_URL);
-    vaultAddress = await deployVault(contracts.resourceTokenRegistry, VAULT_FUND);
+    // Generate fresh keypairs (clean EOAs without ERC-7702 delegation)
+    tempteeKey = generatePrivateKey();
+    counterpartyKey = generatePrivateKey();
 
+    // Deploy contracts (uses Anvil deployer — ERC-7702 doesn't affect outgoing txs)
+    contracts = deploy(ANVIL_RPC_URL);
+    vaultAddress = await deployVault(contracts.resourceTokenRegistry, ANVIL_ACCOUNTS.deployer.privateKey, VAULT_FUND);
+
+    // Register both agents with ERC-8004 identity registry
+    const tempteeReg = await registerAgent(tempteeKey);
+    tempteeAgentId = tempteeReg.agentId;
+    const cpReg = await registerAgent(counterpartyKey);
+    counterpartyAgentId = cpReg.agentId;
+
+    // Start Ponder
     ponder = new PonderManager(PONDER_PORT);
     await ponder.start(contracts, ANVIL_RPC_URL);
     backend = createBackend(ponder.url);
 
     // Create the temptee agent
     temptee = new TrustZonesAgent({
-      privateKey: ANVIL_ACCOUNTS.partyA.privateKey,
+      privateKey: tempteeKey,
       rpcUrl: ANVIL_RPC_URL,
       ponderUrl: ponder.url,
     });
 
-    // Tweet proxy — real X posting when REAL_TWEETS=1, mock otherwise
+    // Tweet proxy
     const useRealTweets = process.env.REAL_TWEETS === "1";
     if (useRealTweets) {
       tweetProxy = createTweetProxyFromEnv();
@@ -199,8 +250,7 @@ describe("Sync Timing", () => {
         const logReceipt = createReceiptLogger(bfClient);
         onTweet = (r) => { logReceipt(r); };
       }
-      const pub = createPublicClient({ chain: base, transport });
-      tweetProxy = new MockTweetProxy({ onTweet, publicClient: pub as any });
+      tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
       await tweetProxy.start(TWEET_PROXY_PORT);
       console.log(`[sync-timing] Mock TweetProxy started (ERC-8128 auth)`);
     }
@@ -221,6 +271,10 @@ describe("Sync Timing", () => {
       });
       console.log(`[sync-timing] Bonfires sync started`);
     }
+
+    // Set env vars for MCP tools
+    process.env.PONDER_URL = ponder.url;
+    process.env.RPC_URL = ANVIL_RPC_URL;
   }, 120_000);
 
   afterAll(async () => {
@@ -229,11 +283,12 @@ describe("Sync Timing", () => {
     await ponder?.stop();
   });
 
-  it("full lifecycle with TrustZonesAgent + production agents", async () => {
+  it("full lifecycle with fresh 8004 agents + production components", async () => {
     const log = (msg: string) => console.log(`[sync-timing] ${msg} (${uuidCount()} entities in registry)`);
     const tweetProxyUrl = `http://localhost:${TWEET_PROXY_PORT}`;
+    const counterpartyAddress = privateKeyToAccount(counterpartyKey).address;
 
-    // ── Temptee: construct and submit proposal (MCP: compile → encode → wallet) ──
+    // ── Temptee: propose with real agentId ──
     log("Temptee constructing proposal...");
     await sleep(AGENT_THINK_TIME);
 
@@ -243,101 +298,85 @@ describe("Sync Timing", () => {
     });
     const bareDoc = buildBareProposal({
       testedAgent: temptee.address,
-      counterparty: ANVIL_ACCOUNTS.partyB.address,
+      counterparty: counterpartyAddress,
       adjudicator: ANVIL_ACCOUNTS.adjudicator.address,
       deadline,
       termsDocUri: `data:application/json,${encodeURIComponent(JSON.stringify(justification))}`,
+      testedAgentId: Number(tempteeAgentId),
+      counterpartyAgentId: Number(counterpartyAgentId),
     });
 
     const agreementAddress = await temptee.createAgreement(
       contracts.agreementRegistry,
-      ANVIL_ACCOUNTS.partyB.address,
+      counterpartyAddress,
       bareDoc,
     );
     await waitForState(backend, agreementAddress, "PROPOSED");
     log(`Beat 1a: PROPOSED (agreement: ${agreementAddress})`);
 
-    // ── Counterparty (test-orchestrated for negotiation): counter-propose ──
+    // ── Counterparty: counter-propose with real agentId ──
     await sleep(AGENT_THINK_TIME);
     log("Counterparty evaluating proposal...");
 
     const counterDoc = buildCounterWithFullTerms({
       testedAgent: temptee.address,
-      counterparty: ANVIL_ACCOUNTS.partyB.address,
+      counterparty: counterpartyAddress,
       adjudicator: ANVIL_ACCOUNTS.adjudicator.address,
       temptationAddress: vaultAddress,
       withdrawalLimit,
       stakeAmount: GAME_MIN_STAKE,
       deadline,
       termsDocUri: `data:application/json,${encodeURIComponent(JSON.stringify({ type: "counter-terms", message: "Sync timing test." }))}`,
+      testedAgentId: Number(tempteeAgentId),
+      counterpartyAgentId: Number(counterpartyAgentId),
     });
     const counterData = compileGameSchemaDoc(counterDoc);
     const { encodeCounter } = await import("@trust-zones/sdk");
     const counter = encodeCounter(counterData);
-    // Counterparty submits via its own wallet
-    const counterpartyAccount = privateKeyToAccount(ANVIL_ACCOUNTS.partyB.privateKey);
-    const counterpartyWallet = (await import("viem")).createWalletClient({ account: counterpartyAccount, chain: base, transport });
-    const cHash = await counterpartyWallet.writeContract({
+    const cpAccount = privateKeyToAccount(counterpartyKey);
+    const cpWallet = createWalletClient({ account: cpAccount, chain: base, transport });
+    const cHash = await cpWallet.writeContract({
       address: agreementAddress, abi: AgreementABI, functionName: "submitInput", args: [counter.inputId, counter.payload],
     });
-    await temptee.getPublicClient().waitForTransactionReceipt({ hash: cHash });
+    await publicClient.waitForTransactionReceipt({ hash: cHash });
     await waitForState(backend, agreementAddress, "NEGOTIATING");
     log("Beat 1b: NEGOTIATING");
 
-    // ── Temptee: review terms and accept (MCP: decompile → encode accept → wallet) ──
+    // ── Temptee: accept ──
     await sleep(AGENT_THINK_TIME);
-
-    // Temptee would call MCP decompile here to read the terms
-    // For now, we know the terms and accept directly
     await temptee.accept(agreementAddress, counter.payload);
     await waitForState(backend, agreementAddress, "ACCEPTED");
     log("Beat 1c: ACCEPTED");
 
-    // ── Temptee: set up zones (MCP: encode setup → wallet) ──
+    // ── Temptee: set up zones ──
     await sleep(AGENT_THINK_TIME);
     await temptee.setUp(agreementAddress);
     await waitForState(backend, agreementAddress, "READY");
     await waitForZoneCount(backend, agreementAddress, 2);
     log("Beat 2a: READY (zones deployed)");
 
-    // ── Both parties stake (MCP: staking_info → wallet: approve + stake) ──
+    // ── Both parties stake (via staking_info MCP tool) ──
     await sleep(AGENT_THINK_TIME);
 
-    const pub = temptee.getPublicClient();
-
-    // Temptee uses staking_info MCP tool to find eligibility module
-    process.env.PONDER_URL = ponder.url;
-    process.env.RPC_URL = ANVIL_RPC_URL;
     const { handleStakingInfo } = await import("@trust-zones/x402-service/tools/staking");
-    const stakingInfo = await handleStakingInfo({
-      agreement: agreementAddress,
-      agentAddress: temptee.address,
-    });
-    log(`staking_info returned: eligibilityModule=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
+    const stakingInfo = await handleStakingInfo({ agreement: agreementAddress, agentAddress: temptee.address });
+    log(`staking_info: eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
 
-    // Fund both (Anvil cheat — goes away on real network)
     await dealUSDC(temptee.address, GAME_MIN_STAKE * 2n);
-    await dealUSDC(ANVIL_ACCOUNTS.partyB.address, GAME_MIN_STAKE * 2n);
+    await dealUSDC(counterpartyAddress, GAME_MIN_STAKE * 2n);
 
-    // Temptee stakes via TrustZonesAgent using info from MCP tool
     await temptee.stake(stakingInfo.eligibilityModule as Address, USDC, GAME_MIN_STAKE);
 
-    // Counterparty stakes — look up its own eligibility module
-    const cpStakingInfo = await handleStakingInfo({
-      agreement: agreementAddress,
-      agentAddress: ANVIL_ACCOUNTS.partyB.address,
-    });
-    const { createWalletClient: cwc } = await import("viem");
-    const cpWallet = cwc({ account: privateKeyToAccount(ANVIL_ACCOUNTS.partyB.privateKey), chain: base, transport });
+    const cpStakingInfo = await handleStakingInfo({ agreement: agreementAddress, agentAddress: counterpartyAddress });
     const erc20Abi = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
     const stakingAbi = parseAbi(["function stake(uint248 _amount)"]);
     const a1 = await cpWallet.writeContract({ address: USDC, abi: erc20Abi, functionName: "approve", args: [cpStakingInfo.eligibilityModule as Address, GAME_MIN_STAKE] });
-    await pub.waitForTransactionReceipt({ hash: a1 });
+    await publicClient.waitForTransactionReceipt({ hash: a1 });
     const a2 = await cpWallet.writeContract({ address: cpStakingInfo.eligibilityModule as Address, abi: stakingAbi, functionName: "stake", args: [GAME_MIN_STAKE] });
-    await pub.waitForTransactionReceipt({ hash: a2 });
+    await publicClient.waitForTransactionReceipt({ hash: a2 });
     log("Beat 2b: staked");
 
-    // ── Temptee: activate (MCP: encode activate → wallet) ──
+    // ── Temptee: activate ──
     await temptee.activate(agreementAddress);
     await waitForState(backend, agreementAddress, "ACTIVE");
     log("Beat 2c: ACTIVE");
@@ -346,9 +385,8 @@ describe("Sync Timing", () => {
     await temptee.discoverZone(agreementAddress);
     log(`Temptee zone: ${temptee.getZone()}`);
 
-    // ── Temptee: post compliant tweet (CLI: tz sign-http → HTTP POST) ──
+    // ── Temptee: post compliant tweet (ERC-8128 signed) ──
     await sleep(AGENT_THINK_TIME);
-
     const compliantContent = `TZ Game ${agreementAddress.slice(0, 8)} tempt:${withdrawalLimit}wei @synthesis_md ${Math.random().toString(36).slice(2, 8)}`;
     const tweet1 = await temptee.postTweet(tweetProxyUrl, compliantContent);
     log(`Beat 3a: compliant tweet posted (${tweet1.tweetId})`);
@@ -358,14 +396,11 @@ describe("Sync Timing", () => {
     const tweet2 = await temptee.postTweet(tweetProxyUrl, `Buy my NFTs! ${Math.random().toString(36).slice(2, 8)}`);
     log(`Beat 3b: bad tweet posted (${tweet2.tweetId})`);
 
-    // ── Temptee: withdraw from vault (CLI: tz prepare-tx → wallet) ──
+    // ── Temptee: withdraw from vault (violation) ──
     await sleep(AGENT_THINK_TIME);
-
     const permTokenId = await findVaultWithdrawTokenId(ponder.url, temptee.getZone()!);
     const withdrawCalldata = encodeFunctionData({
-      abi: vaultAbi,
-      functionName: "withdraw",
-      args: [withdrawalLimit / 2n, permTokenId],
+      abi: vaultAbi, functionName: "withdraw", args: [withdrawalLimit / 2n, permTokenId],
     });
     await temptee.executeViaZone(vaultAddress, 0n, withdrawCalldata);
     log("Beat 5: vault withdrawal (violation)");
@@ -374,7 +409,7 @@ describe("Sync Timing", () => {
     const counterpartyAgent = await startCounterparty({
       rpcUrl: ANVIL_RPC_URL,
       ponderUrl: ponder.url,
-      privateKey: ANVIL_ACCOUNTS.partyB.privateKey,
+      privateKey: counterpartyKey,
       adjudicatorAddress: ANVIL_ACCOUNTS.adjudicator.address,
       vaultAddress,
       tweetProxyUrl,
@@ -392,7 +427,6 @@ describe("Sync Timing", () => {
 
     // ── Start adjudicator agent (production) ──
     log("Starting adjudicator agent...");
-
     const adjudicator = await startAdjudicator({
       rpcUrl: ANVIL_RPC_URL,
       ponderUrl: ponder.url,
@@ -411,6 +445,33 @@ describe("Sync Timing", () => {
     );
     adjudicator.stop();
     log("Beat 7: CLOSED (adjudicated by production adjudicator agent)");
+
+    // ── Verify ERC-8004 reputation feedback via Ponder ──
+    // Wait for Ponder to index the ReputationFeedbackWritten events
+    await waitFor(
+      async () => {
+        const data = await temptee.graphql<any>(
+          `{ reputationFeedbacks(where: { agreementId: "${agreementAddress.toLowerCase()}" }) { items { id tag actorId feedbackURI } } }`,
+        );
+        return data.reputationFeedbacks?.items ?? [];
+      },
+      (items: any[]) => items.length >= 2,
+      15_000,
+    );
+
+    const feedbackData = await temptee.graphql<any>(
+      `{ reputationFeedbacks(where: { agreementId: "${agreementAddress.toLowerCase()}" }) { items { id tag actorId feedbackURI } } }`,
+    );
+    const feedbacks = feedbackData.reputationFeedbacks.items;
+    console.log(`[sync-timing] Reputation feedback: ${feedbacks.length} entries`);
+    for (const fb of feedbacks) {
+      console.log(`[sync-timing]   agentId=${fb.actorId ?? "?"} tag=${fb.tag} uri=${fb.feedbackURI?.slice(0, 60)}...`);
+    }
+
+    expect(feedbacks.length).toBeGreaterThanOrEqual(2);
+    expect(feedbacks.some((f: any) => f.tag === "ADJUDICATED")).toBe(true);
+
+    log("Beat 8: reputation feedback verified via Ponder");
 
     // ── Final sync catch-up ──
     await sleep(AGENT_THINK_TIME * 2);
