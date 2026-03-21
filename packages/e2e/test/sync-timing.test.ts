@@ -319,6 +319,7 @@ describe("Sync Timing", () => {
 
       contracts = deploy(rpcUrl);
       vaultAddress = await ensureVault(contracts, VAULT_FUND, ANVIL_ACCOUNTS.deployer.privateKey);
+      contracts.temptationVault = vaultAddress;
 
       const tempteeReg = await registerAgent(tempteeKey);
       tempteeAgentId = tempteeReg.agentId;
@@ -352,7 +353,7 @@ describe("Sync Timing", () => {
     const startBlock = chain.isLocal
       ? (await import("../src/constants.js")).FORK_BLOCK
       : Number(await publicClient.getBlockNumber());
-    await ponder.start(contracts, rpcUrl, startBlock);
+    await ponder.start(contracts, rpcUrl, startBlock, chainId);
     backend = createBackend(ponder.url);
 
     // Create the temptee agent

@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import { createPonderBackend, type ReadBackend } from "@trust-zones/sdk";
 
 // ---- GraphQL helper ----
@@ -142,10 +142,19 @@ export interface ProposedAgreement {
   }[];
 }
 
+export interface PonderVaultWithdrawal {
+  type: "vault-withdrawal";
+  to: Address;
+  amount: bigint;
+  txHash: Hex;
+  blockNumber: bigint;
+}
+
 export interface AgentPonderClient extends ReadBackend {
   getUnadjudicatedClaims: (adjudicatorAddress?: Address) => Promise<UnadjudicatedClaim[]>;
   getActiveAgreementsForParty: (partyAddress: Address) => Promise<ActiveAgreement[]>;
   getProposedAgreementsForParty: (partyAddress: Address) => Promise<ProposedAgreement[]>;
+  getVaultWithdrawals: (vaultAddress: Address, sinceTimestamp?: bigint) => Promise<PonderVaultWithdrawal[]>;
 }
 
 export function createAgentPonderClient(ponderUrl: string): AgentPonderClient {
@@ -266,10 +275,38 @@ export function createAgentPonderClient(ponderUrl: string): AgentPonderClient {
       }));
   }
 
+  async function getVaultWithdrawals(
+    vaultAddress: Address,
+    sinceTimestamp?: bigint,
+  ): Promise<PonderVaultWithdrawal[]> {
+    const where: Record<string, string> = { vault: vaultAddress.toLowerCase() };
+    if (sinceTimestamp !== undefined) {
+      where.timestamp_gt = sinceTimestamp.toString();
+    }
+    const query = `
+query GetVaultWithdrawals($where: vaultWithdrawalFilter) {
+  vaultWithdrawals(where: $where, orderBy: "timestamp", orderDirection: "asc") {
+    items { recipient amount txHash timestamp }
+  }
+}`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await gql<any>(ponderUrl, query, { where });
+    const items = data.vaultWithdrawals?.items ?? [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return items.map((w: any) => ({
+      type: "vault-withdrawal" as const,
+      to: w.recipient as Address,
+      amount: BigInt(w.amount),
+      txHash: w.txHash as Hex,
+      blockNumber: 0n,
+    }));
+  }
+
   return {
     ...backend,
     getUnadjudicatedClaims,
     getActiveAgreementsForParty,
     getProposedAgreementsForParty,
+    getVaultWithdrawals,
   };
 }

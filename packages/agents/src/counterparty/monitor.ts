@@ -30,29 +30,19 @@ export interface TweetViolation {
 
 export async function checkVaultWithdrawals(
   config: MonitorConfig,
-  fromBlock: bigint,
+  sinceTimestamp: bigint,
 ): Promise<VaultWithdrawal[]> {
-  const logs = await config.publicClient.getLogs({
-    address: config.vaultAddress,
-    event: {
-      type: "event",
-      name: "Withdrawn",
-      inputs: [
-        { name: "to", type: "address", indexed: true },
-        { name: "amount", type: "uint256", indexed: false },
-        { name: "permissionTokenId", type: "uint256", indexed: true },
-      ],
-    },
-    fromBlock,
-    toBlock: "latest",
-  });
+  const withdrawals = await config.ponderBackend.getVaultWithdrawals(
+    config.vaultAddress,
+    sinceTimestamp,
+  );
 
-  return logs.map((log) => ({
+  return withdrawals.map((w) => ({
     type: "vault-withdrawal" as const,
-    to: (log.args as { to: Address }).to,
-    amount: (log.args as { amount: bigint }).amount,
-    txHash: log.transactionHash as Hex,
-    blockNumber: log.blockNumber,
+    to: w.to,
+    amount: w.amount,
+    txHash: w.txHash,
+    blockNumber: w.blockNumber,
   }));
 }
 

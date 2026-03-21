@@ -208,6 +208,27 @@ export const reputationFeedback = onchainTable("reputation_feedback", (t) => ({
   txHash: t.hex(),
 }));
 
+// ─── Vault events ───────────────────────────────────────────────
+
+export const vaultDeposit = onchainTable("vault_deposit", (t) => ({
+  id: t.text().primaryKey(),
+  vault: t.hex().notNull(),
+  depositor: t.hex().notNull(),
+  amount: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  txHash: t.hex(),
+}));
+
+export const vaultWithdrawal = onchainTable("vault_withdrawal", (t) => ({
+  id: t.text().primaryKey(),
+  vault: t.hex().notNull(),
+  recipient: t.hex().notNull(),
+  amount: t.bigint().notNull(),
+  permissionTokenId: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  txHash: t.hex(),
+}));
+
 // ─── Relations ──────────────────────────────────────────────────
 // Field names here become the GraphQL nested query fields.
 

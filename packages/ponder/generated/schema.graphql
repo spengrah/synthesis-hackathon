@@ -51,6 +51,10 @@ type Query {
   claims(where: claimFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): claimPage!
   reputationFeedback(id: String!): reputationFeedback
   reputationFeedbacks(where: reputationFeedbackFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): reputationFeedbackPage!
+  vaultDeposit(id: String!): vaultDeposit
+  vaultDeposits(where: vaultDepositFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): vaultDepositPage!
+  vaultWithdrawal(id: String!): vaultWithdrawal
+  vaultWithdrawals(where: vaultWithdrawalFilter, orderBy: String, orderDirection: String, before: String, after: String, limit: Int): vaultWithdrawalPage!
   _meta: Meta
 }
 
@@ -1828,4 +1832,165 @@ input resourceTokenFilter {
   createdAt_lt: BigInt
   createdAt_gte: BigInt
   createdAt_lte: BigInt
+}
+
+type vaultDeposit {
+  id: String!
+  vault: String!
+  depositor: String!
+  amount: BigInt!
+  timestamp: BigInt!
+  txHash: String
+}
+
+type vaultDepositPage {
+  items: [vaultDeposit!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input vaultDepositFilter {
+  AND: [vaultDepositFilter]
+  OR: [vaultDepositFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  vault: String
+  vault_not: String
+  vault_in: [String]
+  vault_not_in: [String]
+  vault_contains: String
+  vault_not_contains: String
+  vault_starts_with: String
+  vault_ends_with: String
+  vault_not_starts_with: String
+  vault_not_ends_with: String
+  depositor: String
+  depositor_not: String
+  depositor_in: [String]
+  depositor_not_in: [String]
+  depositor_contains: String
+  depositor_not_contains: String
+  depositor_starts_with: String
+  depositor_ends_with: String
+  depositor_not_starts_with: String
+  depositor_not_ends_with: String
+  amount: BigInt
+  amount_not: BigInt
+  amount_in: [BigInt]
+  amount_not_in: [BigInt]
+  amount_gt: BigInt
+  amount_lt: BigInt
+  amount_gte: BigInt
+  amount_lte: BigInt
+  timestamp: BigInt
+  timestamp_not: BigInt
+  timestamp_in: [BigInt]
+  timestamp_not_in: [BigInt]
+  timestamp_gt: BigInt
+  timestamp_lt: BigInt
+  timestamp_gte: BigInt
+  timestamp_lte: BigInt
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
+}
+
+type vaultWithdrawal {
+  id: String!
+  vault: String!
+  recipient: String!
+  amount: BigInt!
+  permissionTokenId: BigInt!
+  timestamp: BigInt!
+  txHash: String
+}
+
+type vaultWithdrawalPage {
+  items: [vaultWithdrawal!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input vaultWithdrawalFilter {
+  AND: [vaultWithdrawalFilter]
+  OR: [vaultWithdrawalFilter]
+  id: String
+  id_not: String
+  id_in: [String]
+  id_not_in: [String]
+  id_contains: String
+  id_not_contains: String
+  id_starts_with: String
+  id_ends_with: String
+  id_not_starts_with: String
+  id_not_ends_with: String
+  vault: String
+  vault_not: String
+  vault_in: [String]
+  vault_not_in: [String]
+  vault_contains: String
+  vault_not_contains: String
+  vault_starts_with: String
+  vault_ends_with: String
+  vault_not_starts_with: String
+  vault_not_ends_with: String
+  recipient: String
+  recipient_not: String
+  recipient_in: [String]
+  recipient_not_in: [String]
+  recipient_contains: String
+  recipient_not_contains: String
+  recipient_starts_with: String
+  recipient_ends_with: String
+  recipient_not_starts_with: String
+  recipient_not_ends_with: String
+  amount: BigInt
+  amount_not: BigInt
+  amount_in: [BigInt]
+  amount_not_in: [BigInt]
+  amount_gt: BigInt
+  amount_lt: BigInt
+  amount_gte: BigInt
+  amount_lte: BigInt
+  permissionTokenId: BigInt
+  permissionTokenId_not: BigInt
+  permissionTokenId_in: [BigInt]
+  permissionTokenId_not_in: [BigInt]
+  permissionTokenId_gt: BigInt
+  permissionTokenId_lt: BigInt
+  permissionTokenId_gte: BigInt
+  permissionTokenId_lte: BigInt
+  timestamp: BigInt
+  timestamp_not: BigInt
+  timestamp_in: [BigInt]
+  timestamp_not_in: [BigInt]
+  timestamp_gt: BigInt
+  timestamp_lt: BigInt
+  timestamp_gte: BigInt
+  timestamp_lte: BigInt
+  txHash: String
+  txHash_not: String
+  txHash_in: [String]
+  txHash_not_in: [String]
+  txHash_contains: String
+  txHash_not_contains: String
+  txHash_starts_with: String
+  txHash_ends_with: String
+  txHash_not_starts_with: String
+  txHash_not_ends_with: String
 }

@@ -56,7 +56,7 @@ export async function startCounterparty(
 
   const evaluateTweets = config.evaluateTweets ?? createCliEvaluateTweets();
   let running = true;
-  let lastCheckedBlock = await chain.public.getBlockNumber();
+  let lastCheckedTimestamp = 0n;
 
   // Loop 1: Watch for new proposals where this agent is partyB
   async function watchProposals() {
@@ -169,7 +169,7 @@ export async function startCounterparty(
         // Check vault withdrawals
         const withdrawals = await checkVaultWithdrawals(
           monitorConfig,
-          lastCheckedBlock,
+          lastCheckedTimestamp,
         );
 
         for (const withdrawal of withdrawals) {
@@ -226,9 +226,7 @@ export async function startCounterparty(
         }
       }
 
-      // Update last checked block
-      const currentBlock = await chain.public.getBlockNumber();
-      lastCheckedBlock = currentBlock;
+      lastCheckedTimestamp = BigInt(Math.floor(Date.now() / 1000));
     } catch (err) {
       console.error("Counterparty violation watch error:", err);
     }

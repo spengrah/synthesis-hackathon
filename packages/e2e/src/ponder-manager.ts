@@ -25,6 +25,7 @@ export class PonderManager {
     contracts: DeployedContracts,
     rpcUrl: string = ANVIL_RPC_URL,
     startBlock?: number,
+    chainId?: number,
   ): Promise<void> {
     // If Ponder is already running on this port, reuse it
     if (await this.isAlreadyRunning()) {
@@ -37,8 +38,10 @@ export class PonderManager {
       ...process.env,
       PONDER_AGREEMENT_REGISTRY: contracts.agreementRegistry,
       PONDER_RESOURCE_TOKEN_REGISTRY: contracts.resourceTokenRegistry,
+      PONDER_TEMPTATION_VAULT: contracts.temptationVault,
       PONDER_RPC_URL: rpcUrl,
       PONDER_START_BLOCK: String(startBlock ?? 0),
+      PONDER_CHAIN_ID: String(chainId ?? 8453),
     };
 
     this.process = spawn("pnpm", ["ponder", "dev", "--port", String(this.port)], {
