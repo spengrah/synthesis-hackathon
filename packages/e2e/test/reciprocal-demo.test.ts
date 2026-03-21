@@ -861,8 +861,8 @@ describe("Reciprocal Demo E2E", () => {
 
     const withdrawAmount = withdrawalLimit / 2n;
 
-    const vaultBalBefore = await publicClient.readContract({
-      address: vaultAddress, abi: vaultAbi, functionName: "balance",
+    const zoneBefore = await publicClient.readContract({
+      address: chain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [testedZone],
     }) as bigint;
 
     const permissionTokenId = await findVaultWithdrawTokenId(ponder.url, testedZone);
@@ -874,13 +874,12 @@ describe("Reciprocal Demo E2E", () => {
     });
 
     const withdrawHash = await temptee.executeViaZone(vaultAddress, 0n, withdrawCalldata);
-    const withdrawReceipt = await publicClient.waitForTransactionReceipt({ hash: withdrawHash });
+    const withdrawReceipt = await publicClient.waitForTransactionReceipt({ hash: withdrawHash, confirmations: chain.isLocal ? 1 : 2 });
 
-    const vaultBalAfter = await publicClient.readContract({
-      address: vaultAddress, abi: vaultAbi, functionName: "balance",
+    const zoneAfter = await publicClient.readContract({
+      address: chain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [testedZone],
     }) as bigint;
-    // On shared testnet vaults, balance may not decrease if deposits happened concurrently
-    // The withdrawal tx succeeded (receipt confirmed), which is what matters
+    expect(zoneAfter - zoneBefore).toBe(withdrawAmount);
 
     withdrawalBlockNumber = withdrawReceipt.blockNumber;
 
@@ -1065,18 +1064,20 @@ describe("Reciprocal Demo E2E", () => {
     await temptee.stake(stakingInfoA2.eligibilityModule as Address, chain.usdc, stakeAmount);
     await approveAndStake(counterpartyAccount, stakingInfoB2.eligibilityModule as Address, stakeAmount);
 
-    // On real networks, poll for eligibility before activating
+    // On real networks, poll for eligibility of BOTH zones before activating
     if (!chain.isLocal) {
       const wearerStatusAbi = parseAbi(["function getWearerStatus(address _wearer, uint256 _hatId) view returns (bool eligible, bool standing)"]);
-      const zoneHatId = await publicClient.readContract({
-        address: newAgreement, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [0n],
-      });
+      const [zoneHatA2, zoneHatB2] = await Promise.all([
+        publicClient.readContract({ address: newAgreement, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [0n] }),
+        publicClient.readContract({ address: newAgreement, abi: parseAbi(["function zoneHatIds(uint256) view returns (uint256)"]), functionName: "zoneHatIds", args: [1n] }),
+      ]);
       await waitFor(
         async () => {
-          const [eligible] = await publicClient.readContract({
-            address: stakingInfoA2.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [temptee.address, zoneHatId as bigint],
-          }) as [boolean, boolean];
-          return eligible;
+          const [[eligA], [eligB]] = await Promise.all([
+            publicClient.readContract({ address: stakingInfoA2.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [temptee.address, zoneHatA2 as bigint] }) as Promise<[boolean, boolean]>,
+            publicClient.readContract({ address: stakingInfoB2.eligibilityModule as Address, abi: wearerStatusAbi, functionName: "getWearerStatus", args: [counterpartyAccount.address, zoneHatB2 as bigint] }) as Promise<[boolean, boolean]>,
+          ]);
+          return eligA && eligB;
         },
         (eligible) => eligible === true,
         30_000,
