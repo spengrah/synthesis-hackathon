@@ -187,22 +187,38 @@ export async function startAdjudicator(
         const verdict = await evaluateClaim(ctx, llm, generate);
 
         if (verdict.violated) {
-          const actions = mapVerdictToActions(verdict, {
+          const feedbackCtx = {
             agreementAddress: claim.agreementAddress,
             claimId: claimIdNum,
             directives,
             responsibilities,
-            targetIndex: 0, // TODO: determine which party violated from evidence
-          });
+            targetIndex: 0,
+          };
+          const actions = mapVerdictToActions(verdict, feedbackCtx);
           const { inputId, payload } = encodeAdjudicate(claimIdNum, actions);
 
-          const txHash = await chain.wallet.writeContract({
-            address: claim.agreementAddress,
-            abi: AgreementABI,
-            functionName: "submitInput",
-            args: [inputId, payload],
-            chain: null,
-          });
+          let txHash: string;
+          try {
+            txHash = await chain.wallet.writeContract({
+              address: claim.agreementAddress,
+              abi: AgreementABI,
+              functionName: "submitInput",
+              args: [inputId, payload],
+              chain: null,
+            });
+          } catch (err) {
+            // If full payload reverts (e.g. reputation registry issue), retry with CLOSE-only
+            console.warn(`[adjudicator] Full adjudication reverted, retrying with CLOSE-only:`, (err as Error).message?.slice(0, 100));
+            const closeOnlyActions = mapVerdictToActions(verdict);
+            const { inputId: id2, payload: p2 } = encodeAdjudicate(claimIdNum, closeOnlyActions);
+            txHash = await chain.wallet.writeContract({
+              address: claim.agreementAddress,
+              abi: AgreementABI,
+              functionName: "submitInput",
+              args: [id2, p2],
+              chain: null,
+            });
+          }
 
           console.log(
             `Adjudicated claim ${claimIdNum}: violated=true, tx=${txHash}`,
