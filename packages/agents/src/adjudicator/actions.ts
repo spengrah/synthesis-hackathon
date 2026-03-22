@@ -1,4 +1,4 @@
-import { encodeAbiParameters, keccak256, toHex, type Hex } from "viem";
+import { encodeAbiParameters, encodeFunctionData, keccak256, toHex, type Hex, type Address } from "viem";
 import { CLOSE, PENALIZE, FEEDBACK, type AdjudicationAction } from "@trust-zones/sdk";
 import type { Verdict } from "./evaluate.js";
 
@@ -9,6 +9,8 @@ export interface FeedbackContext {
   responsibilities: { tokenId: bigint }[];
   /** Index of the party being adjudicated (0 or 1) */
   targetIndex: number;
+  /** Address of the party being penalized (for slash calldata) */
+  targetAddress?: Address;
 }
 
 export function mapVerdictToActions(
@@ -17,14 +19,16 @@ export function mapVerdictToActions(
 ): AdjudicationAction[] {
   if (!verdict.violated) return [];
 
+  const slashCalldata = feedbackCtx?.targetAddress
+    ? encodeFunctionData({ abi: [{ name: "slash", type: "function", inputs: [{ name: "_staker", type: "address" }], outputs: [], stateMutability: "nonpayable" }], functionName: "slash", args: [feedbackCtx.targetAddress] })
+    : "0x" as Hex;
+
   const actions: AdjudicationAction[] = verdict.actions.map((action) => {
-    const actionType = action === "CLOSE" ? CLOSE : PENALIZE;
-    return {
-      mechanismIndex: 0n,
-      targetIndex: 0n,
-      actionType,
-      params: "0x" as Hex,
-    };
+    if (action === "CLOSE") {
+      return { mechanismIndex: 0n, targetIndex: 0n, actionType: CLOSE, params: "0x" as Hex };
+    }
+    // PENALIZE = call slash(targetAddress) on the staking module (mechanism 0)
+    return { mechanismIndex: 0n, targetIndex: 0n, actionType: PENALIZE, params: slashCalldata };
   });
 
   // Ensure CLOSE is always included when violated (LLM sometimes omits it)

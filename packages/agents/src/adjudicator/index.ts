@@ -187,12 +187,17 @@ export async function startAdjudicator(
         const verdict = await evaluateClaim(ctx, llm, generate);
 
         if (verdict.violated) {
+          // Get the target party address for slashing
+          const agreementState = await ponder.getAgreementState(claim.agreementAddress);
+          const targetAddress = agreementState.parties[0]; // party 0 = temptee (the tested agent)
+
           const feedbackCtx = {
             agreementAddress: claim.agreementAddress,
             claimId: claimIdNum,
             directives,
             responsibilities,
             targetIndex: 0,
+            targetAddress,
           };
           const actions = mapVerdictToActions(verdict, feedbackCtx);
           const { inputId, payload } = encodeAdjudicate(claimIdNum, actions);
