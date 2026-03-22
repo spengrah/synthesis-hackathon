@@ -498,9 +498,10 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   function _setUpZone(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex) internal {
     if (zone.party != $._parties[zoneIndex]) revert NotAParty(zone.party);
     _verifyAgentId(zone);
-    uint256 zoneHatId = _createZoneHat($, zone, zoneIndex);
-    address[] memory deployedAddresses =
-      _deployStandaloneHatsModules(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId);
+    // Pre-allocate deployed addresses array — both hat-wired and standalone deployers populate it
+    address[] memory deployedAddresses = new address[](zone.mechanisms.length);
+    uint256 zoneHatId = _createZoneHat($, zone, zoneIndex, deployedAddresses);
+    _deployStandaloneHatsModulesInto(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId, deployedAddresses);
     address[] memory constraintHooks = _collectConstraintHooks(zone.mechanisms);
     address trustZoneAddr = _deployTrustZoneClone(zoneHatId, zoneIndex, constraintHooks);
     _initializeConstraintHooks(trustZoneAddr, zone.mechanisms);
@@ -525,15 +526,19 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   }
 
   /// @dev Create a zone hat as child of the agreement hat. Does NOT mint — minting happens in _handleActivate.
-  function _createZoneHat(AgreementStorage storage $, TZTypes.TZConfig memory zone, uint256 zoneIndex)
-    internal
-    returns (uint256 zoneHatId)
-  {
+  function _createZoneHat(
+    AgreementStorage storage $,
+    TZTypes.TZConfig memory zone,
+    uint256 zoneIndex,
+    address[] memory deployedAddresses
+  ) internal returns (uint256 zoneHatId) {
     // Predict the zone hat ID so we can deploy eligibility modules with the correct hatId
     zoneHatId = HATS.getNextId($._agreementHatId);
 
     // Deploy hat-wired modules (Eligibility + Penalty) or use address(this) if none
-    address eligibility = _deployHatWiredModules(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId);
+    // Also populates deployedAddresses with clone addresses for mechanism registration
+    address eligibility =
+      _deployHatWiredModules(zone.mechanisms, zoneHatId, zoneIndex, $._agreementHatId, deployedAddresses);
 
     HATS.createHat(
       $._agreementHatId,
@@ -659,7 +664,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
     TZTypes.TZMechanism[] memory mechs,
     uint256 hatId,
     uint256 zoneIndex,
-    uint256 agreementHatId
+    uint256 agreementHatId,
+    address[] memory deployedAddresses
   ) internal returns (address) {
     // Count hat-wired mechanisms: HatsModule with paramType Eligibility or Penalty
     uint256 eligCount;
@@ -687,6 +693,8 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
         modules[idx] = _deployHatsModuleWithPackedData(
           mechs[i].module, hatId, mechs[i].data, agreementHatId, zoneIndex * 100 + idx
         );
+        // Store the clone address so _registerMechanisms uses it instead of the implementation
+        deployedAddresses[i] = modules[idx];
         idx++;
       }
     }
@@ -700,23 +708,21 @@ contract Agreement is IAgreement, Initializable, IERC7579Module {
   /// @dev Deploy standalone HatsModule mechanisms (moduleKind == HatsModule && paramType not in {Eligibility,
   /// Penalty}). Returns an array parallel to mechs where deployed clone addresses are set for standalone HatsModules.
   ///      Splits packed data and replaces sentinel hat IDs before passing to factory.
-  function _deployStandaloneHatsModules(
+  function _deployStandaloneHatsModulesInto(
     TZTypes.TZMechanism[] memory mechs,
     uint256 hatId,
     uint256 zoneIndex,
-    uint256 agreementHatId
-  ) internal returns (address[] memory deployedAddresses) {
-    deployedAddresses = new address[](mechs.length);
+    uint256 agreementHatId,
+    address[] memory deployedAddresses
+  ) internal {
     for (uint256 i = 0; i < mechs.length; i++) {
       if (mechs[i].moduleKind == TZTypes.TZModuleKind.HatsModule) {
         if (mechs[i].paramType != TZTypes.TZParamType.Eligibility && mechs[i].paramType != TZTypes.TZParamType.Penalty)
         {
-          // Standalone HatsModule — deploy via factory but don't wire to hat
           deployedAddresses[i] = _deployHatsModuleWithPackedData(
             mechs[i].module, hatId, mechs[i].data, agreementHatId, zoneIndex * 200 + i
           );
         }
-        // Hat-wired HatsModules are deployed by _deployHatWiredModules, not tracked here
       }
     }
   }

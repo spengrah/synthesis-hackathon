@@ -27,7 +27,6 @@ export function mapVerdictToActions(
     if (action === "CLOSE") {
       return { mechanismIndex: 0n, targetIndex: 0n, actionType: CLOSE, params: "0x" as Hex };
     }
-    // PENALIZE = call slash(targetAddress) on the staking module (mechanism 0)
     return { mechanismIndex: 0n, targetIndex: 0n, actionType: PENALIZE, params: slashCalldata };
   });
 
