@@ -154,6 +154,9 @@ export async function startCounterparty(
           usdc,
         });
 
+        const stakingParams = counterDoc.zones?.[0]?.incentives?.[0]?.params as any;
+        console.log(`[counterparty] compile input: staking token=${stakingParams?.token}, minStake=${stakingParams?.minStake}`);
+
         const compilerConfig = {
           ...BASE_MAINNET_CONFIG,
           modules: {

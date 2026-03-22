@@ -102,8 +102,9 @@ console.log(`[sync-timing] Chain: ${chain.name} (${chain.chainId}), local=${chai
 // ---- Config ----
 
 const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
-/** When true, use deployed Ponder/TweetProxy/agents instead of starting local ones */
-const DEPLOYED = !!(process.env.PONDER_URL && process.env.TWEET_PROXY_URL);
+const USE_REAL_TWEETS = process.env.REAL_TWEETS === "1";
+/** When true, use deployed Ponder/agents instead of starting local ones */
+const DEPLOYED = !!process.env.PONDER_URL;
 const AGENT_THINK_TIME = 3_000;
 const transport = http(rpcUrl);
 const TWEET_PROXY_PORT = 42075;
@@ -351,36 +352,32 @@ describe("Sync Timing", () => {
 
     // Ponder + tweet proxy: use deployed services or start local
     const ponderUrl = process.env.PONDER_URL ?? `http://localhost:${PONDER_PORT}/graphql`;
+    // Tweet proxy: use deployed one only when REAL_TWEETS=1 and URL is set
+    if (USE_REAL_TWEETS && process.env.TWEET_PROXY_URL) {
+      console.log(`[temptation-game] Using deployed TweetProxy: ${process.env.TWEET_PROXY_URL}`);
+    } else {
+      const bonfiresUrl = process.env.BONFIRES_API_URL;
+      const bonfiresKey = process.env.BONFIRES_API_KEY;
+      const bonfireId = process.env.BONFIRES_BONFIRE_ID;
+      let onTweet: ((r: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
+      if (bonfiresUrl && bonfiresKey && bonfireId) {
+        const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
+        const logReceipt = createReceiptLogger(bfClient);
+        onTweet = (r) => { logReceipt(r); };
+      }
+      tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
+      await tweetProxy.start(TWEET_PROXY_PORT);
+      console.log(`[temptation-game] Mock TweetProxy started (ERC-8128 auth)`);
+    }
+
     if (DEPLOYED) {
       console.log(`[temptation-game] Using deployed Ponder: ${ponderUrl}`);
-      console.log(`[temptation-game] Using deployed TweetProxy: ${process.env.TWEET_PROXY_URL}`);
     } else {
       ponder = new PonderManager(PONDER_PORT);
       const startBlock = chain.isLocal
         ? (await import("../src/constants.js")).FORK_BLOCK
         : Number(await publicClient.getBlockNumber());
       await ponder.start(contracts, rpcUrl, startBlock, chainId);
-
-      // Tweet proxy
-      const useRealTweets = process.env.REAL_TWEETS === "1";
-      if (useRealTweets) {
-        tweetProxy = createTweetProxyFromEnv();
-        await tweetProxy.start(TWEET_PROXY_PORT);
-        console.log(`[temptation-game] Real TweetProxy started (posting to X)`);
-      } else {
-        const bonfiresUrl = process.env.BONFIRES_API_URL;
-        const bonfiresKey = process.env.BONFIRES_API_KEY;
-        const bonfireId = process.env.BONFIRES_BONFIRE_ID;
-        let onTweet: ((r: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
-        if (bonfiresUrl && bonfiresKey && bonfireId) {
-          const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
-          const logReceipt = createReceiptLogger(bfClient);
-          onTweet = (r) => { logReceipt(r); };
-        }
-        tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
-        await tweetProxy.start(TWEET_PROXY_PORT);
-        console.log(`[temptation-game] Mock TweetProxy started (ERC-8128 auth)`);
-      }
 
       // Bonfires sync (only when running locally — deployed services have their own)
       const bonfiresUrl = process.env.BONFIRES_API_URL;
@@ -416,16 +413,16 @@ describe("Sync Timing", () => {
   }, 120_000);
 
   afterAll(async () => {
+    await tweetProxy?.stop();
     if (!DEPLOYED) {
       bonfiresSync?.stop();
-      await tweetProxy?.stop();
       await ponder?.stop();
     }
   });
 
   it("full lifecycle with fresh 8004 agents + production components", async () => {
     const log = (msg: string) => console.log(`[temptation-game] ${msg} (${uuidCount()} entities in registry)`);
-    const tweetProxyUrl = process.env.TWEET_PROXY_URL ?? `http://localhost:${TWEET_PROXY_PORT}`;
+    const tweetProxyUrl = (USE_REAL_TWEETS && process.env.TWEET_PROXY_URL) ? process.env.TWEET_PROXY_URL : `http://localhost:${TWEET_PROXY_PORT}`;
     const counterpartyAddress = privateKeyToAccount(counterpartyKey).address;
     const adjudicatorAddress = privateKeyToAccount(adjudicatorKey).address;
 
