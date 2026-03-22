@@ -4,6 +4,9 @@ node_modules/
 # Claude Code worktrees
 .claude/worktrees/
 
+# Foundry submodule build artifacts
+packages/contracts/lib/modulekit
+
 # Foundry
 packages/contracts/out/
 packages/contracts/cache/
