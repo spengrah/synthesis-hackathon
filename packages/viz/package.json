@@ -6,5 +6,8 @@
   "scripts": {
     "serve": "npx tsx serve.ts",
     "serve:3000": "npx tsx serve.ts 3000"
+  },
+  "dependencies": {
+    "tsx": "^4.19.0"
   }
 }
