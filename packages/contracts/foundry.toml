@@ -60,7 +60,8 @@ tab_width = 2
 wrap_comments = true
 
 [rpc_endpoints]
-base = "http://localhost:8545" # managed by anvil-fork.sh
+# base = "http://localhost:8545" # managed by anvil-fork.sh
+base = "https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 base-sepolia = "https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}"
 local = "http://localhost:8545"
 mainnet = "https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}"

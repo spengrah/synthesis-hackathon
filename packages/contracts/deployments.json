@@ -1,13 +1,13 @@
 {
   "8453": {
-    "agreementImpl": "0xa21BA831579902744BAEBB1af8A0208CB2D75c51",
-    "agreementRegistry": "0xEeDc8569b0071aDB4d2D4F96DdCb10c6f0Cce23D",
-    "eligibilitiesChainImpl": "0x5d030f095e648D19c6D32c0ebA1958635190Ac5A",
-    "hatValidator": "0x45e289d328Ad1bD11DEc73CFcaa20b85E2912c66",
-    "hookMultiplexer": "0x37096327c9f33A61788737208731E4D9855BFa70",
-    "resourceTokenRegistry": "0xA9336e914C19b3ABd21dFDDa4250B7631b888b4a",
-    "temptationVault": "0x6b639af07BDbBd16B3e325546dc6eD72E272ED31",
-    "trustZoneImpl": "0xFa5FDc999164ABA00fc6D92116732DA321056bc7"
+    "agreementImpl": "0xf6a408881d51CD4a60472dbBcC1c6a8BD16C6038",
+    "agreementRegistry": "0x9bf8eAF79E8DF777C9a9cE3321e2145AdC4fb0C9",
+    "eligibilitiesChainImpl": "0xff46979cFdd2a3dD41963E60582149742387286C",
+    "hatValidator": "0x3F56415Ebf064852E10b1076d8B02fefF3A2Ef7E",
+    "hookMultiplexer": "0xFa46B3F5dC3154b26aa8e4f4396C2403d9fbD9b0",
+    "resourceTokenRegistry": "0x76A1c881F6E3c5D395464a562c4C10200d18f3B2",
+    "temptationVault": "0x842F4732AeCA86230B950C3BD2e1b8c87715B3E8",
+    "trustZoneImpl": "0x8c08581aeE0E2831249c0B39674145e74D6e346C"
   },
   "84532": {
     "agreementImpl": "0xF2892fcaA694b6F0B4BaCa009dDC8C5452Feb6E3",
