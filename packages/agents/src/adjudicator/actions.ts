@@ -27,6 +27,16 @@ export function mapVerdictToActions(
     };
   });
 
+  // Ensure CLOSE is always included when violated (LLM sometimes omits it)
+  if (!actions.some((a) => a.actionType === CLOSE)) {
+    actions.push({
+      mechanismIndex: 0n,
+      targetIndex: 0n,
+      actionType: CLOSE,
+      params: "0x" as Hex,
+    });
+  }
+
   // Add FEEDBACK action with structured content
   if (feedbackCtx) {
     // Map violated directive indices to token IDs
