@@ -520,9 +520,17 @@ describe("Sync Timing", () => {
     const stakingInfo = await handleStakingInfo({ agreement: agreementAddress, agentAddress: temptee.address });
     log(`staking_info: eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
 
-    await dealUSDC(temptee.address, stakeAmount * 2n);
+    // Read the actual minStake from the staking module (the counterparty's LLM may have chosen a different amount)
+    const minStakeAbi = parseAbi(["function MIN_STAKE() view returns (uint248)"]);
+    const actualMinStake = await publicClient.readContract({
+      address: stakingInfo.eligibilityModule as Address, abi: minStakeAbi, functionName: "MIN_STAKE",
+    }) as bigint;
+    const actualStakeAmount = actualMinStake > stakeAmount ? actualMinStake : stakeAmount;
+    log(`Staking ${actualStakeAmount} USDC (minStake=${actualMinStake})`);
 
-    await temptee.stake(stakingInfo.eligibilityModule as Address, chain.usdc, stakeAmount);
+    await dealUSDC(temptee.address, actualStakeAmount * 2n);
+
+    await temptee.stake(stakingInfo.eligibilityModule as Address, chain.usdc, actualStakeAmount);
     log("Beat 2b: temptee staked");
 
     // ── Wait for eligibility to be visible on-chain before activating ──
