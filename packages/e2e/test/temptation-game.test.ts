@@ -415,7 +415,7 @@ describe("Sync Timing", () => {
       mcpClient = createx402MCPClient({
         name: "e2e-temptee",
         version: "0.0.1",
-        schemes: [{ network: "eip155:84532", client: new ExactEvmScheme(signer) }],
+        schemes: [{ network: `eip155:${chainId}`, client: new ExactEvmScheme(signer) }],
         autoPayment: true,
       });
 
