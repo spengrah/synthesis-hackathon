@@ -104,6 +104,7 @@ export async function startCounterparty(
         if (!testedAgent) continue;
 
         const usdc = config.usdc ?? ("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address);
+        console.log(`[counterparty] Using USDC address: ${usdc} (config.usdc=${config.usdc})`);
 
         const testedZone = proposalData.zones.find(
           (z) => z.party.toLowerCase() === testedAgent.address.toLowerCase(),
