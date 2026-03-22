@@ -51,6 +51,7 @@ export interface CounterpartyConfig {
 export async function startCounterparty(
   config: CounterpartyConfig,
 ): Promise<{ stop: () => void }> {
+  console.log(`[counterparty] v2 starting (usdc=${config.usdc ?? "default"}, chainId=${config.chainId ?? "default"})`);
   const chain = createChainClients(config.rpcUrl, config.privateKey, config.chainId);
   const ponder = createAgentPonderClient(config.ponderUrl);
   const llm = config.llm ? createLLMClient(config.llm) : null;
