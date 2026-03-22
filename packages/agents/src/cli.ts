@@ -23,6 +23,7 @@ if (role === "adjudicator") {
     rpcUrl: process.env.RPC_URL ?? "",
     ponderUrl: process.env.PONDER_URL ?? "",
     privateKey: (process.env.PRIVATE_KEY ?? "") as Hex,
+    chainId: Number(process.env.CHAIN_ID ?? 8453),
     llm: llmConfig,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? "10000"),
     bonfiresUrl: process.env.BONFIRES_API_URL,
@@ -48,11 +49,15 @@ if (role === "adjudicator") {
     rpcUrl: process.env.RPC_URL ?? "",
     ponderUrl: process.env.PONDER_URL ?? "",
     privateKey: (process.env.PRIVATE_KEY ?? "") as Hex,
+    chainId: Number(process.env.CHAIN_ID ?? 8453),
     adjudicatorAddress: (process.env.ADJUDICATOR_ADDRESS ?? "") as `0x${string}`,
     vaultAddress: (process.env.VAULT_ADDRESS ?? "") as `0x${string}`,
     tweetProxyUrl: process.env.TWEET_PROXY_URL ?? "",
     llm: llmConfig,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? "10000"),
+    bonfiresUrl: process.env.BONFIRES_API_URL,
+    bonfiresApiKey: process.env.BONFIRES_API_KEY,
+    bonfireId: process.env.BONFIRES_BONFIRE_ID,
   });
 
   process.on("SIGINT", () => {

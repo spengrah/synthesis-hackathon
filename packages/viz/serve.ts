@@ -14,8 +14,9 @@ import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const PORT = parseInt(process.argv[2] || "3000", 10);
+const PORT = parseInt(process.argv[2] || process.env.PORT || "3000", 10);
 const DIR = import.meta.dirname;
+const PONDER_URL = process.env.PONDER_URL || "";
 
 const ROUTES: Record<string, string> = {
   "/": "index.html",
@@ -38,7 +39,11 @@ const server = createServer((req, res) => {
   }
 
   try {
-    const content = readFileSync(resolve(DIR, file), "utf-8");
+    let content = readFileSync(resolve(DIR, file), "utf-8");
+    // Inject deployed Ponder URL as default if set
+    if (PONDER_URL) {
+      content = content.replace(/value="http:\/\/localhost:42069"/g, `value="${PONDER_URL}"`);
+    }
     res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
       "Access-Control-Allow-Origin": "*",

@@ -15,6 +15,7 @@
     "build": "tsc",
     "start:adjudicator": "tsx src/cli.ts --role adjudicator",
     "start:counterparty": "tsx src/cli.ts --role counterparty",
+    "start:tweet-proxy": "tsx src/tweet-proxy-server.ts",
     "test": "vitest run"
   },
   "dependencies": {
