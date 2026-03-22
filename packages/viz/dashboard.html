@@ -2253,7 +2253,7 @@ async function pollPonder(url) {
                   txHash
                 }
               }
-              reputationFeedback {
+              reputationFeedbacks {
                 items {
                   tag
                   feedbackURI
@@ -2321,8 +2321,8 @@ async function pollPonder(url) {
     }
 
     // Reputation
-    if (agreement.reputationFeedback?.items?.length > 0) {
-      state.reputation = agreement.reputationFeedback.items.map(f => ({
+    if (agreement.reputationFeedbacks?.items?.length > 0) {
+      state.reputation = agreement.reputationFeedbacks.items.map(f => ({
         label: 'Agreement',
         outcome: f.tag,
         positive: f.tag === 'COMPLETED',
