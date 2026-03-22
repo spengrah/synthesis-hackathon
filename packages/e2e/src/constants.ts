@@ -57,7 +57,7 @@ const CHAIN_CONFIGS: Record<number, Omit<ChainConfig, "rpcUrl">> = {
     reputationRegistry: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
     usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Address,
     isLocal: false,
-    deployBlock: 39151830,
+    deployBlock: 39193800,
     ...HATS_COMMON,
   },
 };
