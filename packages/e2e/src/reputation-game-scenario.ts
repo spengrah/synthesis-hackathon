@@ -78,7 +78,7 @@ export function buildProposalJustification(params: {
 }): ProposalJustification {
   return {
     type: "proposal-request",
-    message: `I'd like to participate in the Temptation Game. I'm willing to stake ${params.stakeAmount} USDC as collateral and request permission to tweet from your account and access the vault with a withdrawal limit of ${params.requestedWithdrawalLimit} wei.`,
+    message: `I'd like to participate in the Temptation Game. I'm willing to stake ${(Number(params.stakeAmount) / 1e6).toFixed(2)} USDC as collateral and request permission to tweet from your account and access the vault with a withdrawal limit of ${(Number(params.requestedWithdrawalLimit) / 1e6).toFixed(2)} USDC.`,
     requestedPermissions: ["tweet-post", "vault-withdraw"],
     proposedStake: params.stakeAmount.toString(),
     requestedWithdrawalLimit: params.requestedWithdrawalLimit.toString(),
