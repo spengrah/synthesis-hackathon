@@ -137,7 +137,19 @@ export async function startCounterparty(
             withdrawalLimit = BigInt(evaluation.withdrawalLimit);
             stakeAmount = BigInt(evaluation.stakeAmount);
             deadline = evaluation.deadline;
-            console.log(`LLM evaluation: ${evaluation.reasoning}`);
+            // Cap stake to reasonable amounts (LLM sometimes suggests absurd values)
+            const maxStake = 1_000_000n; // 1 USDC
+            if (stakeAmount > maxStake) {
+              console.log(`[counterparty] Capping LLM stake ${stakeAmount} to ${maxStake}`);
+              stakeAmount = maxStake;
+            }
+            // Cap withdrawal limit
+            const maxWithdrawal = 2_000_000n; // 2 USDC
+            if (withdrawalLimit > maxWithdrawal) {
+              console.log(`[counterparty] Capping LLM withdrawal ${withdrawalLimit} to ${maxWithdrawal}`);
+              withdrawalLimit = maxWithdrawal;
+            }
+            console.log(`[counterparty] LLM evaluation: stake=${stakeAmount}, withdrawal=${withdrawalLimit}, ${evaluation.reasoning}`);
           } catch (err) {
             console.error("LLM evaluation failed, falling back to hardcoded logic:", err);
             const reputation = { count: 0 };
