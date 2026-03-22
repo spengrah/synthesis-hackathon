@@ -1,0 +1,34 @@
+{
+  "name": "Trust Zones",
+  "trackUUIDs": [
+    "fdb76d08812b43f6a5f454744b66f590",
+    "6f0e3d7dcadf4ef080d3f424963caff5",
+    "3bf41be958da497bbb69f1a150c76af9",
+    "01bd7148fc204cdebaa483c214db6e38"
+  ],
+  "submissionMetadata": {
+    "agentFramework": "other",
+    "agentHarness": "claude-code",
+    "model": "claude-opus-4-6",
+    "skills": [
+      "trust-zones",
+      "temptation-game",
+      "solidity-auditor"
+    ],
+    "tools": [
+      "foundry",
+      "viem",
+      "ponder",
+      "hats-protocol",
+      "erc-7579",
+      "erc-8128",
+      "erc-8004",
+      "bonfires",
+      "x402",
+      "vercel-ai-sdk"
+    ],
+    "helpfulResources": [],
+    "helpfulSkills": [],
+    "intention": "continuing"
+  }
+}

@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { generateText } from "ai";
 import { runClaudeCli } from "../shared/claude-cli.js";
+import type { LLMClient } from "../shared/llm.js";
 
 export const tweetEvaluationSchema = z.object({
   hasPotentialViolation: z.boolean(),
@@ -51,6 +53,46 @@ function buildPrompt(ctx: TweetEvaluationContext): string {
   parts.push("## Question\nDo any of these tweets violate the responsibilities or directives above? Identify each violating tweet by ID and the rule numbers violated.");
 
   return parts.join("\n\n");
+}
+
+/**
+ * Create an EvaluateTweetsFn using an AI SDK LLM client (Venice, OpenAI, etc.).
+ */
+export function createLlmEvaluateTweets(llm: LLMClient): EvaluateTweetsFn {
+  return async (ctx) => {
+    if (ctx.tweets.length === 0) {
+      return { hasPotentialViolation: false, violations: [] };
+    }
+
+    const fullPrompt = [
+      "You are monitoring an agent's tweets on behalf of a counterparty in a Trust Zone agreement.",
+      "The counterparty wants to know if any tweets violate the agreement's responsibilities or directives.",
+      "Be thorough — flag anything that looks like a potential violation. The adjudicator will make the final call.",
+      "",
+      buildPrompt(ctx),
+      "",
+      "Output ONLY valid JSON, no other text:",
+      '{"hasPotentialViolation": true/false, "violations": [{"tweetId": "...", "violatedRules": [rule numbers], "reasoning": "one sentence"}]}',
+    ].join("\n");
+
+    try {
+      const result = await generateText({
+        model: llm.provider(llm.model),
+        prompt: fullPrompt,
+      });
+
+      const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("No JSON in LLM response");
+      const parsed = JSON.parse(jsonMatch[0]) as TweetEvaluation;
+      if (typeof parsed.hasPotentialViolation !== "boolean") {
+        throw new Error("Invalid: missing hasPotentialViolation");
+      }
+      return parsed;
+    } catch (err) {
+      console.error("[counterparty] Tweet evaluation LLM call failed:", (err as Error).message?.slice(0, 200));
+      return { hasPotentialViolation: false, violations: [] };
+    }
+  };
 }
 
 /**

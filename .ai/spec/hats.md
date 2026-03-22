@@ -105,6 +105,12 @@ During SET_UP, mechanisms with `moduleKind == HatsModule` and `paramType ∈ {El
 
 Salt uniqueness: `zoneIndex * 100 + subIndex` per module to avoid collisions when two modules share the same implementation.
 
+### Standalone module deployment
+
+Mechanisms with `moduleKind == HatsModule` and `paramType` NOT in `{Eligibility, Penalty}` (e.g. Reward modules) are deployed via `HatsModuleFactory` in a separate pass but are NOT wired to the zone hat.
+
+Salt uniqueness for standalone modules: `zoneIndex * 200 + mechanismArrayIndex`. The `* 200` base (vs `* 100` for hat-wired modules) prevents salt collisions between the two deployment passes.
+
 If no hat-wired mechanisms are specified, `Agreement.getWearerStatus()` is used as the eligibility module and always returns `(true, true)` (open eligibility).
 
 ## Hats Protocol addresses

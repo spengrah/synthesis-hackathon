@@ -81,8 +81,8 @@ function encodeComplete(feedbackURI: string, feedbackHash: Hex): SubmitInputArgs
 function encodeExit(feedbackURI: string, feedbackHash: Hex): SubmitInputArgs
 function encodeFinalize(): SubmitInputArgs
 
-// Convenience
-function encodeAcceptAndActivate(activationData: Hex): SubmitInputArgs
+// Setup
+function encodeSetUp(): SubmitInputArgs
 ```
 
 ### Types
@@ -163,6 +163,9 @@ function decodeClaim(payload: Hex): { mechanismIndex: bigint; evidence: Hex }
 
 // Decode feedback from CompletionSignaled / ExitSignaled events
 function decodeFeedback(payload: Hex): { feedbackURI: string; feedbackHash: Hex }
+
+// Decode a bytes32 hash to a human-readable state/outcome/action string
+function decodeState(bytes32: Hex): string
 ```
 
 ## Contract reads
@@ -199,7 +202,6 @@ interface ZoneDetails {
   responsibilities: ParsedResponsibility[]
   directives: ParsedDirective[]
   constraints: ParsedConstraint[]
-  claims: ClaimSummary[]
 }
 
 function getZoneDetails(zoneAccount: Address): Promise<ZoneDetails>
@@ -208,9 +210,10 @@ function getZoneDetails(zoneAccount: Address): Promise<ZoneDetails>
 interface ParsedPermission {
   tokenId: bigint
   resource: string
-  rateLimit: string | null      // e.g. "10/hour"
+  value: bigint | null
+  period: string | null
   expiry: bigint | null
-  purpose: string | null
+  params: string | null
 }
 
 interface ParsedDirective {
@@ -333,6 +336,7 @@ Exported constants matching the Solidity constants for use in TypeScript:
 export const PROPOSED = keccak256(toHex("PROPOSED"))
 export const NEGOTIATING = keccak256(toHex("NEGOTIATING"))
 export const ACCEPTED = keccak256(toHex("ACCEPTED"))
+export const READY = keccak256(toHex("READY"))
 export const ACTIVE = keccak256(toHex("ACTIVE"))
 export const CLOSED = keccak256(toHex("CLOSED"))
 export const REJECTED = keccak256(toHex("REJECTED"))
@@ -340,19 +344,41 @@ export const REJECTED = keccak256(toHex("REJECTED"))
 // Inputs
 export const PROPOSE = keccak256(toHex("PROPOSE"))
 export const COUNTER = keccak256(toHex("COUNTER"))
-// ... etc
+export const ACCEPT = keccak256(toHex("ACCEPT"))
+export const REJECT = keccak256(toHex("REJECT"))
+export const SET_UP = keccak256(toHex("SET_UP"))
+export const ACTIVATE = keccak256(toHex("ACTIVATE"))
+export const CLAIM = keccak256(toHex("CLAIM"))
+export const ADJUDICATE = keccak256(toHex("ADJUDICATE"))
+export const WITHDRAW = keccak256(toHex("WITHDRAW"))
+export const COMPLETE = keccak256(toHex("COMPLETE"))
+export const EXIT = keccak256(toHex("EXIT"))
+export const FINALIZE = keccak256(toHex("FINALIZE"))
 
 // Action types
 export const PENALIZE = keccak256(toHex("PENALIZE"))
 export const REWARD = keccak256(toHex("REWARD"))
-// ... etc
+export const FEEDBACK = keccak256(toHex("FEEDBACK"))
+export const DEACTIVATE = keccak256(toHex("DEACTIVATE"))
+export const CLOSE = keccak256(toHex("CLOSE"))
 
-// Deployed addresses (Base)
+// Outcomes
+export const COMPLETED = keccak256(toHex("COMPLETED"))
+export const EXITED = keccak256(toHex("EXITED"))
+export const EXPIRED = keccak256(toHex("EXPIRED"))
+export const ADJUDICATED = keccak256(toHex("ADJUDICATED"))
+
+// Lookup tables: STATE_LABELS, OUTCOME_LABELS, ACTION_LABELS, BYTES32_LABELS
+// Used by decodeState() to map bytes32 → human-readable string
+
+// Deployed addresses (Base) — configuration defaults.
+// Callers pass addresses explicitly via TrustZonesSDKConfig.addresses.
 export const ADDRESSES = {
-  hats: "0x...",
+  hats: "0x3bc1A0Ad72417f2d411118085256fC53CBdDd137",
   identityRegistry: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
   reputationRegistry: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63",
-  // ... filled after deployment
+  agreementRegistry: "0x...",       // filled after deployment
+  resourceTokenRegistry: "0x...",   // filled after deployment
 } as const
 ```
 

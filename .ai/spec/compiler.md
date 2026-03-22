@@ -17,13 +17,14 @@ The compiler is focused exclusively on PROPOSE/COUNTER payloads (TZ schema ↔ P
 
 The canonical negotiation artifact. Agents author, read, and negotiate over schema docs. The format mirrors the Ponder subgraph / TZ data model so that agents see the same shape whether reading a schema doc or querying the context graph.
 
-Published to IPFS as the `termsDocUri` content. Note: `termsDocUri` is NOT included in the schema doc itself (chicken-and-egg with content-addressing). The agent publishes the doc, gets the CID, and passes it separately.
+Published to IPFS as the `termsDocUri` content. `termsDocUri` is an optional field in the schema doc (`termsDocUri?: string`). When present, `compile` copies it into `ProposalData.termsDocUri`; when absent, it defaults to empty string. Agents can either set it before compiling (if the CID is known) or set it on the `ProposalData` after compiling and publishing the doc to IPFS.
 
 ### Format
 
 ```json
 {
   "version": "0.1.0",
+  "termsDocUri": "ipfs://Qm...",
   "zones": [
     {
       "actor": {
@@ -45,7 +46,7 @@ Published to IPFS as the `termsDocUri` content. Note: `termsDocUri` is NOT inclu
       ],
 
       "permissions": [
-        { "resource": "/market-data", "rateLimit": "10/hour", "purpose": "Market analysis" },
+        { "resource": "/market-data", "value": 10, "period": "hour" },
         { "resource": "/sentiment-analysis", "expiry": 1710700000 }
       ],
       "responsibilities": [
@@ -69,7 +70,7 @@ Published to IPFS as the `termsDocUri` content. Note: `termsDocUri` is NOT inclu
 - **Template names, not addresses** — mechanisms use `{ "template": "...", "params": {...} }`. The compiler resolves template names to concrete module addresses and ABI-encoded data.
 - **Human-readable resource token fields** — permissions, responsibilities, directives use parsed fields matching the Ponder entity schemas. The compiler ABI-encodes these into `TZResourceTokenConfig.metadata` bytes.
 - **Adjudicator supports template or raw address** — `{ "template": "stub-adjudicator" }` or `{ "address": "0x..." }`.
-- **No `termsDocUri`** — external to the doc (content-addressing).
+- **Optional `termsDocUri`** — can be set before compile if the CID is already known, otherwise set on the ProposalData after publishing.
 - **`decisionModels` and `principalAlignments` omitted** — not implemented yet. Can be added when templates exist.
 
 ## Mechanism templates
@@ -136,30 +137,42 @@ The registry also maintains a reverse lookup: `module address → template name`
 ## Compile function
 
 ```typescript
-function compile(schemaDoc: TZSchemaDocument, config: CompilerConfig): ProposalData
+function compile(
+  schemaDoc: TZSchemaDocument,
+  config: CompilerConfig,
+  registry: TemplateRegistry,
+): ProposalData
 ```
+
+The `TemplateRegistry` is constructed via `createDefaultRegistry()` (exported from the package root). It holds all known mechanism templates and their encode/decode logic.
 
 1. For each zone in `schemaDoc.zones`:
    a. Map `actor.address` → `TZConfig.party`, `actor.agentId` → `TZConfig.agentId`
-   b. For each entry in `constraints[]`, `eligibilities[]`, `incentives[]`: look up template, call `encodeData(params)`, produce `TZMechanism`
+   b. For each entry in `constraints[]`, `eligibilities[]`, `incentives[]`: look up template in `registry`, call `encodeData(params)`, produce `TZMechanism`
    c. For each entry in `permissions[]`, `responsibilities[]`, `directives[]`: ABI-encode the parsed fields into `TZResourceTokenConfig.metadata`
 2. Resolve `adjudicator` — template lookup or raw address
-3. Assemble `ProposalData { termsDocUri: "", zones, adjudicator, deadline }`
+3. Assemble `ProposalData { termsDocUri, zones, adjudicator, deadline }`
 
-Note: `termsDocUri` is set to empty string by compile. The caller sets it after publishing the schema doc to IPFS and obtaining the CID.
+`termsDocUri` is copied from the schema doc if present, otherwise defaults to empty string.
 
 ## Decompile function
 
 ```typescript
-function decompile(proposalData: ProposalData, config: CompilerConfig): TZSchemaDocument
+function decompile(
+  proposalData: ProposalData,
+  config: CompilerConfig,
+  registry: TemplateRegistry,
+): TZSchemaDocument
 ```
+
+Same `TemplateRegistry` instance used for compile (via `createDefaultRegistry()`).
 
 1. For each zone in `proposalData.zones`:
    a. Map `party` → `actor.address`, `agentId` → `actor.agentId`
-   b. For each `TZMechanism`: reverse-lookup `module` address in template registry, call `decodeData(data)`, place into the appropriate schema doc section based on `paramType`
+   b. For each `TZMechanism`: reverse-lookup `module` address in `registry`, call `decodeData(data)`, place into the appropriate schema doc section based on `paramType`
    c. For each `TZResourceTokenConfig`: ABI-decode `metadata` based on `tokenType`, produce parsed fields
 2. Reverse-lookup `adjudicator` address → template name (or fall back to raw address)
-3. Assemble schema doc
+3. Assemble schema doc (includes `termsDocUri` if the ProposalData had a non-empty value)
 
 ## Compiler config
 
@@ -178,14 +191,14 @@ The config is deployment-specific. Different chains/deployments have different a
 
 ```
 1. Agent authors TZ schema doc (JSON)
-2. Agent calls compile(schemaDoc, config) → ProposalData
+2. Agent calls compile(schemaDoc, config, registry) → ProposalData
 3. Agent publishes schema doc to IPFS → gets CID
 4. Agent sets termsDocUri = CID on ProposalData
 5. Agent calls SDK encodePropose(proposalData) → submitInput calldata
 6. Agent submits transaction
 
 7. Counterparty reads ProposalData from ProposalSubmitted event
-8. Counterparty calls decompile(proposalData, config) → schema doc
+8. Counterparty calls decompile(proposalData, config, registry) → schema doc
 9. Counterparty modifies schema doc
 10. Counterparty compiles, publishes, submits counter
 11. Repeat until ACCEPT or REJECT
@@ -206,9 +219,11 @@ Resource tokens use ABI-encoded structs for onchain metadata. The compiler encod
 
 ### Permission (tokenType: 0x01)
 ```
-ABI: (string resource, (uint256 value, string period) rateLimit, uint256 expiry, string purpose)
+ABI: (string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)
 ```
-Schema: `{ "resource": "/market-data", "rateLimit": "10/hour", "expiry": 1710700000, "purpose": "Market analysis" }`
+Flat struct — no nested `rateLimit`. `value` is a numeric quantity (rate limit count, max withdrawal, etc.), `period` is a short label packed into `bytes32` (e.g. `"hour"`, `"day"`, `"total"`), and `params` holds either JSON-encoded bytes or raw hex for arbitrary extension data.
+
+Schema: `{ "resource": "/market-data", "value": 10, "period": "hour", "expiry": 1710700000, "params": {} }`
 
 ### Responsibility (tokenType: 0x02)
 ```

@@ -33,7 +33,7 @@ The game runs on Base mainnet. We automated the other side of the agreement so a
 
 ### What we built
 
-The protocol is implemented end-to-end across 8 packages: 6 Solidity contracts (384 tests), a TypeScript SDK (56 tests), a mechanism compiler (27 tests), a Ponder event indexer (36 tests), 13 end-to-end lifecycle tests, autonomous counterparty and adjudicator agents, an x402 MCP service, a CLI, and a real-time visualization suite — all deployed on Base.
+The protocol is implemented end-to-end across 11 packages: 6 Solidity contracts (384 tests), a TypeScript SDK (56 tests), a mechanism compiler (27 tests), a Ponder event indexer (36 tests), 13 end-to-end lifecycle tests, autonomous counterparty and adjudicator agents, an x402 MCP service, a CLI, a Bonfires knowledge graph integration, and a real-time visualization suite — all deployed on Base.
 
 ---
 

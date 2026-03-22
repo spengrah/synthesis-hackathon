@@ -35,20 +35,20 @@
 - Conversation log compiled
 - Agents deployed to staging server
 - Servers (ponder, viz, x402 MCP, tweet proxy, bonfires sync) deployed to staging server
+- Repo is public
 
 ### What's not done
 - Mainnet E2E run (contracts deployed, but no agreement created on mainnet)
-- Agents not deployed to production server
 - Ponder not running against mainnet
+- Agents not deployed to production server
 - Viz not deployed to production server
 - x402 MCP not deployed to production server
 - tweet proxy not deployed to production server
 - bonfires sync not deployed to production server
+- README not finalized for submission
 - Demo video not recorded
 - Submission not created on Devfolio
-- Repo not made public
 - Moltbook post not written
-- README not finalized for submission
 
 ---
 

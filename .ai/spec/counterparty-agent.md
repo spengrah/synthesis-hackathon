@@ -12,8 +12,11 @@ The counterparty agent is the "host" of the Reputation Game. It owns a Vault con
 |------|---------|
 | `negotiate.ts` | Build TZSchemaDocument, determine terms, evaluate proposals |
 | `monitor.ts` | Watch vault + tweet proxy for violations, file claims, signal completion |
+| `evaluate-tweets.ts` | LLM-based tweet evaluation against directives/responsibilities (uses Claude CLI) |
 | `tweet-proxy.ts` | Express server: 8128-gated tweet posting endpoint |
 | `index.ts` | Entry point: start tweet proxy + polling loops |
+
+**Dependencies:** Both counterparty and adjudicator import from `@trust-zones/bonfires` — the counterparty uses `createReceiptLogger` for logging tweet receipts, the adjudicator uses `createAdjudicatorQueries` for cross-tier evidence enrichment.
 
 ---
 
@@ -190,16 +193,15 @@ No custom template needed — the Temptation contract decodes the standard forma
 
 ### Determining terms
 
-The counterparty determines `n` (vault withdrawal limit) based on the tested agent's trust level:
+The counterparty determines the vault withdrawal limit based on the tested agent's trust level:
 
 ```typescript
-function determineTerms(
-  reputation: { count: number; summaryValue: number },
-  stakeAmount: bigint
-): { withdrawalLimit: bigint } {
+function determineWithdrawalLimit(
+  reputation: { count: number },
+): bigint {
   const base = 1_150_000n  // 1.15 USDC (6 decimals)
   const repBonus = BigInt(Math.min(reputation.count, 5)) * 250_000n  // +0.25 USDC per prior agreement
-  return { withdrawalLimit: base + repBonus }
+  return base + repBonus
 }
 ```
 

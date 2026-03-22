@@ -15,7 +15,7 @@ function createAgreement(address partyB, bytes calldata proposalData) external r
 On `createAgreement`:
 1. Deploy Agreement clone via `Clones.cloneDeterministic` (salt: `keccak256(abi.encode(agreementHatId, block.chainid))`)
 2. Create agreement-level hat (child of the Trust Zones top hat)
-3. Transfer admin of the agreement hat to the new agreement contract
+3. Mint the agreement hat to the new agreement clone (the registry retains admin)
 4. Register agreement as authorized minter on ResourceTokenRegistry
 5. Store: agreement address → hat ID mapping
 6. Emit: `AgreementCreated(address agreement, address creator, uint256 agreementHatId, address partyA, address partyB)`
@@ -379,14 +379,14 @@ No settlement needed. No zones were deployed.
 
 ## Mechanism registry
 
-During activation, the agreement registers ALL mechanisms from `TZConfig.mechanisms[]` arrays into a registry that serves as the complete zone definition:
+During setup (ACCEPTED → READY), the agreement registers ALL mechanisms from `TZConfig.mechanisms[]` arrays into a registry that serves as the complete zone definition:
 
 ```solidity
 struct RegisteredMechanism {
     TZParamType paramType;   // what role this mechanism plays
     TZModuleKind moduleKind; // how it was deployed/initialized
     address module;          // deployed address (clone for HatsModule, singleton for others)
-    uint8 zoneIndex;         // which zone this belongs to
+    uint256 zoneIndex;       // which zone this belongs to
     bytes context;           // module-specific context (original data from TZMechanism)
 }
 
@@ -423,7 +423,7 @@ address[2] public parties;
 address public turn;                 // whose turn during negotiation
 
 // Activation (set on SET_UP, hats minted on ACTIVATE)
-address[2] public tzAccounts;
+address[2] public trustZones;
 uint256[2] public zoneHatIds;
 uint256[2] public agentIds;          // from TZConfig, 0 = no 8004
 
@@ -437,9 +437,9 @@ RegisteredMechanism[] public mechanisms;
 // Two-step close signals
 bool[2] public completionSignaled;
 bool[2] public exitSignaled;
-bytes[2] internal _completionFeedbackURI;
+string[2] internal _completionFeedbackURI;
 bytes32[2] internal _completionFeedbackHash;
-bytes[2] internal _exitFeedbackURI;
+string[2] internal _exitFeedbackURI;
 bytes32[2] internal _exitFeedbackHash;
 
 // Claims

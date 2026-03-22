@@ -27,7 +27,7 @@ import {
   buildClaimEvidence,
   type MonitorConfig,
 } from "./monitor.js";
-import { createCliEvaluateTweets, type EvaluateTweetsFn } from "./evaluate-tweets.js";
+import { createCliEvaluateTweets, createLlmEvaluateTweets, type EvaluateTweetsFn } from "./evaluate-tweets.js";
 import { BonfiresClient, createReceiptLogger } from "@trust-zones/bonfires";
 
 export interface CounterpartyConfig {
@@ -46,6 +46,7 @@ export interface CounterpartyConfig {
   bonfiresApiKey?: string;
   bonfireId?: string;
   usdc?: Address;
+  stakingModuleAddress?: Address;
 }
 
 export async function startCounterparty(
@@ -58,7 +59,7 @@ export async function startCounterparty(
   const pollInterval = config.pollIntervalMs ?? 10_000;
   const registry = createDefaultRegistry();
 
-  const evaluateTweets = config.evaluateTweets ?? createCliEvaluateTweets();
+  const evaluateTweets = config.evaluateTweets ?? (llm ? createLlmEvaluateTweets(llm) : createCliEvaluateTweets());
   let running = true;
   let lastCheckedTimestamp = 0n;
 
@@ -191,7 +192,7 @@ export async function startCounterparty(
           ...BASE_MAINNET_CONFIG,
           modules: {
             ...BASE_MAINNET_CONFIG.modules,
-            staking: "0x9E01030aF633Be5a439DF122F2eEf750b44B8aC7" as Address,
+            ...(config.stakingModuleAddress ? { staking: config.stakingModuleAddress } : {}),
           },
         };
 

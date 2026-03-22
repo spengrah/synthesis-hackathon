@@ -12,8 +12,9 @@ Replaces the GenLayer multi-validator approach for hackathon scope. GenLayer rem
 
 | File | Purpose |
 |------|---------|
-| `evaluate.ts` | Core: fetch context → build prompt → LLM → parse verdict → return actions |
-| `index.ts` | Entry point: polling loop wrapping evaluate |
+| `evaluate.ts` | Core: build prompt → LLM → parse verdict |
+| `actions.ts` | Map verdict to onchain actions (CLOSE, PENALIZE) |
+| `index.ts` | Entry point: polling loop wrapping evaluate. Supports `generate` override for non-AI-SDK backends (e.g., `createClaudeCliGenerate`) |
 
 ## Core Function
 

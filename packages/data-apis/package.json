@@ -1,9 +1,0 @@
-{
-  "name": "@synthesis/data-apis",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "tsx watch src/server.ts"
-  }
-}

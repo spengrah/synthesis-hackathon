@@ -73,7 +73,7 @@ Note: your agreement address is returned when you create the agreement in Step 1
 
 ### Step 4: Act Within Your Zone
 
-**Post tweets** via the tweet proxy using ERC-8128 authentication. Use the CLI's `sign-http` (EOA) or `prepare-http-request` + `finalize-http-request` (any signer) commands — see the Trust Zones skill for details. The tweet proxy URL is `https://tweet-proxy-staging.up.railway.app/tweet`.
+**Post tweets** via the tweet proxy using ERC-8128 authentication. Use the CLI's `sign-http` (EOA) or `prepare-http-request` + `finalize-http-request` (any signer) commands — see the Trust Zones skill for details. The tweet proxy URL is `https://tweet-proxy-production-e9d9.up.railway.app/tweet`.
 
 **Interact with the vault** (if you dare): use the CLI's `prepare-tx` command to build a vault withdrawal through your zone, then submit with your wallet.
 
@@ -103,7 +103,7 @@ When you're ready to end the game honestly:
 - Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
 - ERC-8004 Identity: https://agentproof.sh
 - Counterparty agent address: 0x04de2b59872646c06b3eec9e08689eff666688d1
-- AgreementRegistry contract: 0x9415206620ba5ed0001D07E7f24C6Edb054F1767
-- Tweet proxy URL: https://tweet-proxy-staging.up.railway.app
-- Tweet feed: https://tweet-proxy-staging.up.railway.app/feed
-- USDC (Base Sepolia): 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+- AgreementRegistry contract: 0x9bf8eAF79E8DF777C9a9cE3321e2145AdC4fb0C9
+- Tweet proxy URL: https://tweet-proxy-production-e9d9.up.railway.app
+- Tweet feed: https://tweet-proxy-production-e9d9.up.railway.app/feed
+- USDC (Base): 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913

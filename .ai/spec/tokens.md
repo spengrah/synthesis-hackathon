@@ -122,7 +122,6 @@ The format is intentionally generic: `resource` names the capability, `value` + 
 ```solidity
 // ERC-6909 standard (with leading non-indexed caller per ERC-6909)
 event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount);
-event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
 // Custom
 event TokenCreated(uint256 indexed tokenId, address indexed creator, uint8 tokenType, bytes metadata);
@@ -132,8 +131,13 @@ event MinterRegistered(address indexed minter);
 ## Errors
 
 ```solidity
-error InvalidTokenType(uint8 tokenType);
+error NotAuthorizedMinter();
+error NotTokenCreator();
+error NotOwner();
+error BalanceExceedsMax();
 error InsufficientBalance(address from, uint256 id);
+error InvalidTokenType(uint8 tokenType);
+error ApprovalsDisabled();
 ```
 
 ## Getters
@@ -147,16 +151,16 @@ function lastId(uint8 tokenType) external view returns (uint256);
 
 ```solidity
 /// @notice Extract the token type from a token ID
-function tokenType(uint256 id) internal pure returns (uint8);
+function tokenType(uint256 id) external pure returns (uint8);
 
 /// @notice Check if a token ID is a Permission
-function isPermission(uint256 id) internal pure returns (bool);
+function isPermission(uint256 id) external pure returns (bool);
 
 /// @notice Check if a token ID is a Responsibility
-function isResponsibility(uint256 id) internal pure returns (bool);
+function isResponsibility(uint256 id) external pure returns (bool);
 
 /// @notice Check if a token ID is a Directive
-function isDirective(uint256 id) internal pure returns (bool);
+function isDirective(uint256 id) external pure returns (bool);
 ```
 
 ## State

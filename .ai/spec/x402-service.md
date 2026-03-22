@@ -2,35 +2,40 @@
 
 ## Overview
 
-An x402-gated API server that bundles the Trust Zones SDK and Compiler behind pay-per-request endpoints. Agents that don't want to import the libraries locally can call the service instead. Payment in USDC on Base via the x402 protocol.
+An MCP (Model Context Protocol) server that bundles the Trust Zones SDK and Compiler behind pay-per-call tools. Agents that don't want to import the libraries locally can connect to the MCP server instead. Payment in USDC on Base via the x402 protocol (optional, controlled by `REQUIRE_PAYMENT` env var).
 
-A companion CLI and Claude Code skill (`/trust-zones`) let agents install and interact with the API without writing HTTP calls directly.
+A companion CLI (`packages/cli/`) provides zone-signing and transaction-preparation utilities for agents that need to sign HTTP requests as a trust zone or prepare calldata.
 
 ## Architecture
 
 ```
-Agent (or CLI / Skill)
+Agent (MCP client)
   │
-  │  HTTP request + x402 payment header
+  │  MCP tool call (+ x402 payment if enabled)
   │
   ▼
-x402 Service (Express + @x402/express middleware)
+x402 Service (MCP server via Streamable HTTP at POST /mcp)
   │
-  ├── /compile        — Compiler: TZ schema doc → ProposalData
-  ├── /decompile      — Compiler: ProposalData → TZ schema doc
-  ├── /encode/:input  — SDK: structured params → submitInput calldata
-  ├── /decode/event   — SDK: event log → structured data
-  ├── /explain        — Read helpers: agreement state → human-readable summary
-  └── /graphql        — Ponder GraphQL proxy (x402-gated read access)
+  ├── compile         — Compiler: TZ schema doc → ProposalData
+  ├── decompile       — Compiler: ProposalData → TZ schema doc
+  ├── encode          — SDK: structured params → submitInput calldata
+  ├── decode_event    — SDK: event log → structured data
+  ├── explain         — Read helpers: agreement state → human-readable summary
+  ├── graphql         — Ponder GraphQL proxy (x402-gated read access)
+  ├── staking_info    — Read helpers: zone staking eligibility + instructions
+  └── ping            — Health check
 ```
 
-## Endpoints
+## MCP Tools
 
-### POST /compile
+### compile
 
-Compile a TZ schema document into ABI-encoded ProposalData.
+Compile a Trust Zones schema document into ABI-encoded ProposalData.
 
-**Request:**
+**Parameters:**
+- `tzSchemaDoc` (any) — TZSchemaDocument JSON object
+
+**Input example:**
 ```json
 {
   "tzSchemaDoc": {
@@ -46,7 +51,6 @@ Compile a TZ schema document into ABI-encoded ProposalData.
         "incentives": [
           { "template": "staking", "params": { "token": "0x...", "minStake": "5000000000000000", "cooldownPeriod": 86400 } }
         ],
-        "incentives": [],
         "permissions": [
           { "resource": "/market-data", "value": 10, "period": "hour", "expiry": 1710700000 }
         ],
@@ -72,16 +76,12 @@ Compile a TZ schema document into ABI-encoded ProposalData.
 }
 ```
 
-### POST /decompile
+### decompile
 
-Decompile ABI-encoded ProposalData back into a TZ schema document.
+Decompile ABI-encoded ProposalData back into a Trust Zones schema document.
 
-**Request:**
-```json
-{
-  "proposalData": "0x..."
-}
-```
+**Parameters:**
+- `proposalData` (string) — Hex-encoded ProposalData bytes
 
 **Response:**
 ```json
@@ -90,34 +90,35 @@ Decompile ABI-encoded ProposalData back into a TZ schema document.
 }
 ```
 
-### POST /encode/:inputId
+### encode
 
-Encode structured parameters into calldata for any `submitInput()` call.
+Encode parameters into `submitInput()` calldata for an Agreement contract. Returns inputId, payload, and full calldata.
 
-**Path parameter:** `inputId` — one of: `propose`, `counter`, `accept`, `reject`, `withdraw`, `activate`, `claim`, `adjudicate`, `complete`, `exit`, `finalize`
+**Parameters:**
+- `inputId` (string) — Input type: `propose`, `counter`, `accept`, `reject`, `withdraw`, `setup`, `activate`, `claim`, `adjudicate`, `complete`, `exit`, `finalize`
+- `params` (any, optional) — Parameters for the input (varies by type). Required for propose/counter (ProposalData), claim ({mechanismIndex, evidence}), adjudicate ({claimId, actions}), complete/exit ({feedbackURI, feedbackHash}).
 
-**Request (varies by inputId):**
-
+**Input examples:**
 ```json
-// POST /encode/propose
-{ "proposalData": { ... } }
+// encode propose
+{ "inputId": "propose", "params": { "proposalData": { ... } } }
 
-// POST /encode/claim
-{ "mechanismIndex": 0, "evidence": "0x..." }
+// encode claim
+{ "inputId": "claim", "params": { "mechanismIndex": 0, "evidence": "0x..." } }
 
-// POST /encode/adjudicate
+// encode adjudicate
 {
-  "claimId": 1,
-  "actions": [
-    { "mechanismIndex": 0, "targetIndex": 1, "actionType": "PENALIZE", "params": "0x..." }
-  ]
+  "inputId": "adjudicate",
+  "params": {
+    "claimId": 1,
+    "actions": [
+      { "mechanismIndex": 0, "targetIndex": 1, "actionType": "PENALIZE", "params": "0x..." }
+    ]
+  }
 }
 
-// POST /encode/complete
-{ "feedbackURI": "ipfs://...", "feedbackHash": "0x..." }
-
-// POST /encode/accept (no body needed)
-{}
+// encode accept (no params needed)
+{ "inputId": "accept" }
 ```
 
 **Response:**
@@ -131,18 +132,14 @@ Encode structured parameters into calldata for any `submitInput()` call.
 
 `calldata` is the full encoded `submitInput(inputId, payload)` calldata, ready to use as transaction data.
 
-### POST /decode/event
+### decode_event
 
-Decode a contract event log into structured data.
+Decode an Agreement contract event log into structured data.
 
-**Request:**
-```json
-{
-  "eventName": "ProposalSubmitted",
-  "topics": ["0x...", "0x..."],
-  "data": "0x..."
-}
-```
+**Parameters:**
+- `eventName` (string) — Event name (e.g. `ProposalSubmitted`, `AgreementStateChanged`)
+- `topics` (string[]) — Event log topics array
+- `data` (string) — Hex-encoded event log data
 
 **Response:**
 ```json
@@ -156,11 +153,15 @@ Decode a contract event log into structured data.
 }
 ```
 
-### POST /graphql
+### graphql
 
-Proxied access to Ponder's GraphQL API. Returns the full parsed, relational data model — agreements, zones, typed entities (permissions, directives, constraints, etc.), claims, proposals, transaction hashes.
+Query the Trust Zones Ponder GraphQL API. Returns agreements, zones, permissions, directives, claims, proposals, reputation feedback, and transaction hashes.
 
-**Request:**
+**Parameters:**
+- `query` (string) — GraphQL query string
+- `variables` (object, optional) — GraphQL variables
+
+**Input example:**
 ```json
 {
   "query": "query { agreement(id: \"0x...\") { state trustZones { items { txHash permissions { items { resource } } } } } }"
@@ -169,18 +170,14 @@ Proxied access to Ponder's GraphQL API. Returns the full parsed, relational data
 
 **Response:** Standard GraphQL response from Ponder.
 
-This is the most valuable read endpoint — agents get fully parsed, relational data without running their own indexer. The SDK's Ponder read backend can point at this endpoint.
+This is the most valuable read tool — agents get fully parsed, relational data without running their own indexer.
 
-### POST /explain
+### explain
 
-Read agreement state from Ponder and produce a human/agent-readable summary.
+Get a human-readable summary of an agreement's current state including parties, zones, permissions, directives, claims, and reputation feedback.
 
-**Request:**
-```json
-{
-  "agreement": "0x..."
-}
-```
+**Parameters:**
+- `agreement` (string) — Agreement contract address (0x...)
 
 **Response:**
 ```json
@@ -216,28 +213,51 @@ Read agreement state from Ponder and produce a human/agent-readable summary.
 }
 ```
 
-## x402 payment
+### staking_info
 
-All endpoints are gated by the `@x402/express` middleware. Agents pay per request in USDC on Base.
+Get the eligibility module address and staking instructions for a zone in an agreement. Agents call this after setup to know where to stake.
 
-```typescript
-import { x402 } from "@x402/express"
+**Parameters:**
+- `agreement` (string) — Agreement contract address (0x...)
+- `agentAddress` (string) — The agent's EOA address (0x...)
 
-app.use(x402({
-  network: "base",
-  payTo: TREASURY_ADDRESS,
-  prices: {
-    "POST /compile": "0.01",       // $0.01 USDC
-    "POST /decompile": "0.01",
-    "POST /encode/*": "0.005",
-    "POST /decode/event": "0.005",
-    "POST /graphql": "0.005",
-    "POST /explain": "0.01",
-  }
-}))
+**Response:** Eligibility module address and staking instructions for the agent's zone.
+
+### ping
+
+Health check. Returns server version, payment status, and list of available tools.
+
+**Parameters:** none
+
+**Response:**
+```json
+{
+  "server": "trust-zones",
+  "version": "0.1.0",
+  "payment": "enabled",
+  "tools": ["compile", "decompile", "encode", "decode_event", "graphql", "explain", "staking_info", "ping"]
+}
 ```
 
-Pricing is illustrative. The point is: the mechanism template registry (which constraint maps to which hook) is the proprietary value behind the compile/decompile endpoints. The encode/decode endpoints are convenience — agents could do this locally with the SDK.
+## x402 payment
+
+Tool calls are optionally gated by `@x402/mcp` payment wrappers. When `REQUIRE_PAYMENT=true`, agents pay per tool call in USDC on Base.
+
+```typescript
+import { createPaymentWrapper, x402ResourceServer } from "@x402/mcp";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+
+// Per-tool pricing:
+// compile, decompile:  $0.01
+// encode, decode_event: $0.005
+// graphql:              $0.005
+// explain:              $0.01
+// staking_info:         $0.005
+// ping:                 free
+```
+
+Pricing is illustrative. The point is: the mechanism template registry (which constraint maps to which hook) is the proprietary value behind the compile/decompile tools. The encode/decode tools are convenience — agents could do this locally with the SDK.
 
 ## Implementation
 
@@ -246,39 +266,52 @@ Pricing is illustrative. The point is: the mechanism template registry (which co
 ```
 packages/x402-service/
 ├── src/
-│   ├── server.ts             # Express server + x402 middleware
-│   ├── routes/
-│   │   ├── compile.ts        # /compile, /decompile
-│   │   ├── encode.ts         # /encode/:inputId
-│   │   ├── decode.ts         # /decode/event
-│   │   ├── graphql.ts        # /graphql (Ponder proxy)
-│   │   └── explain.ts        # /explain
-│   └── config.ts             # Addresses, pricing, RPC, Ponder URL
+│   ├── server.ts             # MCP server + x402 payment wrappers
+│   └── tools/
+│       ├── compile.ts        # compile, decompile
+│       ├── encode.ts         # encode
+│       ├── decode.ts         # decode_event
+│       ├── graphql.ts        # graphql (Ponder proxy)
+│       ├── explain.ts        # explain
+│       └── staking.ts        # staking_info
 ├── package.json
 └── tsconfig.json
 ```
 
 ### Dependencies
 
-- `express`
-- `@x402/express` — payment middleware
+- `@modelcontextprotocol/sdk` — MCP server framework
+- `@x402/mcp` — MCP payment wrappers
+- `@x402/core`, `@x402/evm` — x402 facilitator client + EVM scheme
 - `@trust-zones/sdk` — encoding/decoding/reads
 - `@trust-zones/compiler` — compile/decompile
-- `viem` — chain reads for /explain
+- `viem` — chain reads for explain
+- `zod` — tool parameter validation
 
-### CLI + Skill
+### Transport
+
+The MCP server is exposed over Streamable HTTP at `POST /mcp`. Each request is handled statelessly — a fresh transport and server instance is created per request. No sessions, no server-initiated messages.
+
+### CLI
 
 ```
-packages/tz-cli/
+packages/cli/
 ├── src/
-│   ├── index.ts              # CLI entry: tz compile, tz encode, tz explain, ...
-│   └── client.ts             # x402 HTTP client (handles payment flow)
-├── SKILL.md                  # Claude Code skill definition (/trust-zones)
+│   ├── index.ts                  # CLI entry point
+│   ├── sign-http.ts              # sign-http command
+│   ├── prepare-http-request.ts   # prepare-http-request, finalize-http-request
+│   ├── prepare-tx.ts             # prepare-tx command
+│   └── hat-validator.ts          # HatValidator utilities
 ├── package.json
 └── tsconfig.json
 ```
 
-The CLI wraps the x402 API calls with wallet-based payment. The skill (`/trust-zones`) provides tool descriptions and example flows so agents can use the API through Claude Code.
+The CLI is a zone-signing and transaction-preparation tool. It does not interact with the x402 service. Commands:
+
+- **`tz sign-http`** — Sign an HTTP request as a zone (ERC-8128). Requires `--zone`, `--url`, `--method`, `--private-key`, `--rpc-url`.
+- **`tz prepare-http-request`** — Prepare an HTTP request for signing (outputs the message to sign). Requires `--zone`, `--url`, `--method`, `--rpc-url`.
+- **`tz finalize-http-request`** — Finalize a signed HTTP request (outputs headers). Requires `--signature`, `--zone`, `--rpc-url`, `--url`, `--method`.
+- **`tz prepare-tx`** — Prepare a transaction for zone execution (returns calldata). Requires `--zone`, `--to`, `--value`, `--data`.
 
 ### Deployment
 
@@ -288,13 +321,14 @@ Self-hosted (Railway). Stateless — no database, no session. All reads go to Po
 
 ```
 ┌─────────────────────────────────────────────┐
-│             x402 Service (API)               │
-│                                              │
-│  /compile, /decompile ──→ Compiler library   │
-│  /encode, /decode     ──→ SDK library        │
-│  /explain, /graphql   ──→ SDK reads + Ponder │
-│                                              │
-│  All behind x402 payment gate                │
+│         x402 Service (MCP server)           │
+│                                             │
+│  compile, decompile  ──→ Compiler library   │
+│  encode, decode_event──→ SDK library        │
+│  explain, graphql    ──→ SDK reads + Ponder │
+│  staking_info        ──→ SDK reads + Ponder │
+│                                             │
+│  Optionally behind x402 payment gate        │
 └─────────────────────────────────────────────┘
          │                      │
          ▼                      ▼

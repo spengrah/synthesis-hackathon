@@ -1,8 +1,8 @@
-# TZ Account Spec
+# TrustZone Account Spec
 
 ## Base
 
-`TZAccount.sol` is a thin wrapper around OZ's `AccountERC7579HookedUpgradeable` (from `openzeppelin-contracts-upgradeable`). The upgradeable variant is required for ERC-1167 clone deployment (ERC-7201 namespaced storage, `Initializable`).
+`TrustZone.sol` is a thin wrapper around OZ's `AccountERC7579HookedUpgradeable` (from `openzeppelin-contracts-upgradeable`). The upgradeable variant is required for ERC-1167 clone deployment (ERC-7201 namespaced storage, `Initializable`).
 
 ## What OZ provides (no modifications)
 
@@ -14,7 +14,7 @@
 - ERC-1271 signature validation — delegates to validators via `isValidSignatureWithSender()`
 - Token receiving (ETH, ERC-20, ERC-721, ERC-1155)
 
-## TZAccount.sol additions
+## TrustZone.sol additions
 
 ### Override: `_checkEntryPointOrSelf()`
 
@@ -24,34 +24,41 @@ Extends OZ access control to authorize hat-wearers for direct calls. Delegates t
 function _checkEntryPointOrSelf() internal view override {
     if (msg.sender == address(entryPoint())) return;
     if (msg.sender == address(this)) return;
-    if (HatValidator(hatValidator).isAuthorized(address(this), msg.sender)) return;
+    TrustZoneStorage storage $ = _getTrustZoneStorage();
+    if (HatValidator($._hatValidator).isAuthorized(address(this), msg.sender)) return;
     revert Unauthorized();
 }
 ```
 
 ### Convenience: `execute(address to, uint256 value, bytes calldata data)`
 
-Simpler call signature for agents. Encodes as a 7579 single call and invokes the inherited `execute(bytes32 mode, bytes calldata)`. Goes through the full OZ pipeline: `_checkEntryPointOrSelf` → hooks → execution.
+Simpler call signature for agents. Marked `payable`. Encodes as a 7579 single call and invokes the inherited `execute(bytes32 mode, bytes calldata)`. Goes through the full OZ pipeline: `_checkEntryPointOrSelf` → hooks → execution.
 
 ### Initialization
 
 ```solidity
 function initialize(
-    address _hatValidator, bytes calldata _hatValidatorInitData, // abi.encode(hatId)
-    address _agreementExecutor, bytes calldata _executorInitData,
-    address _hookMultiplexer, bytes calldata _hookInitData
+    address hatValidatorAddr, bytes calldata hatValidatorInitData, // abi.encode(hatId)
+    address agreementExecutor, bytes calldata executorInitData,
+    address hookMultiplexer, bytes calldata hookInitData
 ) external initializer
 ```
 
-- Sets `hatValidator` address (for `_checkEntryPointOrSelf` to call)
+- Stores `hatValidatorAddr` in ERC-7201 namespaced storage (for `_checkEntryPointOrSelf` to read)
 - Installs HatValidator as validator module
 - Installs agreement contract as executor module
-- Installs HookMultiPlexer as hook module
+- Installs HookMultiPlexer as hook module (skipped if `hookMultiplexer` is `address(0)`)
 
-### Storage (minimal)
+### Storage (ERC-7201 namespaced)
 
-- `address public hatValidator` — for the `_checkEntryPointOrSelf` override
-- Everything else lives in the modules themselves
+```solidity
+/// @custom:storage-location erc7201:trustzones.storage.TrustZone
+struct TrustZoneStorage {
+    address _hatValidator;
+}
+```
+
+Exposed via a `hatValidator()` view function. Everything else lives in the modules themselves.
 
 ## Deployment
 
@@ -59,7 +66,7 @@ function initialize(
 - Implementation deployed once
 - Agreement contract deploys clones via `Clones.cloneDeterministic(impl, salt)`
 - Salt: `keccak256(abi.encode(agreementAddress, zoneIndex))`
-- Each clone initialized via `TZAccount.initialize(...)`
+- Each clone initialized via `TrustZone.initialize(...)`
 
 ## Module configuration
 
@@ -80,18 +87,18 @@ Single source of truth for hat-based authorization. Reusable ERC-7579 validator 
 ## Interface
 
 ```solidity
-contract HatValidator is IValidator {
+contract HatValidator is IHatValidator {
     IHats public immutable HATS;  // set in constructor
 
     // Associated storage — keyed by the smart account that installed this module.
-    // One HatValidator deployment serves all TZ accounts.
+    // One HatValidator deployment serves all TrustZone accounts.
     mapping(address account => uint256) internal _hatIds;
 
     constructor(address hats) {
         HATS = IHats(hats);
     }
 
-    // Direct-call authorization (called by TZAccount._checkEntryPointOrSelf)
+    // Direct-call authorization (called by TrustZone._checkEntryPointOrSelf)
     function isAuthorized(address account, address caller) external view returns (bool);
 
     // 4337 UserOp validation (called by OZ base)
@@ -113,12 +120,12 @@ contract HatValidator is IValidator {
 
 All three paths converge on `HATS.isWearerOfHat(signer, hatId)`, reading the hat ID for the calling account:
 - `isAuthorized(account, caller)`: reads `_hatIds[account]`, checks caller directly
-- `validateUserOp`: reads `_hatIds[msg.sender]`, recovers signer from UserOp signature
-- `isValidSignatureWithSender`: reads `_hatIds[msg.sender]`, recovers signer from signature bytes
+- `validateUserOp`: reads `_hatIds[msg.sender]`, recovers signer from UserOp signature (ECDSA first, then EIP-1271 contract signer fallback)
+- `isValidSignatureWithSender`: reads `_hatIds[msg.sender]`, recovers signer from signature bytes (ECDSA first, then EIP-1271 contract signer fallback)
 
 ## State
 
 Associated storage pattern (standard ERC-7579 module approach):
 - `IHats public immutable HATS` — Hats Protocol contract address, set in constructor
-- `mapping(address account => uint256) _hatIds` — one entry per TZ account that installs this module
+- `mapping(address account => uint256) _hatIds` — one entry per TrustZone account that installs this module
 - Configured via `onInstall(abi.encode(hatId))` — stores keyed by `msg.sender` (the installing account)

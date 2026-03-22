@@ -18,18 +18,16 @@ The agent wears the zone's Hats Protocol hat and can operate *as* the zone — o
 | **Directives** | Subjective rules, enforced by adjudication | Rule violation → claim filed |
 | **Incentives** | Financial consequences | Bond at risk on guilty verdict |
 
-## Monorepo structure
+## What is different about Trust Zones
 
-```
-packages/
-  contracts/    Solidity (Foundry). Agreement, TrustZone, ResourceTokenRegistry, HatValidator.
-  sdk/          TypeScript. Typed contract wrappers, payload encoders/decoders, TZ account ops.
-  compiler/     TypeScript. TZ schema documents ↔ onchain ProposalData. Mechanism templates.
-  ponder/       Ponder indexer. Contract events → queryable GraphQL store.
-  e2e/          Integration tests. Full 9-beat lifecycle on Anvil Base fork.
-  data-apis/    ERC-8128-gated data API servers (WIP).
-  agents/       Demo agents (WIP).
-```
+| Category | What it does | Why Trust Zones is different |
+|----------|-------------|------------------------------|
+| Marketplace | Matches parties for work/services | Trust Zones defines the agreement structure underneath the interaction |
+| Wallet policy | Bounds what an agent can spend/do | Trust Zones governs the full relationship between parties, not just one wallet's execution bounds |
+| Reputation layer | Records history after interactions | Trust Zones structures the interaction itself and updates trust from the resulting behavior |
+| Escrow app | Holds funds against deliverables | Trust Zones governs permissions, duties, directives, and adjudication across resources |
+
+Trust Zones is the agreement substrate. Marketplaces, escrow apps, and reputation layers are things you could build on top of it.
 
 ## Core primitives
 
@@ -39,7 +37,7 @@ packages/
 | **Trust Zone** | A party's scope within an agreement — holds resources, has constraints | ERC-7579 smart account |
 | **TZ Token** | Proof of zone membership — enables "act as" onchain and offchain | Hats Protocol hat |
 | **Resource Tokens** | Typed tokens defining zone scope (permissions, responsibilities, directives) | ERC-6909 in ResourceTokenRegistry |
-| **Mechanisms** | Typed parameters governing zones (eligibility, incentive, constraint) | Hat modules + hooks |
+| **Mechanisms** | Typed parameters governing zones (eligibility, incentive, constraint) | Hat modules + ERC-7579 hooks |
 
 ## Agreement lifecycle
 
@@ -53,10 +51,43 @@ PROPOSED → ACCEPTED → READY → ACTIVE → CLOSED
 2. **Set up** — Zone accounts, hat modules, and resource tokens are deployed
 3. **Stake** — Parties deposit USDC bonds into staking eligibility modules
 4. **Activate** — Zone hats minted, agreement goes live
-5. **Operate** — Agents access each other's resources via ERC-8128-authenticated APIs
+5. **Operate** — Agents access resources via ERC-8128-authenticated APIs and onchain execute calls
 6. **Enforce** — Constraints block unauthorized access; directive violations trigger claims
 7. **Adjudicate** — Evidence evaluated, verdicts delivered, bonds at risk
 8. **Resolve** — Agreement closed, reputation feedback written via ERC-8004
+
+## Monorepo structure
+
+```
+packages/
+  contracts/     Solidity (Foundry). Agreement, TrustZone, ResourceTokenRegistry, HatValidator, TemptationVault.
+  sdk/           TypeScript. Typed contract wrappers, payload encoders/decoders, TZ account ops.
+  compiler/      TypeScript. TZ schema documents ↔ onchain ProposalData. 8 mechanism templates.
+  ponder/        Ponder indexer. Contract events → queryable GraphQL store.
+  e2e/           Integration tests. Full 9-beat lifecycle on Anvil Base fork.
+  agents/        Autonomous counterparty + adjudicator agents.
+  cli/           Trust Zones CLI. ERC-8128 zone signing + transaction preparation.
+  viz/           Real-time leaderboard, agreement explorer, protocol story.
+  skill/         Claude Code skills: trust-zones (protocol tools) + temptation-game (live demo).
+  x402-service/  x402-gated MCP server. Compiler + SDK as pay-per-request tools.
+  bonfires/      Bonfires knowledge graph integration.
+```
+
+## Key integrations
+
+- **Hats Protocol** — zone membership, module ecosystem for mechanisms
+- **ERC-7579** — smart account standard for trust zone accounts
+- **ERC-6909** — multi-token standard for resource token registry
+- **ERC-8004** — onchain reputation feedback after agreement resolution
+- **ERC-8128** — offchain auth for gated APIs (tweet proxy, data APIs)
+- **x402** — pay-per-request protocol for MCP server access
+
+## Agent tooling
+
+Agents interact with Trust Zones through two interfaces:
+
+- **`@trust-zones/cli`** — local CLI for ERC-8128 zone signing and transaction preparation. Free, no dependencies.
+- **x402 MCP server** — pay-per-request protocol service exposing the compiler and SDK as MCP tools (compile, decompile, encode, decode, explain, staking_info). Any agent with an MCP-compatible harness can use it.
 
 ## Development
 
@@ -66,7 +97,7 @@ PROPOSED → ACCEPTED → READY → ACTIVE → CLOSED
 # Install dependencies
 pnpm install
 
-# Run contract tests (351 tests)
+# Run contract tests (384 tests)
 pnpm test:contracts
 
 # Run SDK tests (56 tests)
@@ -86,7 +117,7 @@ The E2E test runs the full 9-beat demo scenario on an Anvil fork of Base mainnet
 
 ## Chain
 
-Base. USDC, ERC-8004 identity/reputation, and ERC-8128 web auth all on Base.
+Base. Contracts deployed on Base mainnet and Base Sepolia. USDC, ERC-8004 identity/reputation, and ERC-8128 web auth all on Base.
 
 ## Built at
 

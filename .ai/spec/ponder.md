@@ -70,6 +70,13 @@ Transfer(address caller, address indexed sender, address indexed receiver, uint2
 TokenCreated(uint256 indexed tokenId, address indexed creator, uint8 tokenType, bytes metadata)
 ```
 
+### From Temptation (vault contract)
+
+```solidity
+Deposited(address indexed from, uint256 amount)
+Withdrawn(address indexed to, uint256 amount, uint256 indexed permissionTokenId)
+```
+
 ### Events NOT indexed
 
 - `InputAccepted` — duplicative of domain-specific events (ProposalSubmitted, AgreementStateChanged, ClaimFiled, etc.)
@@ -102,7 +109,7 @@ Agreement {
   trustZones: [TrustZone]
   proposals: [Proposal]
   claims: [Claim]
-  reputationFeedback: [ReputationFeedback]
+  reputationFeedbacks: [ReputationFeedback]
   agreementParties: [AgreementParty]
 }
 
@@ -136,6 +143,8 @@ Proposal {
   adjudicator: address
   deadline: bigint
   zoneCount: int
+  rawProposalData: hex?            // ABI-encoded ProposalData bytes from the event
+  txHash: hex?                     // transaction hash
 
   // Relations — proposed typed entities link back here
   permissions: [Permission]
@@ -156,18 +165,14 @@ TrustZone {
   zoneIndex: int                 // 0 or 1 within the agreement
   active: boolean                // set false on CLOSED
   createdAt: bigint
+  txHash: hex?                   // transaction hash
 
   // Relations — deployed typed entities link here
   permissions: [Permission]
   responsibilities: [Responsibility]
   directives: [Directive]
   constraints: [Constraint]
-  eligibilities: [Eligibility]
-  incentives: [Incentive]
-  decisionModels: [DecisionModel]
-  principalAlignments: [PrincipalAlignment]
   resourceTokenHoldings: [ResourceTokenHolding]
-  claims: [Claim]
 }
 ```
 
@@ -189,9 +194,10 @@ Permission {
 
   // Parsed from resource token metadata (ABI-decoded)
   resource: string               // resource identifier (endpoint path, contract address)
-  rateLimit: string?             // e.g. "10/hour"
+  value: bigint?                 // rate limit value
+  period: string?                // rate limit period (decoded from bytes32)
   expiry: bigint?                // unix timestamp
-  purpose: string?               // intended use
+  params: string?                // additional parameters (JSON)
 
   createdAt: bigint
 }
@@ -339,9 +345,33 @@ ReputationFeedback {
   agreement: Agreement
   actor: Actor                   // resolved from agentId
   tag: string                    // outcome string (COMPLETED, EXITED, etc.)
+  value: int                     // inferred from tag: COMPLETED=1, ADJUDICATED=-1, else 0
   feedbackURI: string
   feedbackHash: hex
   timestamp: bigint
+}
+```
+
+### Vault events
+
+```
+VaultDeposit {
+  id: string                     // `${txHash}:${logIndex}`
+  vault: address                 // vault contract address
+  depositor: address
+  amount: bigint
+  timestamp: bigint
+  txHash: hex?
+}
+
+VaultWithdrawal {
+  id: string                     // `${txHash}:${logIndex}`
+  vault: address
+  recipient: address
+  amount: bigint
+  permissionTokenId: bigint      // the permission token that authorized withdrawal
+  timestamp: bigint
+  txHash: hex?
 }
 ```
 
@@ -349,7 +379,6 @@ ReputationFeedback {
 
 ### AgreementCreated
 - Creates: `Agreement`, 2x `Actor` (upsert), 2x `AgreementParty`
-- Parses: initial `proposalData` from the creation transaction to create `Proposal` + proposed typed entities
 
 ### ProposalSubmitted
 - Creates: `Proposal`, `Actor` (upsert for proposer)
@@ -360,6 +389,9 @@ ReputationFeedback {
 
 ### AgreementStateChanged
 - Updates: `Agreement.state` (decode bytes32 to human-readable string)
+
+### AgreementSetUp
+- Updates: `Agreement.setUpAt`
 
 ### AgreementActivated
 - Updates: `Agreement.activatedAt`
@@ -408,6 +440,12 @@ ReputationFeedback {
 - Creates: `ReputationFeedback`
 - Links to `Actor` (resolved from agentId)
 
+### Deposited (Temptation)
+- Creates: `VaultDeposit`
+
+### Withdrawn (Temptation)
+- Creates: `VaultWithdrawal`
+
 ## ProposalData parsing
 
 The `proposalData` bytes in `ProposalSubmitted` are ABI-encoded as:
@@ -448,9 +486,9 @@ Metadata is ABI-encoded `bytes`. The indexer decodes based on token type:
 
 ### Permission (0x01)
 ```
-(string resource, (uint256 value, string period) rateLimit, uint256 expiry, string purpose)
+(string resource, uint256 value, bytes32 period, uint256 expiry, bytes params)
 ```
-→ `Permission.resource`, `Permission.rateLimit` (formatted as "value/period"), `Permission.expiry`, `Permission.purpose`
+→ `Permission.resource`, `Permission.value`, `Permission.period` (bytes32 decoded to string), `Permission.expiry`, `Permission.params` (hex or JSON)
 
 ### Responsibility (0x02)
 ```
@@ -491,15 +529,16 @@ keccak256("CLOSE")       → "CLOSE"
 
 ## Entity count
 
-18 entities total:
+20 entities total:
 - **Core lifecycle** (7): Agreement, Actor, AgreementParty, Proposal, TrustZone, Claim, ReputationFeedback
 - **Context graph typed** (8): Permission, Responsibility, Directive, Constraint, Eligibility, Incentive, DecisionModel, PrincipalAlignment
 - **Token layer** (2): ResourceToken, ResourceTokenHolding
+- **Vault events** (2): VaultDeposit, VaultWithdrawal
 - **Join** (1): AgreementParty
 
 ## Ponder configuration notes
 
 - **Factory pattern**: AgreementRegistry is indexed directly. Each `AgreementCreated` event registers the new agreement address as a child contract source for Agreement events.
-- **Two contract sources**: AgreementRegistry (singleton) + Agreement (factory children) + ResourceTokenRegistry (singleton)
+- **Four contract sources**: AgreementRegistry (singleton) + Agreement (factory children) + ResourceTokenRegistry (singleton) + Temptation (singleton vault)
 - **Start block**: deployment block of AgreementRegistry and ResourceTokenRegistry
 - **Chain**: Base Sepolia (testnet) / Base (mainnet)
