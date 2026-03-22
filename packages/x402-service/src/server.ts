@@ -26,11 +26,24 @@ async function setupPayment() {
   const { HTTPFacilitatorClient } = await import("@x402/core/server");
   const { ExactEvmScheme } = await import("@x402/evm/exact/server");
 
-  const facilitatorUrl = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
   const treasury = process.env.TREASURY_ADDRESS;
   if (!treasury) throw new Error("TREASURY_ADDRESS required when REQUIRE_PAYMENT=true");
 
-  const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+  // Use Coinbase CDP facilitator if credentials are available, otherwise fall back to FACILITATOR_URL
+  let facilitatorClient: InstanceType<typeof HTTPFacilitatorClient>;
+  const cdpKeyId = process.env.CDP_API_KEY_ID;
+  const cdpKeySecret = process.env.CDP_API_KEY_SECRET;
+  if (cdpKeyId && cdpKeySecret) {
+    const { createFacilitatorConfig } = await import("@coinbase/x402");
+    const config = createFacilitatorConfig(cdpKeyId, cdpKeySecret);
+    facilitatorClient = new HTTPFacilitatorClient(config);
+    console.log(`Using Coinbase CDP facilitator (${config.url})`);
+  } else {
+    const facilitatorUrl = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
+    facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+    console.log(`Using facilitator: ${facilitatorUrl}`);
+  }
+
   const resourceServer = new x402ResourceServer(facilitatorClient);
   resourceServer.register(X402_NETWORK, new ExactEvmScheme());
   await resourceServer.initialize();
