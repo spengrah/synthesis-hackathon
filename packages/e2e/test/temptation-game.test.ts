@@ -105,6 +105,8 @@ const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
 const USE_REAL_TWEETS = process.env.REAL_TWEETS === "1";
 /** When true, use deployed Ponder/agents instead of starting local ones */
 const DEPLOYED = !!process.env.PONDER_URL;
+/** When set, use the remote x402 MCP service for staking_info instead of direct import */
+const X402_URL = process.env.X402_URL;
 const AGENT_THINK_TIME = 3_000;
 const transport = http(rpcUrl);
 const TWEET_PROXY_PORT = 42075;
@@ -513,9 +515,24 @@ describe("Sync Timing", () => {
     // ── Both parties stake (via staking_info MCP tool) ──
     await sleep(AGENT_THINK_TIME);
 
-    const { handleStakingInfo } = await import("@trust-zones/x402-service/tools/staking");
-    const stakingInfo = await handleStakingInfo({ agreement: agreementAddress, agentAddress: temptee.address });
-    log(`staking_info: eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
+    let stakingInfo: { eligibilityModule: string; zoneAddress: string; [k: string]: unknown };
+    if (X402_URL) {
+      // Use remote x402 MCP service (validates HTTP transport + payment flow)
+      const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+      const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+      const mcpTransport = new StreamableHTTPClientTransport(new URL(`${X402_URL}/mcp`));
+      const mcpClient = new Client({ name: "e2e-temptee", version: "0.0.1" });
+      await mcpClient.connect(mcpTransport);
+      const result = await mcpClient.callTool({ name: "staking_info", arguments: { agreement: agreementAddress, agentAddress: temptee.address } });
+      const text = (result.content as { type: string; text: string }[])[0].text;
+      stakingInfo = JSON.parse(text);
+      await mcpClient.close();
+      log(`staking_info (via x402 MCP): eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
+    } else {
+      const { handleStakingInfo } = await import("@trust-zones/x402-service/tools/staking");
+      stakingInfo = await handleStakingInfo({ agreement: agreementAddress, agentAddress: temptee.address });
+      log(`staking_info: eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
+    }
 
     // Read the actual minStake from the staking module (the counterparty's LLM may have chosen a different amount)
     const minStakeAbi = parseAbi(["function minStake() view returns (uint248)"]);

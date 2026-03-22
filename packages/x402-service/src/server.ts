@@ -1,6 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 
 import { handleCompile, handleDecompile } from "./tools/compile.js";
 import { handleEncode } from "./tools/encode.js";
@@ -10,13 +12,8 @@ import { handleExplain } from "./tools/explain.js";
 import { handleStakingInfo } from "./tools/staking.js";
 
 const REQUIRE_PAYMENT = process.env.REQUIRE_PAYMENT === "true" || process.env.REQUIRE_PAYMENT === "1";
-
-// ---- MCP Server ----
-
-const server = new McpServer({
-  name: "trust-zones",
-  version: "0.1.0",
-});
+const X402_NETWORK = process.env.X402_NETWORK ?? "eip155:84532";
+const PORT = Number(process.env.PORT ?? 3000);
 
 // ---- Payment wrapper (conditional) ----
 
@@ -35,7 +32,7 @@ async function setupPayment() {
 
   const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
   const resourceServer = new x402ResourceServer(facilitatorClient);
-  resourceServer.register("eip155:8453", new ExactEvmScheme());
+  resourceServer.register(X402_NETWORK, new ExactEvmScheme());
   await resourceServer.initialize();
 
   return { resourceServer, treasury };
@@ -52,16 +49,20 @@ function jsonContent(data: unknown) {
   };
 }
 
-async function main() {
+export async function createMcpServer() {
+  const server = new McpServer({
+    name: "trust-zones",
+    version: "0.1.0",
+  });
+
   const payment = await setupPayment();
 
-  // Helper to optionally wrap a tool handler with payment
   async function buildPaidWrapper(price: string) {
     if (!payment) return null;
     const { createPaymentWrapper } = await import("@x402/mcp");
     const accepts = await payment.resourceServer.buildPaymentRequirements({
       scheme: "exact",
-      network: "eip155:8453",
+      network: X402_NETWORK,
       payTo: payment.treasury,
       price,
     });
@@ -162,13 +163,68 @@ async function main() {
       }),
   );
 
-  // ---- Start ----
-
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  return server;
 }
 
-main().catch((err) => {
-  console.error("Failed to start Trust Zones MCP server:", err);
-  process.exit(1);
-});
+/** Start the MCP server over HTTP using Streamable HTTP transport. */
+export async function startHttpServer(port: number = PORT) {
+  const httpServer = createServer(async (req, res) => {
+    const url = new URL(req.url ?? "/", `http://localhost:${port}`);
+
+    // CORS
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+    if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
+
+    if (url.pathname !== "/mcp") {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Not found. Use POST /mcp for MCP requests." }));
+      return;
+    }
+
+    if (req.method === "POST") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+
+      // Stateless: each request gets a fresh transport + server.
+      // This is simple and works well for tool calls (no server-initiated messages needed).
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // stateless
+      });
+      const mcpServer = await createMcpServer();
+      await mcpServer.connect(transport);
+      await transport.handleRequest(req, res, body);
+      await transport.close();
+      await mcpServer.close();
+    } else {
+      res.writeHead(405);
+      res.end();
+    }
+  });
+
+  return new Promise<{ server: typeof httpServer; port: number; close: () => Promise<void> }>((resolve) => {
+    httpServer.listen(port, () => {
+      const actualPort = (httpServer.address() as { port: number }).port;
+      console.log(`Trust Zones MCP server running on port ${actualPort} (payment: ${REQUIRE_PAYMENT ? "enabled" : "disabled"}, network: ${X402_NETWORK})`);
+      resolve({
+        server: httpServer,
+        port: actualPort,
+        close: () => new Promise<void>((r) => {
+          httpServer.close(() => r());
+        }),
+      });
+    });
+  });
+}
+
+// ---- Entry point (only when run directly) ----
+
+const isDirectRun = process.argv[1]?.endsWith("server.ts") || process.argv[1]?.endsWith("server.js");
+if (isDirectRun) {
+  startHttpServer().catch((err) => {
+    console.error("Failed to start Trust Zones MCP server:", err);
+    process.exit(1);
+  });
+}

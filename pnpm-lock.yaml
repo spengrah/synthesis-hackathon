@@ -111,6 +111,9 @@ importers:
 
   packages/e2e:
     dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.27.1
+        version: 1.27.1(zod@3.25.76)
       '@trust-zones/agents':
         specifier: workspace:*
         version: link:../agents
