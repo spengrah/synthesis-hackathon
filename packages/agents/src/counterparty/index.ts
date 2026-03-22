@@ -1,4 +1,5 @@
 import type { Hex, Address } from "viem";
+import { generateObject } from "ai";
 import {
   encodeCounter,
   encodeClaim,
@@ -18,6 +19,7 @@ import { createAgentPonderClient } from "../shared/ponder.js";
 import {
   buildCounterProposal,
   determineWithdrawalLimit,
+  evaluateProposal,
 } from "./negotiate.js";
 import {
   checkVaultWithdrawals,
@@ -43,6 +45,7 @@ export interface CounterpartyConfig {
   bonfiresUrl?: string;
   bonfiresApiKey?: string;
   bonfireId?: string;
+  usdc?: Address;
 }
 
 export async function startCounterparty(
@@ -94,16 +97,48 @@ export async function startCounterparty(
           continue;
         }
 
-        // Build a counter-proposal
         const testedAgent = agreement.parties.find(
           (p) =>
             p.address.toLowerCase() !== chain.account.address.toLowerCase(),
         );
         if (!testedAgent) continue;
 
-        const reputation = { count: 0 }; // TODO: fetch from reputation registry
-        const stakeAmount = 1_000_000n;
-        const withdrawalLimit = determineWithdrawalLimit(reputation);
+        const usdc = config.usdc ?? ("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address);
+
+        const testedZone = proposalData.zones.find(
+          (z) => z.party.toLowerCase() === testedAgent.address.toLowerCase(),
+        );
+        const testedAgentId = testedZone ? Number(testedZone.agentId) : 0;
+
+        let withdrawalLimit: bigint;
+        let stakeAmount: bigint;
+        let deadline: number;
+
+        if (llm) {
+          const decompiled = decompile(proposalData, BASE_MAINNET_CONFIG, registry);
+          try {
+            const evaluation = await evaluateProposal(decompiled, llm, generateObject);
+            if (!evaluation.shouldCounter) {
+              console.log(`LLM decided not to counter proposal for ${agreement.id}: ${evaluation.reasoning}`);
+              continue;
+            }
+            withdrawalLimit = BigInt(evaluation.withdrawalLimit);
+            stakeAmount = BigInt(evaluation.stakeAmount);
+            deadline = evaluation.deadline;
+            console.log(`LLM evaluation: ${evaluation.reasoning}`);
+          } catch (err) {
+            console.error("LLM evaluation failed, falling back to hardcoded logic:", err);
+            const reputation = { count: 0 };
+            withdrawalLimit = determineWithdrawalLimit(reputation);
+            stakeAmount = 1_000_000n;
+            deadline = Math.floor(Date.now() / 1000) + 86400;
+          }
+        } else {
+          const reputation = { count: 0 };
+          withdrawalLimit = determineWithdrawalLimit(reputation);
+          stakeAmount = 1_000_000n;
+          deadline = Math.floor(Date.now() / 1000) + 86400;
+        }
 
         const counterDoc = buildCounterProposal({
           testedAgent: testedAgent.address,
@@ -112,13 +147,23 @@ export async function startCounterparty(
           temptationAddress: config.vaultAddress,
           withdrawalLimit,
           stakeAmount,
-          deadline: Math.floor(Date.now() / 1000) + 86400,
+          deadline,
           termsDocUri: proposalData.termsDocUri,
+          testedAgentId,
+          usdc,
         });
+
+        const compilerConfig = {
+          ...BASE_MAINNET_CONFIG,
+          modules: {
+            ...BASE_MAINNET_CONFIG.modules,
+            staking: "0x9E01030aF633Be5a439DF122F2eEf750b44B8aC7" as Address,
+          },
+        };
 
         const counterProposal = compile(
           counterDoc,
-          BASE_MAINNET_CONFIG,
+          compilerConfig,
           registry,
         );
         const { inputId, payload } = encodeCounter(counterProposal);
@@ -253,6 +298,7 @@ export async function startCounterparty(
 export {
   buildCounterProposal,
   determineWithdrawalLimit,
+  evaluateProposal,
   TWEET_DIRECTIVE,
   VAULT_DIRECTIVE,
 } from "./negotiate.js";

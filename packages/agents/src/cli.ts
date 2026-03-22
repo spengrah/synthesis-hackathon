@@ -53,6 +53,7 @@ if (role === "adjudicator") {
     adjudicatorAddress: (process.env.ADJUDICATOR_ADDRESS ?? "") as `0x${string}`,
     vaultAddress: (process.env.VAULT_ADDRESS ?? "") as `0x${string}`,
     tweetProxyUrl: process.env.TWEET_PROXY_URL ?? "",
+    usdc: (process.env.USDC_ADDRESS ?? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913") as `0x${string}`,
     llm: llmConfig,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? "10000"),
     bonfiresUrl: process.env.BONFIRES_API_URL,

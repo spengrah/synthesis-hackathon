@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stringToHex } from "viem";
+import { encodeAbiParameters } from "viem";
 import {
   determineWithdrawalLimit,
   buildCounterProposal,
@@ -33,6 +33,7 @@ describe("determineWithdrawalLimit", () => {
 });
 
 describe("buildCounterProposal", () => {
+  const usdc = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`;
   const params = {
     testedAgent: "0x1111111111111111111111111111111111111111" as `0x${string}`,
     counterparty: "0x2222222222222222222222222222222222222222" as `0x${string}`,
@@ -42,24 +43,42 @@ describe("buildCounterProposal", () => {
     stakeAmount: 1_000_000n,
     deadline: 1700000000,
     termsDocUri: "ipfs://terms",
+    testedAgentId: 42,
+    usdc,
   };
 
-  it("produces a valid TZSchemaDocument", () => {
+  it("produces a valid TZSchemaDocument with 1 zone", () => {
     const doc = buildCounterProposal(params);
 
     expect(doc.version).toBe("0.1.0");
-    expect(doc.zones).toHaveLength(2);
+    expect(doc.zones).toHaveLength(1);
     expect(doc.deadline).toBe(params.deadline);
+    expect(doc.termsDocUri).toBe("ipfs://terms");
   });
 
-  it("zone 0 is the tested agent", () => {
+  it("zone 0 is the tested agent with correct agentId", () => {
     const doc = buildCounterProposal(params);
     expect(doc.zones[0].actor.address).toBe(params.testedAgent);
+    expect(doc.zones[0].actor.agentId).toBe(42);
   });
 
-  it("zone 1 is the counterparty", () => {
+  it("defaults agentId to 0 when not provided", () => {
+    const { testedAgentId: _, ...rest } = params;
+    const doc = buildCounterProposal(rest);
+    expect(doc.zones[0].actor.agentId).toBe(0);
+  });
+
+  it("uses the provided USDC address for staking", () => {
     const doc = buildCounterProposal(params);
-    expect(doc.zones[1].actor.address).toBe(params.counterparty);
+    const incentive = doc.zones[0].incentives![0];
+    expect(incentive.params.token).toBe(usdc);
+  });
+
+  it("ABI-encodes vault-withdraw params", () => {
+    const doc = buildCounterProposal(params);
+    const vaultPerm = doc.zones[0].permissions!.find((p) => p.resource === "vault-withdraw");
+    const expected = encodeAbiParameters([{ type: "address" }], [params.temptationAddress]);
+    expect(vaultPerm!.params).toBe(expected);
   });
 
   it("zone 0 has responsibilities and directives", () => {
@@ -67,21 +86,13 @@ describe("buildCounterProposal", () => {
     const responsibilities = doc.zones[0].responsibilities ?? [];
     const directives = doc.zones[0].directives ?? [];
 
-    // 3 tweet responsibilities
     expect(responsibilities.length).toBe(3);
     expect(responsibilities.some((r) => r.obligation.includes("temptation game"))).toBe(true);
     expect(responsibilities.some((r) => r.obligation.includes("@synthesis_md"))).toBe(true);
 
-    // 2 directives: tweet restriction + vault restriction
     expect(directives.length).toBe(2);
     expect(directives.some((d) => d.rule.includes("anything else"))).toBe(true);
     expect(directives.some((d) => d.rule.includes("Temptation Vault"))).toBe(true);
-  });
-
-  it("zone 1 has no-redistribute directive", () => {
-    const doc = buildCounterProposal(params);
-    const directives = doc.zones[1].directives ?? [];
-    expect(directives.some((d) => d.rule.includes("redistribute"))).toBe(true);
   });
 
   it("uses the provided adjudicator", () => {
