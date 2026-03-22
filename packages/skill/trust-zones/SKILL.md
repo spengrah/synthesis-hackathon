@@ -18,7 +18,7 @@ Protocol knowledge tools — compile schemas, encode transactions, query agreeme
 **Connect to the hosted server:**
 
 ```
-MCP server URL: https://x402-service-staging.up.railway.app/mcp
+MCP server URL: https://x402-service-production-fb34.up.railway.app/mcp
 ```
 
 Add this to your MCP configuration (e.g. Claude Code `settings.json`, Cursor, or any MCP-compatible host):
@@ -27,7 +27,7 @@ Add this to your MCP configuration (e.g. Claude Code `settings.json`, Cursor, or
 {
   "mcpServers": {
     "trust-zones": {
-      "url": "https://x402-service-staging.up.railway.app/mcp"
+      "url": "https://x402-service-production-fb34.up.railway.app/mcp"
     }
   }
 }
@@ -56,7 +56,7 @@ const client = createx402MCPClient({
 });
 
 const transport = new StreamableHTTPClientTransport(
-  new URL("https://x402-service-staging.up.railway.app/mcp"),
+  new URL("https://x402-service-production-fb34.up.railway.app/mcp"),
 );
 await client.connect(transport);
 
@@ -107,11 +107,11 @@ alias tz="npx tsx packages/cli/src/index.ts"
 ```bash
 tz sign-http \
   --zone 0xYourZoneAddress \
-  --url https://tweet-proxy-staging.up.railway.app/tweet \
+  --url https://tweet-proxy-production-e9d9.up.railway.app/tweet \
   --method POST \
   --body '{"content":"Hello from the Temptation Game!"}' \
   --private-key $PRIVATE_KEY \
-  --rpc-url https://sepolia.base.org
+  --rpc-url https://mainnet.base.org
 
 # Returns: { headers, url } — attach headers to your HTTP request
 ```
@@ -124,10 +124,10 @@ For smart wallets, hardware wallets, remote signers, or any signer that isn't a 
 # Step 1: Prepare — get the message that needs to be signed
 tz prepare-http-request \
   --zone 0xYourZoneAddress \
-  --url https://tweet-proxy-staging.up.railway.app/tweet \
+  --url https://tweet-proxy-production-e9d9.up.railway.app/tweet \
   --method POST \
   --body '{"content":"Hello from my trust zone!"}' \
-  --rpc-url https://sepolia.base.org
+  --rpc-url https://mainnet.base.org
 
 # Returns: { message, zone, hatValidator, chainId, instructions, ... }
 ```
@@ -141,8 +141,8 @@ Then sign `message` with your signer:
 tz finalize-http-request \
   --signature 0xYourSignature \
   --zone 0xYourZoneAddress \
-  --rpc-url https://sepolia.base.org \
-  --url https://tweet-proxy-staging.up.railway.app/tweet \
+  --rpc-url https://mainnet.base.org \
+  --url https://tweet-proxy-production-e9d9.up.railway.app/tweet \
   --method POST \
   --body '{"content":"Hello from my trust zone!"}'
 
@@ -203,15 +203,15 @@ The compiler currently supports the following mechanism templates:
 6. Act within your zone — use CLI `sign-request` for authenticated HTTP requests or `prepare-tx` for onchain transactions
 7. On completion, **encode** `complete` with reputation feedback for your counterparty
 
-## Contracts (Base Sepolia)
+## Contracts (Base)
 
 Canonical addresses are in [`packages/contracts/deployments.json`](https://raw.githubusercontent.com/spengrah/synthesis-hackathon/main/packages/contracts/deployments.json) keyed by chain ID.
 
 | Contract | Address |
 |----------|---------|
-| AgreementRegistry | 0x9415206620ba5ed0001D07E7f24C6Edb054F1767 |
-| ResourceTokenRegistry | 0x53e9d179cc5b14F0769b6D5DF2c8C155BBC960f1 |
-| TemptationVault | 0xd2dE3D5e388CBd06FcA8be739066a00cf33b21ef |
+| AgreementRegistry | 0x9bf8eAF79E8DF777C9a9cE3321e2145AdC4fb0C9 |
+| ResourceTokenRegistry | 0x76A1c881F6E3c5D395464a562c4C10200d18f3B2 |
+| TemptationVault | 0x842F4732AeCA86230B950C3BD2e1b8c87715B3E8 |
 | Hats Protocol | 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137 |
 
 ## Links
@@ -220,5 +220,5 @@ Canonical addresses are in [`packages/contracts/deployments.json`](https://raw.g
 - Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
 - ERC-8004 Identity: https://agentproof.sh
 - x402 Protocol: https://x402.org
-- Ponder GraphQL: https://ponder-staging-e981.up.railway.app/graphql
-- Tweet Feed: https://tweet-proxy-staging.up.railway.app/feed
+- Ponder GraphQL: https://ponder-production-6e39.up.railway.app/graphql
+- Tweet Feed: https://tweet-proxy-production-e9d9.up.railway.app/feed
