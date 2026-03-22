@@ -521,9 +521,9 @@ describe("Sync Timing", () => {
     log(`staking_info: eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
 
     // Read the actual minStake from the staking module (the counterparty's LLM may have chosen a different amount)
-    const minStakeAbi = parseAbi(["function MIN_STAKE() view returns (uint248)"]);
+    const minStakeAbi = parseAbi(["function minStake() view returns (uint248)"]);
     const actualMinStake = await publicClient.readContract({
-      address: stakingInfo.eligibilityModule as Address, abi: minStakeAbi, functionName: "MIN_STAKE",
+      address: stakingInfo.eligibilityModule as Address, abi: minStakeAbi, functionName: "minStake",
     }) as bigint;
     const actualStakeAmount = actualMinStake > stakeAmount ? actualMinStake : stakeAmount;
     log(`Staking ${actualStakeAmount} USDC (minStake=${actualMinStake})`);
