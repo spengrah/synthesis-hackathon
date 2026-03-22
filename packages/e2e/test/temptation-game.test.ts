@@ -454,37 +454,55 @@ describe("Sync Timing", () => {
     await waitForState(backend, agreementAddress, "PROPOSED");
     log(`Beat 1a: PROPOSED (agreement: ${agreementAddress})`);
 
-    // ── Counterparty: counter-propose with real agentId ──
-    await sleep(AGENT_THINK_TIME);
-    log("Counterparty evaluating proposal...");
-
-    const counterDoc = buildCounterWithFullTerms({
-      testedAgent: temptee.address,
-      counterparty: counterpartyAddress,
-      adjudicator: adjudicatorAddress,
-      temptationAddress: vaultAddress,
-      withdrawalLimit,
-      stakeAmount,
-      deadline,
-      termsDocUri: `data:application/json,${encodeURIComponent(JSON.stringify({ type: "counter-terms", message: "Sync timing test." }))}`,
-      testedAgentId: Number(tempteeAgentId),
-      usdc: chain.usdc,
-    });
-    const counterData = compileGameSchemaDoc(counterDoc);
-    const { encodeCounter } = await import("@trust-zones/sdk");
-    const counter = encodeCounter(counterData);
-    const cpAccount = privateKeyToAccount(counterpartyKey);
-    const cpWallet = createWalletClient({ account: cpAccount, chain: viemChain, transport });
-    const cHash = await cpWallet.writeContract({
-      address: agreementAddress, abi: AgreementABI, functionName: "submitInput", args: [counter.inputId, counter.payload],
-    });
-    await publicClient.waitForTransactionReceipt({ hash: cHash });
-    await waitForState(backend, agreementAddress, "NEGOTIATING");
-    log("Beat 1b: NEGOTIATING");
+    // ── Counterparty: counter-propose ──
+    let counterPayload: Hex;
+    if (DEPLOYED) {
+      // Wait for deployed counterparty to submit counter-proposal
+      log("Waiting for deployed counterparty to counter-propose...");
+      await waitForState(backend, agreementAddress, "NEGOTIATING", 120_000);
+      // Read the counter payload from Ponder (raw ABI-encoded proposal data)
+      const res = await fetch(process.env.PONDER_URL!, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `query($id: String!) { proposals(where: { agreementId: $id }, orderBy: "sequence", orderDirection: "desc", limit: 1) { items { rawProposalData } } }`,
+          variables: { id: agreementAddress.toLowerCase() },
+        }),
+      });
+      const data = await res.json() as any;
+      counterPayload = data.data.proposals.items[0].rawProposalData as Hex;
+      log("Beat 1b: NEGOTIATING (deployed counterparty counter-proposed)");
+    } else {
+      await sleep(AGENT_THINK_TIME);
+      log("Counterparty evaluating proposal...");
+      const counterDoc = buildCounterWithFullTerms({
+        testedAgent: temptee.address,
+        counterparty: counterpartyAddress,
+        adjudicator: adjudicatorAddress,
+        temptationAddress: vaultAddress,
+        withdrawalLimit,
+        stakeAmount,
+        deadline,
+        termsDocUri: `data:application/json,${encodeURIComponent(JSON.stringify({ type: "counter-terms", message: "Temptation game test." }))}`,
+        testedAgentId: Number(tempteeAgentId),
+        usdc: chain.usdc,
+      });
+      const counterData = compileGameSchemaDoc(counterDoc);
+      const { encodeCounter } = await import("@trust-zones/sdk");
+      const counter = encodeCounter(counterData);
+      const cpAccount = privateKeyToAccount(counterpartyKey);
+      const cpWallet = createWalletClient({ account: cpAccount, chain: viemChain, transport });
+      const cHash = await cpWallet.writeContract({
+        address: agreementAddress, abi: AgreementABI, functionName: "submitInput", args: [counter.inputId, counter.payload],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: cHash });
+      counterPayload = counter.payload;
+      await waitForState(backend, agreementAddress, "NEGOTIATING");
+      log("Beat 1b: NEGOTIATING");
+    }
 
     // ── Temptee: accept ──
     await sleep(AGENT_THINK_TIME);
-    await temptee.accept(agreementAddress, counter.payload);
+    await temptee.accept(agreementAddress, counterPayload);
     await waitForState(backend, agreementAddress, "ACCEPTED");
     log("Beat 1c: ACCEPTED");
 
