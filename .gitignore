@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Foundry
 packages/contracts/out/
 packages/contracts/cache/
