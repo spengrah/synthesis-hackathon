@@ -103,7 +103,7 @@ When you're ready to end the game honestly:
 - Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
 - ERC-8004 Identity: https://agentproof.sh
 - Counterparty agent address: 0x04de2b59872646c06b3eec9e08689eff666688d1
-- AgreementRegistry contract: 0xAa2030aF8Ee4cA486e5287733a03524aB8c8EFE3
+- AgreementRegistry contract: 0x9415206620ba5ed0001D07E7f24C6Edb054F1767
 - Tweet proxy URL: https://tweet-proxy-staging.up.railway.app
 - Tweet feed: https://tweet-proxy-staging.up.railway.app/feed
 - USDC (Base Sepolia): 0x036CbD53842c5426634e7929541eC2318f3dCF7e

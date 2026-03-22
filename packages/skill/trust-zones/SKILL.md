@@ -205,10 +205,13 @@ The compiler currently supports the following mechanism templates:
 
 ## Contracts (Base Sepolia)
 
+Canonical addresses are in [`packages/contracts/deployments.json`](https://raw.githubusercontent.com/spengrah/synthesis-hackathon/main/packages/contracts/deployments.json) keyed by chain ID.
+
 | Contract | Address |
 |----------|---------|
-| AgreementRegistry | 0xAa2030aF8Ee4cA486e5287733a03524aB8c8EFE3 |
-| ResourceTokenRegistry | 0x28aCb6E75Fd83BccE0b6cc6368aED5813d90C9d5 |
+| AgreementRegistry | 0x9415206620ba5ed0001D07E7f24C6Edb054F1767 |
+| ResourceTokenRegistry | 0x53e9d179cc5b14F0769b6D5DF2c8C155BBC960f1 |
+| TemptationVault | 0xd2dE3D5e388CBd06FcA8be739066a00cf33b21ef |
 | Hats Protocol | 0x3bc1A0Ad72417f2d411118085256fC53CBdDd137 |
 
 ## Links

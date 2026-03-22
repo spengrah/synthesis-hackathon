@@ -20,7 +20,7 @@
     "test:e2e:sepolia": "CHAIN_ID=84532 MOCK_LLM=1 pnpm --filter @trust-zones/e2e exec vitest run test/temptation-game.test.ts --testTimeout 150000",
     "test:e2e:staging": "CHAIN_ID=84532 PONDER_URL=https://ponder-staging-e981.up.railway.app/graphql REAL_TWEETS=1 TWEET_PROXY_URL=https://tweet-proxy-staging.up.railway.app X402_URL=https://x402-service-staging.up.railway.app pnpm --filter @trust-zones/e2e exec vitest run test/temptation-game.test.ts --testTimeout 150000",
     "test:e2e:staging:reciprocal": "CHAIN_ID=84532 PONDER_URL=https://ponder-staging-e981.up.railway.app/graphql pnpm --filter @trust-zones/e2e exec vitest run test/reciprocal-demo.test.ts --testTimeout 150000",
-    "ponder:sepolia": "cd packages/ponder && PONDER_AGREEMENT_REGISTRY=0x1Ae7002901FEa59dC43500Fc4297f336C4aF3Aac PONDER_RESOURCE_TOKEN_REGISTRY=0x6BA6F01C970Ed7C1F9Faa47b94cf02aeF789c10b PONDER_TEMPTATION_VAULT=0x54c77853e796bB79B01222827cb99354c79cee54 PONDER_CHAIN_ID=84532 PONDER_RPC_URL=https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY} PONDER_START_BLOCK=39151830 pnpm ponder dev --port 42069",
+    "ponder:sepolia": "cd packages/ponder && eval $(node -e \"const d=require('../contracts/deployments.json')['84532'];console.log('PONDER_AGREEMENT_REGISTRY='+d.agreementRegistry+' PONDER_RESOURCE_TOKEN_REGISTRY='+d.resourceTokenRegistry+' PONDER_TEMPTATION_VAULT='+d.temptationVault)\") PONDER_CHAIN_ID=84532 PONDER_RPC_URL=https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY} PONDER_START_BLOCK=39151830 pnpm ponder dev --port 42069",
     "fork:start": "./scripts/anvil-fork.sh start",
     "fork:stop": "./scripts/anvil-fork.sh stop",
     "fork:status": "./scripts/anvil-fork.sh status"
