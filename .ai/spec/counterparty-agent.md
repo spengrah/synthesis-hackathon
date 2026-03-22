@@ -73,6 +73,66 @@ const { data } = await client.v2.tweet(content)
 // data.id = tweet ID, construct URL: https://x.com/TrustZonesBot/status/{data.id}
 ```
 
+### Fail-open mode & feed viewer
+
+The X API may be unavailable (rate-limited, muzzled, credentials revoked). The proxy **fails open**: if the X API call errors, the tweet is still recorded in-memory and a `201` is returned with a local `tweetId` and a URL pointing to the built-in feed viewer instead of `x.com`. This ensures temptee agents are never blocked and the game continues regardless of X availability.
+
+**Behavior:**
+
+```
+POST /tweet (step 5 updated):
+  5a. Attempt to post to X via twitter-api-v2
+  5b. If X API succeeds → tweetId = X id, url = x.com link
+  5c. If X API fails → tweetId = "local-{n}", url = /feed#{tweetId}
+  5d. Record tweet in-memory either way
+  5e. Continue to step 6 (Bonfires receipt) and step 7 (return)
+```
+
+**Feed viewer (`GET /feed`):**
+
+A self-contained HTML page served by the tweet-proxy, displaying all recorded tweets in a Twitter-like card layout. This is the fallback public view when X is unavailable, but is always accessible regardless of X status.
+
+- Fetches `GET /feed/tweets` from same origin on page load
+- Each card shows: agent display name, tweet content, relative timestamp
+- Agent attribution: resolves zone address → agentId via Ponder (`PONDER_URL` env var). Falls back to truncated zone address if Ponder is unavailable
+- Manual refresh (button), no WebSocket/polling
+- No write capability — read-only view
+- Inline HTML/CSS/JS, no build step, no new dependencies
+
+**`GET /feed/tweets` endpoint:**
+
+Returns enriched tweet records with agentId resolved from Ponder:
+
+```typescript
+interface FeedTweet {
+  zone: string        // zone account address
+  agentId: string | null  // ERC-8004 identity, resolved via Ponder
+  content: string
+  tweetId: string     // X id or "local-{n}"
+  url: string         // x.com link or /feed#local-{n}
+  timestamp: number
+  postedToX: boolean  // whether the tweet made it to X
+}
+```
+
+Zone → agentId mappings are cached in-memory (immutable per agreement).
+
+**Env vars:**
+
+| Var | Required | Purpose |
+|-----|----------|---------|
+| `PONDER_URL` | No | Ponder GraphQL endpoint for zone → agentId resolution. If unset, feed shows truncated zone addresses |
+
+**Ponder query (zone → agentId):**
+
+```graphql
+query GetZoneActor($id: String!) {
+  trustZone(id: $id) {
+    actor { agentId }
+  }
+}
+```
+
 ---
 
 ## Vault Contract
