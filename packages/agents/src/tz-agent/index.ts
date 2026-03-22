@@ -37,6 +37,7 @@ import {
   keccak256,
   toHex,
   encodeFunctionData,
+  parseEventLogs,
   type Address,
   type Hex,
   type PublicClient,
@@ -172,21 +173,23 @@ export class TrustZonesAgent {
     schemaDoc: TZSchemaDocument,
   ): Promise<Address> {
     const { payload } = await this.compileSchema(schemaDoc);
-    const { result } = await this.publicClient.simulateContract({
-      account: this.account,
-      address: registryAddress,
-      abi: AgreementRegistryABI,
-      functionName: "createAgreement",
-      args: [counterparty, payload],
-    });
     const hash = await this.wallet.writeContract({
       address: registryAddress,
       abi: AgreementRegistryABI,
       functionName: "createAgreement",
       args: [counterparty, payload],
     });
-    await this.publicClient.waitForTransactionReceipt({ hash });
-    return result;
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+    // Parse AgreementCreated event from receipt to get the actual agreement address
+    const events = parseEventLogs({
+      abi: AgreementRegistryABI,
+      logs: receipt.logs,
+      eventName: "AgreementCreated",
+    });
+    if (events.length === 0) {
+      throw new Error(`AgreementCreated event not found in tx ${hash}`);
+    }
+    return events[0].args.agreement as Address;
   }
 
   /** Accept the latest proposal. (MCP: encode accept → wallet: submit) */
