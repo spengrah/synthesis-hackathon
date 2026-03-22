@@ -103,8 +103,10 @@ export class TweetProxy {
 
   private setupRoutes(): void {
     this.app.post("/tweet", (req, res) => this.handleTweet(req, res));
-    this.app.get("/tweets", (_req, res) => {
-      res.json({ tweets: this.tweets });
+    this.app.get("/tweets", (req, res) => {
+      const zone = req.query.zone as string | undefined;
+      const tweets = zone ? this.getTweetsByZone(zone) : this.tweets;
+      res.json({ tweets });
     });
     this.app.get("/health", (_req, res) => {
       res.json({ ok: true, tweetCount: this.tweets.length });
@@ -112,7 +114,7 @@ export class TweetProxy {
     this.app.get("/feed", (_req, res) => {
       res.type("html").send(FEED_HTML);
     });
-    this.app.get("/feed/tweets", (_req, res) => this.handleFeedTweets(res));
+    this.app.get("/feed/tweets", (req, res) => this.handleFeedTweets(req, res));
   }
 
   /**
@@ -266,9 +268,11 @@ export class TweetProxy {
   }
 
   /** Serve enriched tweets for the feed viewer. */
-  private async handleFeedTweets(res: Response): Promise<void> {
+  private async handleFeedTweets(req: Request, res: Response): Promise<void> {
+    const zone = req.query.zone as string | undefined;
+    const source = zone ? this.getTweetsByZone(zone) : this.tweets;
     const enriched = await Promise.all(
-      this.tweets.map(async (t) => ({
+      source.map(async (t) => ({
         zone: t.zone,
         agentId: await this.resolveAgentId(t.zone),
         content: t.content,

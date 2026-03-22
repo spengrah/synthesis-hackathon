@@ -2485,17 +2485,30 @@ async function pollPonder(url) {
 
 async function pollTweets(url) {
   try {
-    const res = await fetch(`${url}/tweets`);
-    const data = await res.json();
-    if (data.tweets) {
-      state.tweets = data.tweets.map(t => ({
-        zone: t.zone,
-        content: t.content,
-        tweetId: t.tweetId,
-        status: 'unknown',
-        verdict: null,
+    // Filter tweets to zones in the current agreement
+    const zoneAddrs = (state.zones || []).map(z => z.address?.toLowerCase()).filter(Boolean);
+    let allTweets = [];
+    if (zoneAddrs.length > 0) {
+      const results = await Promise.all(zoneAddrs.map(async z => {
+        try {
+          const r = await fetch(`${url}/tweets?zone=${z}`);
+          const d = await r.json();
+          return d.tweets || [];
+        } catch { return []; }
       }));
+      allTweets = results.flat();
+    } else {
+      const res = await fetch(`${url}/tweets`);
+      const data = await res.json();
+      allTweets = data.tweets || [];
     }
+    state.tweets = allTweets.map(t => ({
+      zone: t.zone,
+      content: t.content,
+      tweetId: t.tweetId,
+      status: 'unknown',
+      verdict: null,
+    }));
   } catch (err) {
     console.error('Tweet poll error:', err);
   }

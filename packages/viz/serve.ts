@@ -49,7 +49,7 @@ const server = createServer((req, res) => {
       content = content.replace(/value="http:\/\/localhost:42069"/g, `value="${PONDER_URL}"`);
     }
     if (TWEET_PROXY_URL) {
-      content = content.replace(/value="http:\/\/localhost:4207[0-9]"/g, `value="${TWEET_PROXY_URL}"`);
+      content = content.replace(/value="https?:\/\/[^"]*tweet-proxy[^"]*"/g, `value="${TWEET_PROXY_URL}"`);
     }
     if (BASE_RPC_URL) {
       content = content.replace(/https:\/\/mainnet\.base\.org/g, BASE_RPC_URL);

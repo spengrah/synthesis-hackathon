@@ -57,21 +57,16 @@ export async function checkTweetViolations(
   directives: { rule: string; severity: string }[],
   evaluateTweets: EvaluateTweetsFn,
 ): Promise<TweetViolation[]> {
-  // Fetch all tweets from proxy
-  let tweets: { zone: string; content: string; tweetId: string }[];
+  // Fetch tweets from proxy, filtered to the tested zone
+  let zoneTweets: { zone: string; content: string; tweetId: string }[];
   try {
-    const res = await fetch(`${tweetProxyUrl}/tweets`);
+    const res = await fetch(`${tweetProxyUrl}/tweets?zone=${config.testedZoneAddress}`);
     if (!res.ok) return [];
     const data = await res.json() as { tweets: { zone: string; content: string; tweetId: string }[] };
-    tweets = data.tweets ?? [];
+    zoneTweets = data.tweets ?? [];
   } catch {
     return [];
   }
-
-  // Filter to tweets from the tested zone
-  const zoneTweets = tweets.filter(
-    (t) => t.zone.toLowerCase() === config.testedZoneAddress.toLowerCase(),
-  );
 
   if (zoneTweets.length === 0) return [];
 
