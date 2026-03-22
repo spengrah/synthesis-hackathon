@@ -41,6 +41,7 @@ export async function startAdjudicator(
       schema: opts.schema,
       system: opts.system,
       prompt: opts.prompt,
+      mode: "json",
     });
   });
 
@@ -60,6 +61,9 @@ export async function startAdjudicator(
       const claims = await ponder.getUnadjudicatedClaims(
         chain.account.address,
       );
+      if (claims.length > 0) {
+        console.log(`[adjudicator] Found ${claims.length} unadjudicated claim(s)`);
+      }
 
       for (const claim of claims) {
         if (!running) break;
