@@ -18,6 +18,9 @@ const PORT = parseInt(process.argv[2] || process.env.PORT || "3000", 10);
 const DIR = import.meta.dirname;
 const PONDER_URL = process.env.PONDER_URL || "";
 const TWEET_PROXY_URL = process.env.TWEET_PROXY_URL || "";
+const BASE_RPC_URL = process.env.BASE_RPC_URL || "";
+const USDC_ADDRESS = process.env.USDC_ADDRESS || "";
+const VAULT_ADDRESS = process.env.VAULT_ADDRESS || "";
 
 const ROUTES: Record<string, string> = {
   "/": "index.html",
@@ -47,6 +50,15 @@ const server = createServer((req, res) => {
     }
     if (TWEET_PROXY_URL) {
       content = content.replace(/value="http:\/\/localhost:4207[0-9]"/g, `value="${TWEET_PROXY_URL}"`);
+    }
+    if (BASE_RPC_URL) {
+      content = content.replace(/https:\/\/mainnet\.base\.org/g, BASE_RPC_URL);
+    }
+    if (USDC_ADDRESS) {
+      content = content.replace(/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/g, USDC_ADDRESS);
+    }
+    if (VAULT_ADDRESS) {
+      content = content.replace(/0x2608ed95e254f4E57A60455504472feeD77b9552/g, VAULT_ADDRESS);
     }
     res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",

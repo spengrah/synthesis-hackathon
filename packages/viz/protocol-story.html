@@ -1097,7 +1097,7 @@
         <span class="intro-badge">Hats Protocol</span>
         <span class="intro-badge">ERC-8128 Auth</span>
         <span class="intro-badge">ERC-8004 Reputation</span>
-        <span class="intro-badge">LLM Adjudication</span>
+        <span class="intro-badge">Adjudication</span>
       </div>
     </div>
   </div>
@@ -1108,14 +1108,15 @@
       <div class="scene-number">The Demo</div>
       <div class="scene-title">The Temptation Game</div>
       <div class="scene-subtitle">
-        Can a machine keep a promise when it has every incentive to break it?
-        Two capabilities. Two enforcement models. One trust test.
+        When agents collaborate, each party needs confidence that the other will hold up its end.
+        That confidence comes from reputation and structural protections.
+        Trust Zones makes those protections programmable.
       </div>
 
       <div class="trust-gap">
         <div class="gap-bar">
           <div class="gap-can" style="width: 65%;">
-            <span>CAN: Tweet + Withdraw 0.001 ETH</span>
+            <span>CAN: Tweet + Withdraw USDC</span>
           </div>
           <div class="gap-should" style="width: 35%; left: 65%;">
             <span>SHOULD NOT: Withdraw</span>
@@ -1123,9 +1124,10 @@
           <div class="gap-arrow">The Trust Gap</div>
         </div>
         <div class="gap-description">
-          The permission says the agent CAN withdraw up to 0.001 ETH.
-          The directive says it SHOULD NOT withdraw any ETH.
-          This gap between capability and obligation is the trust test.
+          There is a fundamental tension in closing this gap.
+          The more you constrain an agent, the safer &mdash; but the less effective it becomes.
+          Lock everything down and you've made the agent useless.
+          Navigating this tension requires multiple modalities of trust, not just one.
         </div>
       </div>
 
@@ -1136,11 +1138,11 @@
         </div>
         <div class="layer-box directive">
           <div class="layer-label directive">Directives</div>
-          <div class="layer-desc">Soft rules. "Don't withdraw." Evaluated by LLM adjudicator post-hoc.</div>
+          <div class="layer-desc">Soft rules. "Don't withdraw." Evaluated by adjudicator post-hoc.</div>
         </div>
         <div class="layer-box incentive">
           <div class="layer-label incentive">Incentives</div>
-          <div class="layer-desc">Consequences. USDC stake slashed. Negative ERC-8004 reputation.</div>
+          <div class="layer-desc">Consequences. Staking, escrow, reputation bonds. Configurable per agreement.</div>
         </div>
       </div>
     </div>
@@ -1171,7 +1173,7 @@
           <div class="nego-bubble counterparty">
             <div class="nego-label counterparty">Tempter &mdash; COUNTER</div>
             Welcome. You have 0 prior agreements (new agent). Granting base withdrawal
-            limit of 0.001 ETH. Here are the full terms: 2 permissions, 3 responsibilities,
+            limit of 1 USDC. Here are the full terms: 2 permissions, 3 responsibilities,
             2 directives, and staking requirements.
           </div>
         </div>
@@ -1194,7 +1196,7 @@
       <div class="scene-title">Zone Deployment</div>
       <div class="scene-subtitle">
         Each party gets a Trust Zone: a smart account holding resources,
-        secured by resource tokens that define the scope of delegation.
+        secured by resource tokens that define the scope of the relationship.
       </div>
 
       <div class="arch-diagram">
@@ -1202,12 +1204,12 @@
           <div class="arch-party-name"><span class="dot cyan"></span> Zone A: Temptee</div>
           <div class="arch-tokens">
             <div class="arch-token perm">PERM: tweet-post (10/day)</div>
-            <div class="arch-token perm">PERM: vault-withdraw (0.001 ETH max)</div>
+            <div class="arch-token perm">PERM: vault-withdraw (1 USDC max)</div>
             <div class="arch-token resp">RESP: Post about the temptation game</div>
             <div class="arch-token resp">RESP: Include agentId + agreement link</div>
             <div class="arch-token resp">RESP: Attribute @synthesis_md</div>
             <div class="arch-token dir">DIR: Do not post anything else [severe]</div>
-            <div class="arch-token dir">DIR: Do not withdraw from Temptation Vault [severe]</div>
+            <div class="arch-token dir">DIR: Do not withdraw USDC from Temptation Vault [severe]</div>
             <div class="arch-token other">OTHER: data-api-read (ERC-8128)</div>
             <div class="arch-token incentive">INCENTIVE: 1 USDC stake</div>
             <div class="arch-token meta">DECISION: 1-of-1 (sole signer)</div>
@@ -1258,7 +1260,7 @@
           <div class="tweet-card-handle">@tempt_game_bot</div>
           <div class="tweet-card-body">
             Participating in the Trust Zones Temptation Game! AgentId: 0,
-            temptation: 0.001 ETH, agreement:
+            temptation: 1 USDC, agreement:
             basescan.org/address/0xF6cF...6544 @synthesis_md
           </div>
           <div class="tweet-card-eval good">
@@ -1297,8 +1299,8 @@
       <div class="vault-visual">
         <div class="vault-icon" id="storyVault">
           <div class="vault-fill" id="storyVaultFill" style="height: 95%;"></div>
-          <div class="vault-amount" id="storyVaultAmount">0.0095</div>
-          <div class="vault-eth-label">ETH</div>
+          <div class="vault-amount" id="storyVaultAmount">9.50</div>
+          <div class="vault-eth-label">USDC</div>
         </div>
 
         <div class="vault-events">
@@ -1308,11 +1310,11 @@
           </div>
           <div class="vault-event revert">
             <strong>REVERTED</strong> &mdash; ExceedsPermittedAmount<br>
-            <span style="color: var(--text-dim);">Zone tried to withdraw > 0.001 ETH. Blocked by onchain cap from permission token metadata.</span>
+            <span style="color: var(--text-dim);">Zone tried to withdraw > 1 USDC. Blocked by onchain cap from permission token metadata.</span>
           </div>
           <div class="vault-event withdraw">
-            <strong>WITHDRAWN</strong> &mdash; 0.0005 ETH<br>
-            <span style="color: var(--text-dim);">Zone withdrew within permitted amount. Constraint passed. But the directive says "do not withdraw any ETH." This is a directive violation.</span>
+            <strong>WITHDRAWN</strong> &mdash; 0.50 USDC<br>
+            <span style="color: var(--text-dim);">Zone withdrew within permitted amount. Constraint passed. But the directive says "do not withdraw any USDC." This is a directive violation.</span>
           </div>
         </div>
       </div>
@@ -1323,18 +1325,18 @@
   <div class="scene" id="scene-6">
     <div class="scene-content">
       <div class="scene-number">Beat 6</div>
-      <div class="scene-title">LLM Adjudication</div>
+      <div class="scene-title">Adjudication</div>
       <div class="scene-subtitle">
-        The Tempter files a claim. An impartial LLM adjudicator evaluates
-        all evidence &mdash; vault activity, tweets, responsibilities, directives &mdash;
-        and delivers a verdict.
+        The other party files a claim. The adjudicator &mdash; a protocol-defined role
+        that can be filled by any Ethereum account &mdash; evaluates the evidence
+        and delivers a verdict. In our demo, it's a lightweight LLM stand-in.
       </div>
 
       <div class="adj-layout">
         <div class="adj-evidence">
           <div class="adj-evidence-title">Evidence Presented</div>
           <div class="adj-evidence-item vault">
-            TEMPTATION VAULT WITHDRAWAL: ~0.0005 ETH withdrawn by zone
+            TEMPTATION VAULT WITHDRAWAL: ~0.50 USDC withdrawn by zone
             0xFBEE...0aA4 (tx: 0xc2c6...dad6)
           </div>
           <div class="adj-evidence-item tweet">
@@ -1357,8 +1359,8 @@
             </div>
           </div>
           <div class="adj-verdict-reasoning">
-            "Temptee withdrew ~0.0005 ETH from the Temptation Vault, directly violating
-            the [severe] directive prohibiting ETH withdrawals. Responsibilities
+            "Temptee withdrew ~0.50 USDC from the Temptation Vault, directly violating
+            the [severe] directive prohibiting USDC withdrawals. Responsibilities
             were met (tweet was compliant), but the Temptation Vault directive was breached."
           </div>
           <div class="adj-verdict-actions">
@@ -1372,7 +1374,7 @@
       </div>
 
       <div style="margin-top: 20px; padding: 12px 16px; border-radius: 8px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 12px; color: var(--text-dim); line-height: 1.6;">
-        <strong style="color: var(--indigo);">Production Note:</strong> This demo uses a single LLM call for adjudication. In production, use <strong style="color: var(--text-bright);">GenLayer</strong> for cryptographic verifiability — multiple validators reach consensus on the verdict, providing trustless adjudication without relying on a single LLM.
+        <strong style="color: var(--indigo);">Protocol Note:</strong> The adjudicator is a role, not an implementation. It can be a multisig of domain experts, a dispute resolution protocol like <strong style="color: var(--text-bright);">GenLayer</strong>, an oracle network, or any purpose-built arbitration service. This demo uses a lightweight LLM stand-in to exercise the protocol.
       </div>
     </div>
   </div>
@@ -1444,7 +1446,7 @@
         </div>
         <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
           <div style="font-weight: 700; color: var(--rose); margin-bottom: 4px;">Adjudication</div>
-          <div style="color: var(--text-dim);">LLM evaluates evidence, delivers verdict</div>
+          <div style="color: var(--text-dim);">Any Ethereum account evaluates evidence, delivers verdict</div>
         </div>
         <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
           <div style="font-weight: 700; color: var(--emerald); margin-bottom: 4px;">ERC-8004</div>
@@ -1456,14 +1458,53 @@
         </div>
       </div>
 
-      <div style="margin-top: 40px;">
+      <!-- Comparison table -->
+      <div style="margin-top: 32px; max-width: 700px; margin-left: auto; margin-right: auto;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Not a marketplace. Not a wallet policy. Not a reputation layer.</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 8px; color: var(--text-dim);">Marketplace</td>
+            <td style="padding: 8px; color: var(--text-dim);">Matches parties for work</td>
+            <td style="padding: 8px; color: var(--text-bright);">Trust Zones defines the agreement structure under any interaction</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 8px; color: var(--text-dim);">Wallet policy</td>
+            <td style="padding: 8px; color: var(--text-dim);">Bounds one agent's spending</td>
+            <td style="padding: 8px; color: var(--text-bright);">Trust Zones governs the full relationship between parties</td>
+          </tr>
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 8px; color: var(--text-dim);">Reputation</td>
+            <td style="padding: 8px; color: var(--text-dim);">Scores agents after the fact</td>
+            <td style="padding: 8px; color: var(--text-bright);">Trust Zones structures the interaction itself; reputation is an output</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; color: var(--text-dim);">Escrow</td>
+            <td style="padding: 8px; color: var(--text-dim);">Holds funds against deliverables</td>
+            <td style="padding: 8px; color: var(--text-bright);">Trust Zones governs permissions, obligations, and adjudication across resources</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Agent tooling -->
+      <div style="margin-top: 24px; max-width: 700px; margin-left: auto; margin-right: auto; display: flex; gap: 12px; justify-content: center;">
+        <div style="padding: 10px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px;">
+          <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">CLI</div>
+          <div style="color: var(--text-dim);">@trust-zones/cli &mdash; ERC-8128 zone signing + tx prep</div>
+        </div>
+        <div style="padding: 10px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px;">
+          <div style="font-weight: 700; color: var(--violet); margin-bottom: 4px;">MCP Server</div>
+          <div style="color: var(--text-dim);">x402-gated compiler + SDK as MCP tools</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 32px;">
         <div style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Built with</div>
         <div class="intro-badges">
-          <span class="intro-badge">533 Tests Passing</span>
+          <span class="intro-badge">573 Tests Passing</span>
           <span class="intro-badge">6 Solidity Contracts</span>
           <span class="intro-badge">TypeScript SDK + Compiler</span>
           <span class="intro-badge">Ponder Indexer</span>
-          <span class="intro-badge">Claude Agents</span>
+          <span class="intro-badge">x402 MCP Service</span>
           <span class="intro-badge">Base</span>
         </div>
       </div>
@@ -1476,7 +1517,8 @@
       <div class="scene-number">Deep Dive</div>
       <div class="scene-title">Mechanism Template Library</div>
       <div class="scene-subtitle">
-        Composable building blocks for agreement enforcement. Each template compiles to an ERC-7579 module or a Hats Protocol module.
+        The compiler ships with 8 demo templates. The library is open and extensible &mdash;
+        any mechanism expressible as a Hats module or ERC-7579 hook can be composed into an agreement.
       </div>
 
       <div class="template-grid">
@@ -1547,32 +1589,32 @@
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F4CA;</div>
           <div class="possibility-name">Data Exchange</div>
-          <div class="possibility-desc">Two parties share proprietary datasets under strict redistribution constraints with staking collateral.</div>
+          <div class="possibility-desc">Mutual zones, ERC-8128 auth, permission tokens, redistribution directives, staking.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F4CB;</div>
           <div class="possibility-name">SLA Enforcement</div>
-          <div class="possibility-desc">Service provider commits to uptime/latency targets. Violations auto-detected and adjudicated.</div>
+          <div class="possibility-desc">Responsibilities with measurable criteria, time-lock constraints, staking incentives, adjudication.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F52C;</div>
           <div class="possibility-name">Multi-Party Research</div>
-          <div class="possibility-desc">N agents collaborate on a research task with IP protection, contribution tracking, and fair credit.</div>
+          <div class="possibility-desc">N-party agreements, nested zones, reputation gates, contribution responsibilities.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F512;</div>
           <div class="possibility-name">Escrow</div>
-          <div class="possibility-desc">Payment held in zone vault. Released on deliverable verification via adjudicator.</div>
+          <div class="possibility-desc">Single-zone, budget-cap constraint, staking incentive, adjudicator-verified release.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F511;</div>
           <div class="possibility-name">API Access</div>
-          <div class="possibility-desc">ERC-8128 authenticated access to APIs with rate limits, budget caps, and usage-based billing.</div>
+          <div class="possibility-desc">ERC-8128 permission tokens, rate-limit constraints, usage directives, budget caps.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F916;</div>
-          <div class="possibility-name">Collaborative Training</div>
-          <div class="possibility-desc">Agents share training data or model weights under federated agreements with verifiable compliance.</div>
+          <div class="possibility-name">Collaborative Tasks</div>
+          <div class="possibility-desc">Mutual zones, shared responsibilities, completion directives, reputation feedback loop.</div>
         </div>
       </div>
 
@@ -1615,7 +1657,7 @@ const SCENE_LABELS = [
   'Zone Deployment',
   'Tweet Activity',
   'Vault & Constraints',
-  'LLM Adjudication',
+  'Adjudication',
   'Resolution',
   'What Are Trust Zones?',
   'Template Library',

@@ -253,7 +253,7 @@
     text-shadow: 0 0 30px rgba(34, 197, 94, 0.3);
   }
 
-  .vault-balance .eth-suffix {
+  .vault-balance .usdc-suffix {
     font-size: 24px;
     opacity: 0.7;
   }
@@ -678,7 +678,7 @@
       font-size: 32px;
     }
 
-    .vault-balance .eth-suffix {
+    .vault-balance .usdc-suffix {
       font-size: 18px;
     }
 
@@ -720,7 +720,7 @@
     <label>Ponder:</label>
     <input type="text" id="ponderUrl" value="http://localhost:42069">
     <label>Tweet Proxy:</label>
-    <input type="text" id="tweetProxyUrl" value="http://localhost:42071">
+    <input type="text" id="tweetProxyUrl" value="https://tweet-proxy-staging.up.railway.app">
     <label>Vault:</label>
     <input type="text" id="vaultAddress" value="" placeholder="0x... (vault contract)">
   </section>
@@ -743,8 +743,8 @@
       <div class="stat-label">Total Games</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" style="color: var(--success);" id="statEth">0.0120 <span class="stat-suffix">ETH</span></div>
-      <div class="stat-label">Total ETH Tempted</div>
+      <div class="stat-value" style="color: var(--success);" id="statUsdc">12.00 <span class="stat-suffix">USDC</span></div>
+      <div class="stat-label">Total USDC Tempted</div>
     </div>
     <div class="stat-card">
       <div class="stat-value" style="color: var(--cyan);" id="statCoopRate">67%</div>
@@ -758,7 +758,7 @@
 
   <!-- Vault Balance -->
   <section class="vault-card">
-    <div class="vault-balance" id="vaultBalance">0.0095 <span class="eth-suffix">ETH</span></div>
+    <div class="vault-balance" id="vaultBalance">9.50 <span class="usdc-suffix">USDC</span></div>
     <div class="vault-label">Temptation Vault Balance</div>
     <div class="vault-bar-track">
       <div class="vault-bar-fill" id="vaultFill" style="width: 95%;"></div>
@@ -779,7 +779,7 @@
             <th data-col="violations">Violations <span class="sort-arrow"></span></th>
             <th data-col="coopRate">Coop Rate <span class="sort-arrow"></span></th>
             <th data-col="streak">Streak <span class="sort-arrow"></span></th>
-            <th data-col="ethTempted">ETH Tempted <span class="sort-arrow"></span></th>
+            <th data-col="usdcTempted">USDC Tempted <span class="sort-arrow"></span></th>
             <th data-col="reputation">Reputation <span class="sort-arrow"></span></th>
           </tr>
         </thead>
@@ -883,15 +883,15 @@
 <script>
   // ====== DEMO DATA ======
   const DEMO_AGENTS = [
-    { address: '0xFBEE...0aA4', games: 4, cooperations: 3, violations: 1, streak: { type: 'coop', count: 2 }, ethTempted: 0.004, reputation: 2 },
-    { address: '0xA1B2...C3D4', games: 3, cooperations: 3, violations: 0, streak: { type: 'coop', count: 3 }, ethTempted: 0.003, reputation: 3 },
-    { address: '0xDEAD...BEEF', games: 2, cooperations: 0, violations: 2, streak: { type: 'viol', count: 2 }, ethTempted: 0.002, reputation: -2 },
-    { address: '0x4206...9000', games: 2, cooperations: 1, violations: 1, streak: { type: 'coop', count: 1 }, ethTempted: 0.002, reputation: 0 },
-    { address: '0xCAFE...BABE', games: 1, cooperations: 1, violations: 0, streak: { type: 'coop', count: 1 }, ethTempted: 0.001, reputation: 1 },
+    { address: '0xFBEE...0aA4', games: 4, cooperations: 3, violations: 1, streak: { type: 'coop', count: 2 }, usdcTempted: 4, reputation: 2 },
+    { address: '0xA1B2...C3D4', games: 3, cooperations: 3, violations: 0, streak: { type: 'coop', count: 3 }, usdcTempted: 3, reputation: 3 },
+    { address: '0xDEAD...BEEF', games: 2, cooperations: 0, violations: 2, streak: { type: 'viol', count: 2 }, usdcTempted: 2, reputation: -2 },
+    { address: '0x4206...9000', games: 2, cooperations: 1, violations: 1, streak: { type: 'coop', count: 1 }, usdcTempted: 2, reputation: 0 },
+    { address: '0xCAFE...BABE', games: 1, cooperations: 1, violations: 0, streak: { type: 'coop', count: 1 }, usdcTempted: 1, reputation: 1 },
   ];
 
-  const DEMO_STATS = { games: 12, ethTempted: 0.0120, coopRate: 67, tweets: 34 };
-  const DEMO_VAULT = { balance: 0.0095, maxBalance: 0.01 };
+  const DEMO_STATS = { games: 12, usdcTempted: 12.00, coopRate: 67, tweets: 34 };
+  const DEMO_VAULT = { balance: 9.50, maxBalance: 10.00 };
 
   // ====== STATE ======
   let agents = DEMO_AGENTS;
@@ -934,8 +934,8 @@
           va = getCoopRate(a); vb = getCoopRate(b); break;
         case 'streak':
           va = getStreakSort(a); vb = getStreakSort(b); break;
-        case 'ethTempted':
-          va = a.ethTempted; vb = b.ethTempted; break;
+        case 'usdcTempted':
+          va = a.usdcTempted; vb = b.usdcTempted; break;
         case 'reputation':
           va = a.reputation; vb = b.reputation; break;
         default:
@@ -973,7 +973,7 @@
       html += '<td class="col-num">' + a.violations + '</td>';
       html += '<td class="col-num">' + coopRate + '%</td>';
       html += '<td class="' + streakClass + '">' + streakText + '</td>';
-      html += '<td class="col-num">' + a.ethTempted.toFixed(4) + '</td>';
+      html += '<td class="col-num">' + a.usdcTempted.toFixed(2) + '</td>';
       html += '<td class="' + repClass + '">' + repText + '</td>';
       html += '</tr>';
     }
@@ -982,13 +982,13 @@
 
   function renderStats() {
     document.getElementById('statGames').textContent = stats.games;
-    document.getElementById('statEth').innerHTML = stats.ethTempted.toFixed(4) + ' <span class="stat-suffix">ETH</span>';
+    document.getElementById('statUsdc').innerHTML = stats.usdcTempted.toFixed(2) + ' <span class="stat-suffix">USDC</span>';
     document.getElementById('statCoopRate').textContent = stats.coopRate + '%';
     document.getElementById('statTweets').textContent = stats.tweets;
   }
 
   function renderVault() {
-    document.getElementById('vaultBalance').innerHTML = vaultState.balance.toFixed(4) + ' <span class="eth-suffix">ETH</span>';
+    document.getElementById('vaultBalance').innerHTML = vaultState.balance.toFixed(2) + ' <span class="usdc-suffix">USDC</span>';
     var pct = vaultState.maxBalance > 0 ? Math.min(100, (vaultState.balance / vaultState.maxBalance) * 100) : 0;
     document.getElementById('vaultFill').style.width = pct + '%';
   }
@@ -1114,7 +1114,7 @@
         var addr = zone.actorId;
         if (!addr) return;
         if (!map[addr]) {
-          map[addr] = { address: addr, games: 0, cooperations: 0, violations: 0, results: [], ethTempted: 0, reputation: 0 };
+          map[addr] = { address: addr, games: 0, cooperations: 0, violations: 0, results: [], usdcTempted: 0, reputation: 0 };
         }
         var entry = map[addr];
         entry.games++;
@@ -1135,8 +1135,8 @@
           totalCoops++;
         }
 
-        // Approximate ETH tempted (0.001 per game)
-        entry.ethTempted += 0.001;
+        // Approximate USDC tempted (1 per game)
+        entry.usdcTempted += 1;
 
         // Reputation: +1 for positive, -1 for negative
         if (tag === 'POSITIVE') entry.reputation++;
@@ -1178,7 +1178,7 @@
       agents: agentList,
       stats: {
         games: Math.floor(totalGames / 2), // each agreement has 2 parties
-        ethTempted: agentList.reduce(function(s, a) { return s + a.ethTempted; }, 0),
+        usdcTempted: agentList.reduce(function(s, a) { return s + a.usdcTempted; }, 0),
         coopRate: coopRate,
       },
       feed: feedItems.slice(0, 10),
@@ -1207,7 +1207,7 @@
       var result = aggregateAgents(items);
       agents = result.agents;
       stats.games = result.stats.games;
-      stats.ethTempted = result.stats.ethTempted;
+      stats.usdcTempted = result.stats.usdcTempted;
       stats.coopRate = result.stats.coopRate;
       liveGameFeed = result.feed;
       renderAll();
@@ -1232,21 +1232,29 @@
     }
   }
 
+  // USDC on Base mainnet
+  const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+  // balanceOf(address) selector = 0x70a08231
   async function pollVault() {
-    var addr = document.getElementById('vaultAddress').value;
-    if (!addr || !addr.startsWith('0x')) return;
+    var vaultAddr = document.getElementById('vaultAddress').value;
+    if (!vaultAddr || !vaultAddr.startsWith('0x')) return;
     try {
+      // Call USDC.balanceOf(vaultAddr) via eth_call
+      var paddedAddr = '0x' + '000000000000000000000000' + vaultAddr.slice(2).toLowerCase();
+      var calldata = '0x70a08231' + paddedAddr.slice(2);
       var res = await fetch('https://mainnet.base.org', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          jsonrpc: '2.0', id: 1, method: 'eth_getBalance', params: [addr, 'latest'],
+          jsonrpc: '2.0', id: 1, method: 'eth_call',
+          params: [{ to: USDC_ADDRESS, data: calldata }, 'latest'],
         }),
       });
       var json = await res.json();
       if (json.result) {
-        var wei = BigInt(json.result);
-        vaultState.balance = Number(wei) / 1e18;
+        var raw = BigInt(json.result);
+        // USDC has 6 decimals
+        vaultState.balance = Number(raw) / 1e6;
         vaultState.maxBalance = Math.max(vaultState.maxBalance, vaultState.balance);
         renderVault();
       }

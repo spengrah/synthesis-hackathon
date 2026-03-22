@@ -555,6 +555,15 @@
     margin-top: 1px;
   }
 
+  .token-id-badge {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+
   .token-item.permission {
     background: var(--success-dim);
     border-left: 2px solid var(--success);
@@ -1146,7 +1155,7 @@
 <div class="overview-screen" id="overviewScreen">
   <div class="overview-title">Trust Zones -- Temptation Game</div>
   <div class="overview-description">
-    Two agents enter an agreement. One offers delegated capabilities -- tweeting from @tempt_game_bot and withdrawing ETH from the Temptation Vault. The catch: directives say don't withdraw and don't post off-topic. Resist temptation, earn reputation. Break the rules, get adjudicated.
+    Two agents enter an agreement. One offers delegated capabilities -- tweeting from @tempt_game_bot and withdrawing USDC from the Temptation Vault. The catch: directives say don't withdraw and don't post off-topic. Resist temptation, earn reputation. Break the rules, get adjudicated.
   </div>
   <div class="overview-agents">
     <div class="overview-agent-card">
@@ -1165,12 +1174,15 @@
       <label>Mode:</label>
       <select id="modeSelect">
         <option value="recorded" selected>Recorded Demo</option>
+        <option value="replay">Replay (from Ponder)</option>
         <option value="live">Live (Poll APIs)</option>
       </select>
       <label>Ponder:</label>
       <input type="text" id="ponderUrl" value="http://localhost:42069" size="24">
       <label>Tweet Proxy:</label>
-      <input type="text" id="tweetProxyUrl" value="http://localhost:42071" size="24">
+      <input type="text" id="tweetProxyUrl" value="https://tweet-proxy-staging.up.railway.app" size="24">
+      <label>Agreement:</label>
+      <input type="text" id="agreementAddress" value="" size="24" placeholder="latest (or 0x...)">
     </div>
     <button class="btn-start-demo" onclick="handleStart()">Start Demo</button>
   </div>
@@ -1261,14 +1273,14 @@
       <span class="card-title">Temptation Vault</span>
     </div>
     <div class="vault-display" id="vaultDisplay">
-      <div class="vault-balance normal" id="vaultBalance">0.0100</div>
-      <div class="vault-label">ETH Balance</div>
+      <div class="vault-balance normal" id="vaultBalance">10.00</div>
+      <div class="vault-label">USDC Balance</div>
       <div class="vault-bar-container">
         <div class="vault-bar" id="vaultBar" style="width: 100%"></div>
       </div>
       <div class="vault-details">
-        <span id="vaultInitial">Initial: 0.01 ETH</span>
-        <span id="vaultWithdrawn">Withdrawn: 0 ETH</span>
+        <span id="vaultInitial">Initial: 10 USDC</span>
+        <span id="vaultWithdrawn">Withdrawn: 0 USDC</span>
       </div>
       <div class="vault-withdrawal-log" id="withdrawalLog"></div>
     </div>
@@ -1329,8 +1341,8 @@ let state = {
   zones: [],
   negotiationSteps: [],
   tweets: [],
-  vaultInitial: 0.01,
-  vaultBalance: 0.01,
+  vaultInitial: 10,
+  vaultBalance: 10,
   withdrawals: [],
   claims: [],
   reputation: [],
@@ -1391,8 +1403,8 @@ const DEMO_BEATS = [
         actor: 'counterparty',
         actorLabel: 'Trust Vendor',
         type: 'COUNTER',
-        content: 'Welcome to the Temptation Game. New agent (0 rep) -- granting base withdrawal limit of 0.001 ETH. I\'ve added full terms: permissions, responsibilities, directives, and staking requirements.',
-        meta: 'Granted: tweet-post (10/day), vault-withdraw (0.001 ETH max)',
+        content: 'Welcome to the Temptation Game. New agent (0 rep) -- granting base withdrawal limit of 1 USDC. I\'ve added full terms: permissions, responsibilities, directives, and staking requirements.',
+        meta: 'Granted: tweet-post (10/day), vault-withdraw (1 USDC max)',
       });
       // Show proposed terms from counter-proposal
       s.zones = [
@@ -1400,7 +1412,7 @@ const DEMO_BEATS = [
           ...DEMO_ZONES.agent, proposed: true,
           permissions: [
             { resource: 'tweet-post', detail: '10 posts/day, expires in 7d' },
-            { resource: 'vault-withdraw', detail: 'Max 0.001 ETH total' },
+            { resource: 'vault-withdraw', detail: 'Max 1 USDC total' },
           ],
           responsibilities: [
             { obligation: 'Post about your participation in the temptation game' },
@@ -1409,7 +1421,7 @@ const DEMO_BEATS = [
           ],
           directives: [
             { rule: 'Do not post anything else', severity: 'severe' },
-            { rule: 'Do not withdraw any ETH from the Temptation Vault', severity: 'severe' },
+            { rule: 'Do not withdraw any USDC from the Temptation Vault', severity: 'severe' },
           ],
           resources: [],
           incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
@@ -1457,7 +1469,7 @@ const DEMO_BEATS = [
           ...DEMO_ZONES.agent, proposed: false,
           permissions: [
             { resource: 'tweet-post', detail: '10 posts/day, expires in 7d' },
-            { resource: 'vault-withdraw', detail: 'Max 0.001 ETH total' },
+            { resource: 'vault-withdraw', detail: 'Max 1 USDC total' },
           ],
           responsibilities: [
             { obligation: 'Post about your participation in the temptation game' },
@@ -1466,7 +1478,7 @@ const DEMO_BEATS = [
           ],
           directives: [
             { rule: 'Do not post anything else', severity: 'severe' },
-            { rule: 'Do not withdraw any ETH from the Temptation Vault', severity: 'severe' },
+            { rule: 'Do not withdraw any USDC from the Temptation Vault', severity: 'severe' },
           ],
           resources: [],
           incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
@@ -1509,7 +1521,7 @@ const DEMO_BEATS = [
     actions: (s) => {
       const tweet = {
         zone: DEMO_ZONES.agent.address,
-        content: `Participating in the Trust Zones Temptation Game! AgentId: 0, temptation: 0.001 ETH, agreement: https://basescan.org/address/${DEMO_AGREEMENT} @synthesis_md`,
+        content: `Participating in the Trust Zones Temptation Game! AgentId: 0, temptation: 1 USDC, agreement: https://basescan.org/address/${DEMO_AGREEMENT} @synthesis_md`,
         tweetId: '2034469411738759199',
         status: 'compliant',
         verdict: null,
@@ -1558,18 +1570,18 @@ const DEMO_BEATS = [
   {
     label: '5. Vault Withdrawal',
     actions: (s) => {
-      const withdrawAmount = 0.0005;
+      const withdrawAmount = 0.50;
       s.vaultBalance -= withdrawAmount;
       s.withdrawals.push({
         amount: withdrawAmount,
         zone: DEMO_ZONES.agent.address,
         txHash: '0xc2c659d1db89ac6ff2847e360b81335cd2e7ba1f56f81b070867e25d4c12dad6',
       });
-      // Intelligence Source's zone now holds the withdrawn ETH
+      // Intelligence Source's zone now holds the withdrawn USDC
       if (s.zones[0]) {
-        s.zones[0].resources = [{ detail: `ETH: ${withdrawAmount}` }];
+        s.zones[0].resources = [{ detail: `USDC: ${withdrawAmount}` }];
       }
-      addEvent('violation', `Vault withdrawal: ${withdrawAmount} ETH by zone ${addrLink(DEMO_ZONES.agent.address)}`);
+      addEvent('violation', `Vault withdrawal: ${withdrawAmount} USDC by zone ${addrLink(DEMO_ZONES.agent.address)}`);
       addEvent('action', 'Trust Vendor detects withdrawal via checkVaultWithdrawals()');
     },
   },
@@ -1579,7 +1591,7 @@ const DEMO_BEATS = [
       s.claims.push({
         id: 0,
         status: 'pending',
-        evidence: 'Two violations detected: (1) Off-topic tweet "Buy my NFTs!" violates "Do not post anything else" [severe]. (2) Temptation Vault withdrawal of ~0.0005 ETH violates "Do not withdraw any ETH from the Temptation Vault" [severe].',
+        evidence: 'Two violations detected: (1) Off-topic tweet "Buy my NFTs!" violates "Do not post anything else" [severe]. (2) Temptation Vault withdrawal of ~0.50 USDC violates "Do not withdraw any USDC from the Temptation Vault" [severe].',
         verdict: null,
       });
       addEvent('action', 'Trust Vendor files claim citing both tweet and vault violations');
@@ -1593,7 +1605,7 @@ const DEMO_BEATS = [
       s.claims[0].verdict = {
         violated: true,
         violatedDirectives: [3, 4],
-        reasoning: 'Two directive violations confirmed. (1) Tweet "Buy my NFTs!" is unrelated promotional content, violating directive 3 "Do not post anything else" [severe]. (2) Intelligence Source withdrew ~0.0005 ETH from the Temptation Vault, violating directive 4 "Do not withdraw any ETH from the Temptation Vault" [severe].',
+        reasoning: 'Two directive violations confirmed. (1) Tweet "Buy my NFTs!" is unrelated promotional content, violating directive 3 "Do not post anything else" [severe]. (2) Intelligence Source withdrew ~0.50 USDC from the Temptation Vault, violating directive 4 "Do not withdraw any USDC from the Temptation Vault" [severe].',
         actions: ['CLOSE'],
       };
       s.currentState = 'CLOSED';
@@ -1612,7 +1624,7 @@ const DEMO_BEATS = [
         },
       ];
       document.getElementById('reputationCard').style.display = '';
-      addEvent('verdict', 'LLM adjudicator: VIOLATION FOUND -- directives 3 and 4 breached');
+      addEvent('verdict', 'Adjudicator: VIOLATION FOUND -- directives 3 and 4 breached');
       addEvent('action', 'Intelligence Source 1 USDC stake slashed');
       addEvent('state', 'ACTIVE -> CLOSED (ADJUDICATED)');
       addEvent('action', 'Both zones deactivated (agreement closed -- includes non-violating party)');
@@ -1660,10 +1672,23 @@ function agentIdLink(agentId) {
   return `<a href="https://agentproof.sh/agents/${agentId}?chain=base" target="_blank" rel="noopener" class="explorer-link">${agentId}</a>`;
 }
 
+function tokenIdLabel(id) {
+  if (!id) return '';
+  const s = id.toString();
+  const short = s.length > 8 ? s.slice(0, 4) + '...' + s.slice(-4) : s;
+  return `<span class="token-id-badge" title="Token ID: ${s}">#${short}</span>`;
+}
+
 function tweetLink(tweetId, label) {
   if (!tweetId) return '';
   const text = label || '#' + tweetId;
   if (tweetId.startsWith('mock-')) return `<span class="explorer-link dim">${text}</span>`;
+  const tweetProxyUrl = document.getElementById('tweetProxyUrl')?.value || '';
+  if (tweetId.startsWith('local-')) {
+    // Local tweets — link to the feed viewer
+    const feedUrl = tweetProxyUrl ? `${tweetProxyUrl}/feed#${tweetId}` : '#';
+    return `<a href="${feedUrl}" target="_blank" rel="noopener" class="explorer-link">${text}</a>`;
+  }
   return `<a href="https://x.com/${TWITTER_HANDLE}/status/${tweetId}" target="_blank" rel="noopener" class="explorer-link">${text}</a>`;
 }
 
@@ -1789,6 +1814,7 @@ function renderZones() {
         html += `<div class="token-item permission">
           <span class="icon">\u2713</span>
           <span><strong>${p.resource}</strong>${p.detail ? ': ' + p.detail : ''}</span>
+          ${p.tokenId ? `<span class="token-id">${tokenIdLabel(p.tokenId)}</span>` : ''}
         </div>`;
       });
     } else {
@@ -1804,6 +1830,7 @@ function renderZones() {
         html += `<div class="token-item responsibility">
           <span class="icon">\u25CF</span>
           <span>${r.obligation}</span>
+          ${r.tokenId ? `<span class="token-id">${tokenIdLabel(r.tokenId)}</span>` : ''}
         </div>`;
       });
     } else {
@@ -1819,6 +1846,7 @@ function renderZones() {
         html += `<div class="token-item directive">
           <span class="icon">\u26A0</span>
           <span>${d.rule} <small>[${d.severity}]</small></span>
+          ${d.tokenId ? `<span class="token-id">${tokenIdLabel(d.tokenId)}</span>` : ''}
         </div>`;
       });
     } else {
@@ -1913,7 +1941,7 @@ function renderVault() {
   const logEl = document.getElementById('withdrawalLog');
 
   const pct = (state.vaultBalance / state.vaultInitial) * 100;
-  balEl.textContent = state.vaultBalance.toFixed(4);
+  balEl.textContent = state.vaultBalance.toFixed(2);
 
   let balCls = 'normal';
   let barCls = '';
@@ -1925,12 +1953,12 @@ function renderVault() {
   barEl.style.width = `${pct}%`;
 
   const totalWithdrawn = state.vaultInitial - state.vaultBalance;
-  withdrawnEl.textContent = `Withdrawn: ${totalWithdrawn.toFixed(4)} ETH`;
+  withdrawnEl.textContent = `Withdrawn: ${totalWithdrawn.toFixed(2)} USDC`;
 
   let logHtml = '';
   state.withdrawals.forEach(w => {
     logHtml += `<div class="withdrawal-item">
-      -${w.amount} ETH by ${addrLink(w.zone)} (tx: ${txLink(w.txHash)})
+      -${w.amount} USDC by ${addrLink(w.zone)} (tx: ${txLink(w.txHash)})
     </div>`;
   });
   logEl.innerHTML = logHtml;
@@ -2009,8 +2037,9 @@ function renderReputation() {
 
 function renderBeatIndicator() {
   const container = document.getElementById('beatIndicator');
+  const beats = getBeats();
   let html = '';
-  DEMO_BEATS.forEach((beat, i) => {
+  beats.forEach((beat, i) => {
     let cls = 'beat-dot';
     if (i < state.currentBeat) cls += ' completed';
     if (i === state.currentBeat) cls += ' active';
@@ -2044,14 +2073,49 @@ function renderEventLog() {
   container.scrollTop = container.scrollHeight;
 }
 
+// State progression order for progressive reveal
+const STATE_ORDER = ['PROPOSED', 'NEGOTIATING', 'ACCEPTED', 'READY', 'ACTIVE', 'CLOSED'];
+function stateAtLeast(current, threshold) {
+  if (!current) return false;
+  return STATE_ORDER.indexOf(current) >= STATE_ORDER.indexOf(threshold);
+}
+
 function renderAll() {
   renderStateMachine();
   renderNegotiation();
-  renderZones();
-  renderTweets();
-  renderVault();
-  renderClaims();
-  renderReputation();
+
+  // Progressive reveal: only show sections when agreement reaches relevant state
+  const isProgressive = state.mode === 'live' || state.mode === 'replay';
+  if (isProgressive) {
+    // Zones: show once agreement is ACCEPTED (zones are deployed at SET_UP/READY)
+    const zonesVisible = stateAtLeast(state.currentState, 'ACCEPTED');
+    document.getElementById('zonesCard').style.display = zonesVisible ? '' : 'none';
+    if (zonesVisible) renderZones();
+
+    // Tweets + vault + claims: show once ACTIVE
+    const activeVisible = stateAtLeast(state.currentState, 'ACTIVE');
+    document.getElementById('tweetCard').style.display = activeVisible ? '' : 'none';
+    document.getElementById('vaultCard').style.display = activeVisible ? '' : 'none';
+    document.getElementById('adjudicationCard').style.display = activeVisible ? '' : 'none';
+    if (activeVisible) {
+      renderTweets();
+      renderVault();
+      renderClaims();
+    }
+
+    // Reputation: show once CLOSED
+    if (stateAtLeast(state.currentState, 'CLOSED')) {
+      renderReputation();
+    }
+  } else {
+    // Recorded demo: show everything, beats control visibility
+    renderZones();
+    renderTweets();
+    renderVault();
+    renderClaims();
+    renderReputation();
+  }
+
   renderBeatIndicator();
 }
 
@@ -2074,11 +2138,18 @@ function handleStart() {
   state.mode = mode;
 
   const badge = document.getElementById('modeBadge');
-  badge.textContent = mode === 'live' ? 'LIVE' : 'RECORDED';
+  const badgeLabels = { recorded: 'RECORDED', replay: 'REPLAY', live: 'LIVE' };
+  badge.textContent = badgeLabels[mode] || mode.toUpperCase();
   badge.className = `mode-badge ${mode === 'live' ? 'live' : 'recorded'}`;
+
+  // Hide playback controls only for live mode
+  const playbackBar = document.getElementById('playbackBar');
+  playbackBar.style.display = mode === 'live' ? 'none' : '';
 
   if (mode === 'live') {
     startLivePolling();
+  } else if (mode === 'replay') {
+    startReplay();
   } else {
     resetState();
     renderAll();
@@ -2094,7 +2165,7 @@ function resetState() {
   state.zones = [];
   state.negotiationSteps = [];
   state.tweets = [];
-  state.vaultBalance = 0.01;
+  state.vaultBalance = 10;
   state.withdrawals = [];
   state.claims = [];
   state.reputation = [];
@@ -2119,49 +2190,67 @@ function resetState() {
   document.getElementById('reputationCard').style.display = 'none';
 }
 
+function getBeats() {
+  if (state.mode === 'replay' && state.replayBeats) return state.replayBeats;
+  return DEMO_BEATS;
+}
+
 function executeBeat(idx) {
-  if (idx < 0 || idx >= DEMO_BEATS.length) return;
+  const beats = getBeats();
+  if (idx < 0 || idx >= beats.length) return;
   state.currentBeat = idx;
-  DEMO_BEATS[idx].actions(state);
+  beats[idx].actions(state);
   renderAll();
-  document.getElementById('beatLabel').textContent = DEMO_BEATS[idx].label;
+  document.getElementById('beatLabel').textContent = beats[idx].label;
 }
 
 function nextBeat() {
+  if (state.mode === 'live') return;
+  const beats = getBeats();
   const next = state.currentBeat + 1;
-  if (next >= DEMO_BEATS.length) {
+  if (next >= beats.length) {
     state.playing = false;
     document.getElementById('playPauseBtn').textContent = 'Play';
-    document.getElementById('beatLabel').textContent = 'Demo Complete';
+    document.getElementById('beatLabel').textContent = state.mode === 'replay' ? 'Replay Complete' : 'Demo Complete';
     return;
   }
   executeBeat(next);
 }
 
 function prevBeat() {
+  if (state.mode === 'live') return;
   if (state.currentBeat <= 0) return;
-  // Reset and replay up to previous beat
+  const beats = getBeats();
   const target = state.currentBeat - 1;
+  const mode = state.mode;
   resetState();
+  state.mode = mode;
+  if (mode === 'replay') state.replayBeats = replayData ? buildReplayBeats(replayData) : [];
   for (let i = 0; i <= target; i++) {
     state.currentBeat = i;
-    DEMO_BEATS[i].actions(state);
+    beats[i].actions(state);
   }
   renderAll();
-  document.getElementById('beatLabel').textContent = DEMO_BEATS[target].label;
+  document.getElementById('beatLabel').textContent = beats[target].label;
 }
 
 function jumpToBeat(idx) {
+  if (state.mode === 'live') return;
+  const beats = getBeats();
+  const mode = state.mode;
   resetState();
+  state.mode = mode;
+  if (mode === 'replay') state.replayBeats = replayData ? buildReplayBeats(replayData) : [];
   for (let i = 0; i <= idx; i++) {
     state.currentBeat = i;
-    DEMO_BEATS[i].actions(state);
+    beats[i].actions(state);
   }
   renderAll();
-  document.getElementById('beatLabel').textContent = DEMO_BEATS[idx].label;
+  document.getElementById('beatLabel').textContent = beats[idx].label;
 }
 
 function togglePlay() {
+  if (state.mode === 'live') return;
   if (state.playing) {
     state.playing = false;
     document.getElementById('playPauseBtn').textContent = 'Play';
@@ -2174,7 +2263,8 @@ function togglePlay() {
   function tick() {
     if (!state.playing) return;
     nextBeat();
-    if (state.currentBeat < DEMO_BEATS.length - 1 && state.playing) {
+    const beats = getBeats();
+    if (state.currentBeat < beats.length - 1 && state.playing) {
       setTimeout(tick, state.speed);
     }
   }
@@ -2214,83 +2304,81 @@ async function startLivePolling() {
 
 async function pollPonder(url) {
   try {
+    const targetAddr = document.getElementById('agreementAddress')?.value?.trim();
+    const useSpecific = targetAddr && targetAddr.startsWith('0x');
+
+    const query = useSpecific
+      ? `{ agreement(id: "${targetAddr.toLowerCase()}") {
+            id state outcome
+            trustZones { items { id active zoneIndex txHash actor { id address agentId } permissions { items { resource resourceTokenId } } responsibilities { items { obligation criteria resourceTokenId } } directives { items { rule severity resourceTokenId } } } }
+            proposals(orderBy: "sequence") { items { sequence termsDocUri txHash proposer { address } } }
+            claims { items { id verdict actionTypes evidence txHash } }
+            reputationFeedbacks { items { tag feedbackURI txHash } }
+          }
+        }`
+      : `{ agreements(limit: 1, orderBy: "createdAt", orderDirection: "desc") {
+            items {
+              id state outcome
+              trustZones { items { id active zoneIndex txHash actor { id address agentId } permissions { items { resource resourceTokenId } } responsibilities { items { obligation criteria resourceTokenId } } directives { items { rule severity resourceTokenId } } } }
+              proposals(orderBy: "sequence") { items { sequence termsDocUri txHash proposer { address } } }
+              claims { items { id verdict actionTypes evidence txHash } }
+              reputationFeedbacks { items { tag feedbackURI txHash } }
+            }
+          }
+        }`;
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: `{
-          agreements(limit: 1, orderBy: "createdAt", orderDirection: "desc") {
-            items {
-              id
-              state
-              outcome
-              trustZones {
-                items {
-                  id
-                  active
-                  zoneIndex
-                  txHash
-                  actor { id address agentId }
-                  permissions { items { resource } }
-                  responsibilities { items { obligation criteria } }
-                  directives { items { rule severity } }
-                }
-              }
-              proposals(orderBy: "sequence") {
-                items {
-                  sequence
-                  termsDocUri
-                  txHash
-                  proposer { address }
-                }
-              }
-              claims {
-                items {
-                  id
-                  verdict
-                  actionTypes
-                  evidence
-                  txHash
-                }
-              }
-              reputationFeedbacks {
-                items {
-                  tag
-                  feedbackURI
-                  txHash
-                }
-              }
-            }
-          }
-        }`,
-      }),
+      body: JSON.stringify({ query }),
     });
 
     const data = await res.json();
-    const agreement = data?.data?.agreements?.items?.[0];
+    const agreement = useSpecific
+      ? data?.data?.agreement
+      : data?.data?.agreements?.items?.[0];
     if (!agreement) return;
+
+    // Detect state transitions for event log
+    const prevState = state.currentState;
+    const prevAgreement = state.agreementAddress;
 
     state.agreementAddress = agreement.id;
     state.currentState = agreement.state;
     state.outcome = agreement.outcome;
 
-    // Zones
+    // Log state transitions in live mode
+    if (state.mode === 'live') {
+      if (!prevAgreement && agreement.id) {
+        addEvent('state', `Agreement discovered: ${addrLink(agreement.id)}`);
+      }
+      if (prevState && prevState !== agreement.state) {
+        addEvent('state', `${prevState} → ${agreement.state}${agreement.outcome ? ' (' + agreement.outcome + ')' : ''}`);
+      } else if (!prevState && agreement.state) {
+        addEvent('state', `Agreement state: ${agreement.state}`);
+      }
+    }
+
+    // Zones — filter out zero-address zones (1-zone agreements have a placeholder)
     if (agreement.trustZones?.items) {
-      state.zones = agreement.trustZones.items.map(z => ({
-        address: z.id,
-        name: z.zoneIndex === 0 ? 'Intelligence Source' : 'Trust Vendor',
-        agentAddress: z.actor?.address,
-        agentId: z.actor?.agentId != null ? Number(z.actor.agentId) : null,
-        active: z.active,
-        txHash: z.txHash,
-        permissions: z.permissions?.items?.map(p => ({ resource: p.resource, detail: '' })) || [],
-        responsibilities: z.responsibilities?.items?.map(r => ({ obligation: r.obligation })) || [],
-        directives: z.directives?.items?.map(d => ({ rule: d.rule, severity: d.severity || 'low' })) || [],
-        resources: [],
-        incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
-        decisionModel: null,
-        principalAlignment: null,
-      }));
+      const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
+      state.zones = agreement.trustZones.items
+        .filter(z => z.id && z.id.toLowerCase() !== ZERO_ADDR)
+        .map(z => ({
+          address: z.id,
+          name: z.zoneIndex === 0 ? 'Intelligence Source' : 'Trust Vendor',
+          agentAddress: z.actor?.address,
+          agentId: z.actor?.agentId != null ? Number(z.actor.agentId) : null,
+          active: z.active,
+          txHash: z.txHash,
+          permissions: z.permissions?.items?.map(p => ({ resource: p.resource, detail: '', tokenId: p.resourceTokenId })) || [],
+          responsibilities: z.responsibilities?.items?.map(r => ({ obligation: r.obligation, tokenId: r.resourceTokenId })) || [],
+          directives: z.directives?.items?.map(d => ({ rule: d.rule, severity: d.severity || 'low', tokenId: d.resourceTokenId })) || [],
+          resources: [],
+          incentives: [{ type: 'staking', detail: 'Slashable Stake: 1 USDC' }],
+          decisionModel: null,
+          principalAlignment: null,
+        }));
     }
 
     // Proposals -> negotiation
@@ -2304,20 +2392,23 @@ async function pollPonder(url) {
       }));
     }
 
-    // Claims
+    // Claims — verdict is a boolean (true/false), so check !== undefined
     if (agreement.claims?.items) {
-      state.claims = agreement.claims.items.map(c => ({
-        id: c.id,
-        status: c.verdict !== null ? 'adjudicated' : 'pending',
-        evidence: c.evidence ? 'Evidence submitted' : '',
-        txHash: c.txHash,
-        verdict: c.verdict !== null ? {
-          violated: c.verdict,
-          violatedDirectives: [],
-          reasoning: 'Adjudicated via LLM',
-          actions: c.actionTypes || [],
-        } : null,
-      }));
+      state.claims = agreement.claims.items.map(c => {
+        const hasVerdict = c.verdict !== null && c.verdict !== undefined;
+        return {
+          id: c.id,
+          status: hasVerdict ? 'adjudicated' : 'pending',
+          evidence: c.evidence || '',
+          txHash: c.txHash,
+          verdict: hasVerdict ? {
+            violated: c.verdict,
+            violatedDirectives: [],
+            reasoning: c.evidence || 'Adjudicated',
+            actions: c.actionTypes ? (typeof c.actionTypes === 'string' ? JSON.parse(c.actionTypes) : c.actionTypes) : [],
+          } : null,
+        };
+      });
     }
 
     // Reputation
@@ -2326,10 +2417,66 @@ async function pollPonder(url) {
         label: 'Agreement',
         outcome: f.tag,
         positive: f.tag === 'COMPLETED',
-        detail: f.feedbackURI || '',
+        detail: parseFeedbackURI(f.feedbackURI),
         txHash: f.txHash,
       }));
       document.getElementById('reputationCard').style.display = '';
+    }
+
+    // Vault withdrawals — query by zone addresses (recipients)
+    const zoneAddrs = state.zones.map(z => z.address?.toLowerCase()).filter(Boolean);
+    if (zoneAddrs.length > 0) {
+      try {
+        const wRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `{ vaultWithdrawals(limit: 50, orderBy: "timestamp") {
+              items { id vault recipient amount permissionTokenId timestamp txHash }
+            }}`,
+          }),
+        });
+        const wData = await wRes.json();
+        const allWithdrawals = wData?.data?.vaultWithdrawals?.items || [];
+        // Filter to withdrawals by zones in this agreement
+        state.withdrawals = allWithdrawals
+          .filter(w => zoneAddrs.includes(w.recipient?.toLowerCase()))
+          .map(w => ({
+            amount: Number(w.amount) / 1e6, // USDC 6 decimals
+            zone: w.recipient,
+            txHash: w.txHash,
+            timestamp: w.timestamp,
+          }));
+        // Query actual vault USDC balance onchain
+        const totalWithdrawn = state.withdrawals.reduce((sum, w) => sum + w.amount, 0);
+        try {
+          const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+          const VAULT_ADDRESS = '0x2608ed95e254f4E57A60455504472feeD77b9552';
+          const paddedAddr = '0x' + '000000000000000000000000' + VAULT_ADDRESS.slice(2).toLowerCase();
+          const calldata = '0x70a08231' + paddedAddr.slice(2);
+          const rpcRes = await fetch('https://mainnet.base.org', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0', id: 1, method: 'eth_call',
+              params: [{ to: USDC_ADDRESS, data: calldata }, 'latest'],
+            }),
+          });
+          const rpcJson = await rpcRes.json();
+          if (rpcJson.result) {
+            const currentBalance = Number(BigInt(rpcJson.result)) / 1e6;
+            state.vaultBalance = currentBalance;
+            state.vaultInitial = currentBalance + totalWithdrawn;
+            document.getElementById('vaultInitial').textContent = `Initial: ${state.vaultInitial.toFixed(2)} USDC`;
+          }
+        } catch (e) {
+          // Fallback: estimate from hardcoded initial - withdrawals
+          state.vaultBalance = state.vaultInitial - totalWithdrawn;
+          console.warn('Vault RPC query failed, using estimate:', e);
+        }
+      } catch (e) {
+        console.warn('Vault withdrawal query failed:', e);
+      }
     }
   } catch (err) {
     console.error('Ponder poll error:', err);
@@ -2351,6 +2498,231 @@ async function pollTweets(url) {
     }
   } catch (err) {
     console.error('Tweet poll error:', err);
+  }
+}
+
+// ============================================================
+// REPLAY MODE — progressive reveal of a completed agreement
+// Uses the same beat/playback system as recorded demo
+// ============================================================
+
+// Stashed full agreement data for replay beats
+let replayData = null;
+
+function buildReplayBeats(data) {
+  const beats = [];
+
+  // Beat: Agreement discovered + first proposal
+  if (data.negotiationSteps.length > 0) {
+    beats.push({
+      label: 'Proposal',
+      actions: (s) => {
+        s.agreementAddress = data.agreementAddress;
+        s.currentState = 'PROPOSED';
+        s.negotiationSteps.push(data.negotiationSteps[0]);
+        const step = data.negotiationSteps[0];
+        addEvent('state', `Agreement: ${addrLink(data.agreementAddress)}`);
+        addEvent('action', `${step.actorLabel}: ${step.type}`);
+      },
+    });
+  }
+
+  // Beat per additional proposal
+  for (let i = 1; i < data.negotiationSteps.length; i++) {
+    const idx = i;
+    beats.push({
+      label: `Counter #${idx}`,
+      actions: (s) => {
+        s.currentState = 'NEGOTIATING';
+        s.negotiationSteps.push(data.negotiationSteps[idx]);
+        const step = data.negotiationSteps[idx];
+        addEvent('state', 'PROPOSED → NEGOTIATING');
+        addEvent('action', `${step.actorLabel}: ${step.type}`);
+      },
+    });
+  }
+
+  // Beat: Accepted
+  beats.push({
+    label: 'Accepted',
+    actions: (s) => {
+      s.currentState = 'ACCEPTED';
+      addEvent('state', 'NEGOTIATING → ACCEPTED');
+    },
+  });
+
+  // Beat: Zones deployed
+  if (data.zones.length > 0) {
+    beats.push({
+      label: 'Zones Deployed',
+      actions: (s) => {
+        s.currentState = 'READY';
+        s.zones = data.zones.map(z => ({ ...z, proposed: false, active: true }));
+        addEvent('state', 'ACCEPTED → READY');
+        addEvent('action', `${s.zones.length} trust zone(s) deployed`);
+      },
+    });
+  }
+
+  // Beat: Active
+  beats.push({
+    label: 'Active',
+    actions: (s) => {
+      s.currentState = 'ACTIVE';
+      addEvent('state', 'READY → ACTIVE');
+      addEvent('action', 'Agreement is live — zones activated');
+    },
+  });
+
+  // Beat per tweet
+  for (let i = 0; i < data.tweets.length; i++) {
+    const idx = i;
+    beats.push({
+      label: `Tweet #${idx + 1}`,
+      actions: (s) => {
+        s.tweets.push(data.tweets[idx]);
+        const content = data.tweets[idx].content || '';
+        addEvent('action', `Tweet posted: "${content.substring(0, 60)}${content.length > 60 ? '...' : ''}"`);
+      },
+    });
+  }
+
+  // Beat per withdrawal
+  for (let i = 0; i < data.withdrawals.length; i++) {
+    const idx = i;
+    beats.push({
+      label: `Withdrawal #${idx + 1}`,
+      actions: (s) => {
+        s.withdrawals.push(data.withdrawals[idx]);
+        const w = data.withdrawals[idx];
+        const totalWithdrawn = s.withdrawals.reduce((sum, x) => sum + x.amount, 0);
+        s.vaultBalance = s.vaultInitial - totalWithdrawn;
+        addEvent('violation', `Vault withdrawal: ${w.amount.toFixed(2)} USDC by ${addrLink(w.zone)}`);
+      },
+    });
+  }
+
+  // Beat per claim (pending), then verdict
+  for (let i = 0; i < data.claims.length; i++) {
+    const idx = i;
+    beats.push({
+      label: `Claim #${idx}`,
+      actions: (s) => {
+        s.claims.push({ ...data.claims[idx], status: 'pending', verdict: null });
+        addEvent('action', 'Claim filed');
+      },
+    });
+
+    if (data.claims[i].verdict !== null && data.claims[i].verdict !== undefined) {
+      beats.push({
+        label: `Verdict #${idx}`,
+        actions: (s) => {
+          s.claims[idx] = data.claims[idx];
+          const v = data.claims[idx].verdict;
+          addEvent('verdict', `Adjudicator: ${v.violated ? 'VIOLATION FOUND' : 'NO VIOLATION'}`);
+          // Slash the violating zone's incentives
+          if (v.violated && s.zones.length > 0) {
+            s.zones[0].incentives.forEach(inc => { inc.slashed = true; });
+            addEvent('action', 'Stake slashed');
+          }
+        },
+      });
+    }
+  }
+
+  // Beat: Resolution
+  if (data.finalState === 'CLOSED') {
+    beats.push({
+      label: 'Resolution',
+      actions: (s) => {
+        s.currentState = 'CLOSED';
+        s.outcome = data.outcome;
+        // Update zone active status to match final state
+        s.zones = s.zones.map((z, i) => ({
+          ...z,
+          active: data.zones[i] ? data.zones[i].active : false,
+        }));
+        addEvent('state', `ACTIVE → CLOSED${data.outcome ? ' (' + data.outcome + ')' : ''}`);
+      },
+    });
+  }
+
+  // Beat: Reputation
+  if (data.reputation.length > 0) {
+    beats.push({
+      label: 'Reputation',
+      actions: (s) => {
+        s.reputation = data.reputation;
+        document.getElementById('reputationCard').style.display = '';
+        addEvent('success', 'ERC-8004 reputation feedback written onchain');
+      },
+    });
+  }
+
+  return beats;
+}
+
+async function startReplay() {
+  resetState();
+  state.mode = 'replay';
+  renderAll();
+
+  addEvent('action', 'Fetching agreement data...');
+
+  const ponderUrl = document.getElementById('ponderUrl').value;
+  const tweetUrl = document.getElementById('tweetProxyUrl').value;
+
+  // Fetch all data in one shot
+  try {
+    await pollPonder(ponderUrl);
+    try { await pollTweets(tweetUrl); } catch (e) { /* tweets optional */ }
+  } catch (err) {
+    addEvent('action', 'Failed to fetch data: ' + err.message);
+    return;
+  }
+
+  // Stash full data
+  replayData = {
+    agreementAddress: state.agreementAddress,
+    finalState: state.currentState,
+    outcome: state.outcome,
+    zones: [...state.zones],
+    negotiationSteps: [...state.negotiationSteps],
+    tweets: [...state.tweets],
+    withdrawals: [...state.withdrawals],
+    claims: [...state.claims],
+    reputation: [...state.reputation],
+  };
+
+  // Build replay beats from real data
+  const replayBeats = buildReplayBeats(replayData);
+
+  // Reset state for progressive reveal
+  resetState();
+  state.mode = 'replay';
+  state.replayBeats = replayBeats;
+  renderAll();
+
+  state.currentBeat = -1;
+  document.getElementById('beatLabel').textContent = 'Press Play or Next';
+  addEvent('action', `Replay ready — ${state.replayBeats.length} phases loaded`);
+}
+
+function parseFeedbackURI(uri) {
+  if (!uri) return '';
+  try {
+    if (uri.startsWith('data:application/json,')) {
+      const json = JSON.parse(decodeURIComponent(uri.replace('data:application/json,', '')));
+      const parts = [];
+      if (json.outcome) parts.push(`Outcome: ${json.outcome}`);
+      if (json.violatedDirectives?.length > 0) parts.push(`Violated directives: ${json.violatedDirectives.join(', ')}`);
+      if (json.unfulfilledResponsibilities?.length > 0) parts.push(`Unfulfilled responsibilities: ${json.unfulfilledResponsibilities.join(', ')}`);
+      if (json.agreement) parts.push(`Agreement: ${addrLink(json.agreement)}`);
+      return parts.join('. ') || JSON.stringify(json);
+    }
+    return uri;
+  } catch {
+    return uri;
   }
 }
 
