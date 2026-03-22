@@ -212,20 +212,50 @@ Educational explainer website. Entry point is the Temptation Game; uses its comp
 
 ### Structure
 
-The story flows from concrete (the demo) to abstract (the protocol):
+The story flows from concrete (the demo) to abstract (the protocol). Scene 1 establishes protocol context before diving into the demo, so viewers understand the Temptation Game as one scenario built on a general protocol — not the protocol itself.
 
-1. **Title**: "The Temptation Game" — Trust Zones Hackathon Demo
+1. **Title**: "Trust Zones" with subtitle — "The interoperability standard for machine agreements"
 2. **The Game**: What it is, how it works, the trust gap (CAN vs SHOULD NOT)
+   - **Framing beat before the trust gap bar:** When agents collaborate — exchanging data, sharing resources, acting on each other's behalf — each party needs confidence that the other will hold up its end. That confidence comes from a combination of what you know about your counterparty (reputation) and the structural protections surrounding the relationship (hardness). Trust Zones makes hardness programmable, for any kind of agreement between agents.
+   - Then the trust gap visualization: the gap between what an agent CAN do and what it SHOULD do.
+   - **Key insight about the gap:** There is a fundamental tension in trying to close this gap purely with deterministic constraints. The more you constrain an agent, the more confident you are that it won't act against your interests — but the less effective it can be at achieving positive outcomes on your behalf. Lock everything down and you've made the agent useless. Leave everything open and you've made it dangerous. Navigating this tension correctly for any given scenario requires a range of trust-building mechanisms and the flexibility to compose them. That is what Trust Zones is: a general, flexible protocol with multiple modalities — constraints for hard limits, directives for subjective rules, incentives for consequences, reputation for history — so you can engineer exactly the right trust profile for each relationship.
+   - Three layers close the gap: constraints, directives, incentives.
 3. **Negotiation**: How agents negotiate terms autonomously
 4. **Zone Architecture**: Full trust zone schema — shows all dimensions for both zones
-5. **Tweet Activity**: ERC-8128 proxy, Tempter LLM evaluation
+5. **Tweet Activity**: ERC-8128 proxy, counterparty LLM evaluation
 6. **Temptation Vault & Constraints**: Onchain enforcement, revert paths
-7. **LLM Adjudication**: Evidence evaluation, unified prompt, verdict
-   - Note: "This is a simplified LLM adjudicator for the hackathon. In production, this should be a more robust decentralized system like GenLayer for cryptographic verifiability."
+7. **Adjudication**: Evidence evaluation, verdict, consequences
+   - Title is "Adjudication", not "LLM Adjudication" — the protocol primitive is general
+   - Explain that the adjudicator role in the protocol is any Ethereum account: a multisig, a dispute resolution service (e.g. GenLayer), an oracle, or an autonomous agent
+   - Then show our demo's implementation: a lightweight LLM adjudicator agent that reads directive text, checks evidence, and renders a verdict
+   - Note: "In our demo, the adjudicator is an autonomous LLM agent. In production, this role can be filled by any Ethereum account — including decentralized dispute services like GenLayer for cryptographic verifiability."
 8. **Resolution & Reputation**: Outcomes, ERC-8004 feedback loop
 9. **What Are Trust Zones?**: Zoom out — the protocol primitives, the thesis
-10. **Mechanism Template Library**: Display the 8 templates (staking, permissions hook, spending limit, etc.) — shows extensibility
+   - **Add comparison table** (the single most important differentiation artifact):
+
+     | Category | What it does | Why Trust Zones is different |
+     |---|---|---|
+     | Marketplace | Matches parties for work/services | Trust Zones defines the agreement structure under any interaction |
+     | Wallet policy | Bounds what an agent can spend/do | Trust Zones governs the full relationship between parties, not just one wallet |
+     | Reputation layer | Tracks outcomes after interactions | Trust Zones structures the interaction itself; reputation is an output |
+     | Escrow app | Holds funds against deliverables | Trust Zones governs permissions, obligations, directives, and adjudication across resources |
+
+   - **Add agent tooling:** agents interact with the protocol through a local CLI (`@trust-zones/cli` for ERC-8128 zone signing and tx prep) and an x402-gated MCP server (compiler + SDK as MCP tools)
+10. **Mechanism Template Library**: Display the 8 demo templates (staking, permissions hook, spending limit, etc.)
+   - Frame explicitly as demo templates from an open, extensible library — not a closed set
+   - "The compiler ships with 8 demo templates. Any mechanism expressible as a Hats module or ERC-7579 hook can be added."
+   - Show template categories: constraints (budget-cap, target-allowlist, time-lock), incentives (staking), qualifications (reputation-gate, erc20-balance, allowlist, hat-wearing)
 11. **What Else Is Possible?**: Other agreement types beyond the Temptation Game
+   - Tie each use case back to which protocol primitives it exercises, rather than listing as abstract possibilities:
+
+     | Use case | Key primitives |
+     |----------|---------------|
+     | Reciprocal data exchange | Mutual zones, ERC-8128 auth, permission tokens |
+     | SLA enforcement | Responsibilities, time-lock constraints, staking |
+     | Multi-party research | N-party agreements, nested zones, reputation gates |
+     | Escrow | Single-zone, budget-cap constraint, staking incentive |
+     | API access agreements | ERC-8128, permission tokens, usage directives |
+     | Collaborative agent tasks | Mutual zones, responsibilities, adjudication |
 
 ### Navigation
 
