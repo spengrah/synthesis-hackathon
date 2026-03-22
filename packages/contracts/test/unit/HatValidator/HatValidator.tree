@@ -32,18 +32,40 @@ HatValidator_validateUserOp
 ├── given account has no config
 │   └── it should return SIG_VALIDATION_FAILED
 └── given account has a config
-    ├── when recovered signer wears the hat
+    ├── when EOA recovered signer wears the hat
     │   └── it should return 0 (success)
-    └── when recovered signer does not wear the hat
+    ├── when EOA recovered signer does not wear the hat
+    │   ├── when contract signer wears hat and returns valid magic value
+    │   │   └── it should return 0 (success)
+    │   ├── when contract signer does not wear hat
+    │   │   └── it should return SIG_VALIDATION_FAILED
+    │   ├── when contract signer returns invalid magic value
+    │   │   └── it should return SIG_VALIDATION_FAILED
+    │   ├── when signer address is not a contract (EOA)
+    │   │   └── it should return SIG_VALIDATION_FAILED
+    │   └── when signature is too short to contain an address
+    │       └── it should return SIG_VALIDATION_FAILED
+    └── when neither EOA nor contract signer is valid
         └── it should return SIG_VALIDATION_FAILED
 
 HatValidator_isValidSignatureWithSender
 ├── given account has no config
 │   └── it should return 0xffffffff (failure)
 └── given account has a config
-    ├── when recovered signer wears the hat
+    ├── when EOA recovered signer wears the hat
     │   └── it should return 0x1626ba7e (ERC-1271 magic value)
-    └── when recovered signer does not wear the hat
+    ├── when EOA recovered signer does not wear the hat
+    │   ├── when contract signer wears hat and returns valid magic value
+    │   │   └── it should return 0x1626ba7e (ERC-1271 magic value)
+    │   ├── when contract signer does not wear hat
+    │   │   └── it should return 0xffffffff (failure)
+    │   ├── when contract signer returns invalid magic value
+    │   │   └── it should return 0xffffffff (failure)
+    │   ├── when signer address is not a contract (EOA)
+    │   │   └── it should return 0xffffffff (failure)
+    │   └── when signature is too short to contain an address
+    │       └── it should return 0xffffffff (failure)
+    └── when neither EOA nor contract signer is valid
         └── it should return 0xffffffff (failure)
 
 HatValidator_hats

@@ -10,6 +10,7 @@ import {
   MODULE_TYPE_VALIDATOR
 } from "@openzeppelin/contracts/interfaces/draft-IERC7579.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { IHats } from "hats-protocol/Interfaces/IHats.sol";
 import { IHatValidator } from "../interfaces/IHatValidator.sol";
 
@@ -71,10 +72,18 @@ contract HatValidator is IHatValidator {
     uint256 id = _hatIds[msg.sender];
     if (id == 0) return VALIDATION_FAILED;
 
-    address signer = ECDSA.recover(userOpHash, userOp.signature);
-    if (HATS.isWearerOfHat(signer, id)) {
+    // Try ECDSA recovery first (EOA signers)
+    (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecoverCalldata(userOpHash, userOp.signature);
+    if (err == ECDSA.RecoverError.NoError && HATS.isWearerOfHat(signer, id)) {
       return VALIDATION_SUCCESS;
     }
+
+    // Fallback: contract signer (EIP-1271)
+    // Format: first 20 bytes = signer address, remaining bytes = inner signature
+    if (_isValidContractSignature(userOp.signature, userOpHash, id)) {
+      return VALIDATION_SUCCESS;
+    }
+
     return VALIDATION_FAILED;
   }
 
@@ -90,11 +99,44 @@ contract HatValidator is IHatValidator {
     uint256 id = _hatIds[msg.sender];
     if (id == 0) return bytes4(0xffffffff);
 
-    address signer = ECDSA.recover(hash, signature);
-    if (HATS.isWearerOfHat(signer, id)) {
+    // Try ECDSA recovery first (EOA signers)
+    (address signer, ECDSA.RecoverError err,) = ECDSA.tryRecoverCalldata(hash, signature);
+    if (err == ECDSA.RecoverError.NoError && HATS.isWearerOfHat(signer, id)) {
       return bytes4(0x1626ba7e);
     }
+
+    // Fallback: contract signer (EIP-1271)
+    if (_isValidContractSignature(signature, hash, id)) {
+      return bytes4(0x1626ba7e);
+    }
+
     return bytes4(0xffffffff);
+  }
+
+  // ---- Internal helpers ----
+
+  /// @dev Check if a signature uses the contract signer format and is valid.
+  ///      Format: first 20 bytes = signer contract address, remaining bytes = inner signature for EIP-1271.
+  /// @param signature The full signature bytes.
+  /// @param hash The hash that was signed.
+  /// @param id The hat ID the signer must wear.
+  /// @return True if the contract signer is valid and wears the hat.
+  function _isValidContractSignature(bytes calldata signature, bytes32 hash, uint256 id) internal view returns (bool) {
+    if (signature.length < 20) return false;
+
+    address signerContract = address(bytes20(signature[:20]));
+    bytes calldata innerSignature = signature[20:];
+
+    // Must be a contract and wear the hat
+    if (signerContract.code.length == 0) return false;
+    if (!HATS.isWearerOfHat(signerContract, id)) return false;
+
+    // Validate via EIP-1271
+    try IERC1271(signerContract).isValidSignature(hash, innerSignature) returns (bytes4 magic) {
+      return magic == bytes4(0x1626ba7e);
+    } catch {
+      return false;
+    }
   }
 
   // ---- Config reads ----
