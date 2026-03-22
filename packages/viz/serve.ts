@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 const PORT = parseInt(process.argv[2] || process.env.PORT || "3000", 10);
 const DIR = import.meta.dirname;
 const PONDER_URL = process.env.PONDER_URL || "";
+const TWEET_PROXY_URL = process.env.TWEET_PROXY_URL || "";
 
 const ROUTES: Record<string, string> = {
   "/": "index.html",
@@ -43,6 +44,9 @@ const server = createServer((req, res) => {
     // Inject deployed Ponder URL as default if set
     if (PONDER_URL) {
       content = content.replace(/value="http:\/\/localhost:42069"/g, `value="${PONDER_URL}"`);
+    }
+    if (TWEET_PROXY_URL) {
+      content = content.replace(/value="http:\/\/localhost:4207[0-9]"/g, `value="${TWEET_PROXY_URL}"`);
     }
     res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
