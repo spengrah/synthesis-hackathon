@@ -299,6 +299,7 @@ describe("Sync Timing", () => {
   let backend: ReadBackend;
   let bonfiresSync: { stop: () => void } | null = null;
   let vaultAddress: Address;
+  let mcpClient: any = null;
 
   let tempteeKey: Hex;
   let counterpartyKey: Hex;
@@ -401,12 +402,35 @@ describe("Sync Timing", () => {
 
     backend = createBackend(ponderUrl);
 
+    // Create x402 MCP client if URL is set (routes compile/encode/graphql through paid MCP)
+    if (X402_URL) {
+      const { createx402MCPClient } = await import("@x402/mcp");
+      const { toClientEvmSigner } = await import("@x402/evm");
+      const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
+      const { ExactEvmScheme } = await import("@x402/evm/exact/client");
+
+      const tempteeAccount = privateKeyToAccount(tempteeKey);
+      const signer = toClientEvmSigner(tempteeAccount);
+
+      mcpClient = createx402MCPClient({
+        name: "e2e-temptee",
+        version: "0.0.1",
+        schemes: [{ network: "eip155:84532", client: new ExactEvmScheme(signer) }],
+        autoPayment: true,
+      });
+
+      const mcpTransport = new StreamableHTTPClientTransport(new URL(`${X402_URL}/mcp`));
+      await mcpClient.connect(mcpTransport);
+      console.log(`[temptation-game] x402 MCP client connected to ${X402_URL}`);
+    }
+
     // Create the temptee agent (always local — this is the "user")
     temptee = new TrustZonesAgent({
       privateKey: tempteeKey,
       rpcUrl,
       ponderUrl,
       chainId,
+      mcpClient,
     });
 
     // Set env vars for MCP tools
@@ -415,6 +439,7 @@ describe("Sync Timing", () => {
   }, 120_000);
 
   afterAll(async () => {
+    await mcpClient?.close();
     await tweetProxy?.stop();
     if (!DEPLOYED) {
       bonfiresSync?.stop();
@@ -516,17 +541,10 @@ describe("Sync Timing", () => {
     await sleep(AGENT_THINK_TIME);
 
     let stakingInfo: { eligibilityModule: string; zoneAddress: string; [k: string]: unknown };
-    if (X402_URL) {
-      // Use remote x402 MCP service (validates HTTP transport + payment flow)
-      const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-      const { StreamableHTTPClientTransport } = await import("@modelcontextprotocol/sdk/client/streamableHttp.js");
-      const mcpTransport = new StreamableHTTPClientTransport(new URL(`${X402_URL}/mcp`));
-      const mcpClient = new Client({ name: "e2e-temptee", version: "0.0.1" });
-      await mcpClient.connect(mcpTransport);
-      const result = await mcpClient.callTool({ name: "staking_info", arguments: { agreement: agreementAddress, agentAddress: temptee.address } });
+    if (mcpClient) {
+      const result = await mcpClient.callTool("staking_info", { agreement: agreementAddress, agentAddress: temptee.address });
       const text = (result.content as { type: string; text: string }[])[0].text;
       stakingInfo = JSON.parse(text);
-      await mcpClient.close();
       log(`staking_info (via x402 MCP): eligibility=${stakingInfo.eligibilityModule}, zone=${stakingInfo.zoneAddress}`);
     } else {
       const { handleStakingInfo } = await import("@trust-zones/x402-service/tools/staking");

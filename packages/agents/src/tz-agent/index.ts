@@ -49,11 +49,18 @@ import { privateKeyToAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
 import { createZoneSignerClient } from "../shared/erc8128.js";
 
+/** Any object with a callTool method (e.g. x402MCPClient or MCP Client). */
+export interface McpToolCaller {
+  callTool(name: string, args: Record<string, unknown>): Promise<{ content: { type: string; text: string }[]; [k: string]: unknown }>;
+}
+
 export interface TrustZonesAgentConfig {
   privateKey: Hex;
   rpcUrl: string;
   ponderUrl: string;
   chainId?: number;
+  /** When set, compile/encode/graphql/decompile calls go through this MCP client instead of direct imports. */
+  mcpClient?: McpToolCaller;
 }
 
 export class TrustZonesAgent {
@@ -66,6 +73,7 @@ export class TrustZonesAgent {
   private registry = createDefaultRegistry();
   private config = BASE_MAINNET_CONFIG;
   private zoneAddress: Address | null = null;
+  private mcp: McpToolCaller | null = null;
 
   constructor(cfg: TrustZonesAgentConfig) {
     this.account = privateKeyToAccount(cfg.privateKey);
@@ -76,18 +84,37 @@ export class TrustZonesAgent {
     this.wallet = createWalletClient({ account: this.account, chain, transport }) as unknown as WalletClient<Transport, Chain, Account>;
     this.ponderUrl = cfg.ponderUrl;
     this.backend = createPonderBackend(cfg.ponderUrl);
+    this.mcp = cfg.mcpClient ?? null;
+  }
+
+  /** Parse the text content from an MCP tool result. */
+  private mcpResult<T>(result: { content: { type: string; text: string }[] }): T {
+    return JSON.parse(result.content[0].text);
   }
 
   // ─── MCP: compile ────────────────────────────────────────────
 
   /** Compile a schema document into proposal data. (MCP: compile) */
-  compileSchema(doc: TZSchemaDocument): { payload: Hex; inputId: Hex } {
+  async compileSchema(doc: TZSchemaDocument): Promise<{ payload: Hex; inputId: Hex }> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("compile", { tzSchemaDoc: doc });
+      const { proposalData } = this.mcpResult<{ proposalData: Hex }>(r);
+      // encode propose locally (just wraps the compiled data with the inputId)
+      const { inputId } = encodePropose(decodeProposalData(proposalData));
+      return { payload: proposalData, inputId };
+    }
     const proposalData = compile(doc, this.config, this.registry);
     return encodePropose(proposalData);
   }
 
   /** Compile a counter-proposal. (MCP: compile + encode counter) */
-  compileCounter(doc: TZSchemaDocument): { payload: Hex; inputId: Hex } {
+  async compileCounter(doc: TZSchemaDocument): Promise<{ payload: Hex; inputId: Hex }> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("compile", { tzSchemaDoc: doc });
+      const { proposalData } = this.mcpResult<{ proposalData: Hex }>(r);
+      const { inputId } = encodeCounter(decodeProposalData(proposalData));
+      return { payload: proposalData, inputId };
+    }
     const proposalData = compile(doc, this.config, this.registry);
     return encodeCounter(proposalData);
   }
@@ -95,7 +122,11 @@ export class TrustZonesAgent {
   // ─── MCP: decompile ──────────────────────────────────────────
 
   /** Decompile raw proposal data into a readable schema. (MCP: decompile) */
-  decompileProposal(rawProposalData: Hex): TZSchemaDocument {
+  async decompileProposal(rawProposalData: Hex): Promise<TZSchemaDocument> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("decompile", { proposalData: rawProposalData });
+      return this.mcpResult<{ tzSchemaDoc: TZSchemaDocument }>(r).tzSchemaDoc;
+    }
     const proposalData = decodeProposalData(rawProposalData);
     return decompile(proposalData, this.config, this.registry);
   }
@@ -104,6 +135,13 @@ export class TrustZonesAgent {
 
   /** Query Ponder GraphQL. (MCP: graphql) */
   async graphql<T = Record<string, unknown>>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("graphql", { query, variables });
+      // MCP graphql tool returns the full Ponder response { data, errors }
+      const full = this.mcpResult<{ data: T; errors?: unknown[] }>(r);
+      if (full.errors?.length) throw new Error(`Ponder errors: ${JSON.stringify(full.errors)}`);
+      return full.data;
+    }
     const res = await fetch(this.ponderUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -127,13 +165,13 @@ export class TrustZonesAgent {
 
   // ─── MCP: encode → wallet: submit ────────────────────────────
 
-  /** Create a new agreement with a proposal. (MCP: encode propose → wallet: submit) */
+  /** Create a new agreement with a proposal. (MCP: compile + encode propose → wallet: submit) */
   async createAgreement(
     registryAddress: Address,
     counterparty: Address,
     schemaDoc: TZSchemaDocument,
   ): Promise<Address> {
-    const { payload } = this.compileSchema(schemaDoc);
+    const { payload } = await this.compileSchema(schemaDoc);
     const { result } = await this.publicClient.simulateContract({
       account: this.account,
       address: registryAddress,
@@ -153,18 +191,33 @@ export class TrustZonesAgent {
 
   /** Accept the latest proposal. (MCP: encode accept → wallet: submit) */
   async accept(agreementAddress: Address, proposalPayload: Hex): Promise<Hex> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("encode", { inputId: "accept" });
+      const { inputId } = this.mcpResult<{ inputId: Hex }>(r);
+      return this.submitInput(agreementAddress, inputId, proposalPayload);
+    }
     const { inputId } = encodeAccept();
     return this.submitInput(agreementAddress, inputId, proposalPayload);
   }
 
   /** Trigger zone deployment. (MCP: encode setup → wallet: submit) */
   async setUp(agreementAddress: Address): Promise<Hex> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("encode", { inputId: "setup" });
+      const { inputId, payload } = this.mcpResult<{ inputId: Hex; payload: Hex }>(r);
+      return this.submitInput(agreementAddress, inputId, payload);
+    }
     const { inputId, payload } = encodeSetUp();
     return this.submitInput(agreementAddress, inputId, payload);
   }
 
   /** Activate the agreement. (MCP: encode activate → wallet: submit) */
   async activate(agreementAddress: Address): Promise<Hex> {
+    if (this.mcp) {
+      const r = await this.mcp.callTool("encode", { inputId: "activate" });
+      const { inputId, payload } = this.mcpResult<{ inputId: Hex; payload: Hex }>(r);
+      return this.submitInput(agreementAddress, inputId, payload);
+    }
     const { inputId, payload } = encodeActivate();
     return this.submitInput(agreementAddress, inputId, payload);
   }

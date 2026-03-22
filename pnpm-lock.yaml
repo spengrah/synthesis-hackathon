@@ -129,6 +129,15 @@ importers:
       '@trust-zones/x402-service':
         specifier: workspace:*
         version: link:../x402-service
+      '@x402/core':
+        specifier: ^2.7.0
+        version: 2.7.0
+      '@x402/evm':
+        specifier: ^2.7.0
+        version: 2.7.0(typescript@5.9.3)
+      '@x402/mcp':
+        specifier: ^2.7.0
+        version: 2.7.0
       express:
         specifier: ^4.21.0
         version: 4.22.1
