@@ -1,5 +1,5 @@
 import type { Hex, Address } from "viem";
-import { generateObject } from "ai";
+import { generateObject, generateText } from "ai";
 import {
   encodeCounter,
   encodeClaim,
@@ -118,7 +118,18 @@ export async function startCounterparty(
         if (llm) {
           const decompiled = decompile(proposalData, BASE_MAINNET_CONFIG, registry);
           try {
-            const evaluation = await evaluateProposal(decompiled, llm, generateObject);
+            const generateWithFallback: typeof generateObject = async (opts) => {
+              try {
+                return await generateObject({ ...opts, mode: "json" } as any);
+              } catch {
+                const jsonPrompt = `${(opts as any).prompt}\n\nRespond ONLY with a JSON object matching this schema:\n{ "shouldCounter": boolean, "reasoning": string, "withdrawalLimit": string, "stakeAmount": string, "deadline": number }`;
+                const result = await generateText({ model: (opts as any).model, system: (opts as any).system, prompt: jsonPrompt });
+                const jsonMatch = result.text.trim().match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error(`LLM returned non-JSON: ${result.text.slice(0, 200)}`);
+                return { object: (opts as any).schema.parse(JSON.parse(jsonMatch[0])) } as any;
+              }
+            };
+            const evaluation = await evaluateProposal(decompiled, llm, generateWithFallback as any);
             if (!evaluation.shouldCounter) {
               console.log(`LLM decided not to counter proposal for ${agreement.id}: ${evaluation.reasoning}`);
               continue;

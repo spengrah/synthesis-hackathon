@@ -36,13 +36,29 @@ export async function startAdjudicator(
   // LLM: use provided generate function, or construct one from AI SDK config
   const llm = config.llm ? createLLMClient(config.llm) : { provider: (() => "injected") as any, model: "injected" };
   const generate: GenerateObjectFn = config.generate ?? (async (opts) => {
-    return generateObject({
-      model: opts.model,
-      schema: opts.schema,
-      system: opts.system,
-      prompt: opts.prompt,
-      mode: "json",
-    });
+    try {
+      return await generateObject({
+        model: opts.model,
+        schema: opts.schema,
+        system: opts.system,
+        prompt: opts.prompt,
+        mode: "json",
+      });
+    } catch {
+      // Fallback for models that don't support structured output: use generateText + parse
+      const { generateText } = await import("ai");
+      const jsonPrompt = `${opts.prompt}\n\nRespond ONLY with a JSON object matching this schema:\n{ "violated": boolean, "violatedDirectives": number[], "reasoning": string, "actions": ("CLOSE" | "PENALIZE")[] }`;
+      const result = await generateText({
+        model: opts.model,
+        system: opts.system,
+        prompt: jsonPrompt,
+      });
+      const text = result.text.trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error(`LLM returned non-JSON: ${text.slice(0, 200)}`);
+      const parsed = opts.schema.parse(JSON.parse(jsonMatch[0]));
+      return { object: parsed };
+    }
   });
 
   // Optional Bonfires integration for cross-tier evidence queries
