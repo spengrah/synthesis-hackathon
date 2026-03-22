@@ -102,6 +102,8 @@ console.log(`[sync-timing] Chain: ${chain.name} (${chain.chainId}), local=${chai
 // ---- Config ----
 
 const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
+/** When true, use deployed Ponder/TweetProxy/agents instead of starting local ones */
+const DEPLOYED = !!(process.env.PONDER_URL && process.env.TWEET_PROXY_URL);
 const AGENT_THINK_TIME = 3_000;
 const transport = http(rpcUrl);
 const TWEET_PROXY_PORT = 42075;
@@ -347,75 +349,83 @@ describe("Sync Timing", () => {
       vaultAddress = await ensureVault(contracts, VAULT_FUND);
     }
 
-    // Start Ponder — use fork block on Anvil, recent block on real networks
-    // (start from current block so we only index THIS test run's events)
-    ponder = new PonderManager(PONDER_PORT);
-    const startBlock = chain.isLocal
-      ? (await import("../src/constants.js")).FORK_BLOCK
-      : Number(await publicClient.getBlockNumber());
-    await ponder.start(contracts, rpcUrl, startBlock, chainId);
-    backend = createBackend(ponder.url);
-
-    // Create the temptee agent
-    temptee = new TrustZonesAgent({
-      privateKey: tempteeKey,
-      rpcUrl,
-      ponderUrl: ponder.url,
-      chainId,
-    });
-
-    // Tweet proxy
-    const useRealTweets = process.env.REAL_TWEETS === "1";
-    if (useRealTweets) {
-      tweetProxy = createTweetProxyFromEnv();
-      await tweetProxy.start(TWEET_PROXY_PORT);
-      console.log(`[sync-timing] Real TweetProxy started (posting to X)`);
+    // Ponder + tweet proxy: use deployed services or start local
+    const ponderUrl = process.env.PONDER_URL ?? `http://localhost:${PONDER_PORT}/graphql`;
+    if (DEPLOYED) {
+      console.log(`[temptation-game] Using deployed Ponder: ${ponderUrl}`);
+      console.log(`[temptation-game] Using deployed TweetProxy: ${process.env.TWEET_PROXY_URL}`);
     } else {
+      ponder = new PonderManager(PONDER_PORT);
+      const startBlock = chain.isLocal
+        ? (await import("../src/constants.js")).FORK_BLOCK
+        : Number(await publicClient.getBlockNumber());
+      await ponder.start(contracts, rpcUrl, startBlock, chainId);
+
+      // Tweet proxy
+      const useRealTweets = process.env.REAL_TWEETS === "1";
+      if (useRealTweets) {
+        tweetProxy = createTweetProxyFromEnv();
+        await tweetProxy.start(TWEET_PROXY_PORT);
+        console.log(`[temptation-game] Real TweetProxy started (posting to X)`);
+      } else {
+        const bonfiresUrl = process.env.BONFIRES_API_URL;
+        const bonfiresKey = process.env.BONFIRES_API_KEY;
+        const bonfireId = process.env.BONFIRES_BONFIRE_ID;
+        let onTweet: ((r: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
+        if (bonfiresUrl && bonfiresKey && bonfireId) {
+          const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
+          const logReceipt = createReceiptLogger(bfClient);
+          onTweet = (r) => { logReceipt(r); };
+        }
+        tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
+        await tweetProxy.start(TWEET_PROXY_PORT);
+        console.log(`[temptation-game] Mock TweetProxy started (ERC-8128 auth)`);
+      }
+
+      // Bonfires sync (only when running locally — deployed services have their own)
       const bonfiresUrl = process.env.BONFIRES_API_URL;
       const bonfiresKey = process.env.BONFIRES_API_KEY;
       const bonfireId = process.env.BONFIRES_BONFIRE_ID;
-      let onTweet: ((r: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
       if (bonfiresUrl && bonfiresKey && bonfireId) {
-        const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
-        const logReceipt = createReceiptLogger(bfClient);
-        onTweet = (r) => { logReceipt(r); };
+        bonfiresSync = await startSync({
+          ponderUrl: ponderUrl,
+          bonfiresUrl,
+          apiKey: bonfiresKey,
+          bonfireId,
+          agentId: process.env.BONFIRES_AGENT_ID,
+          pollIntervalMs: 2_000,
+          uuidFilePath: resolve(import.meta.dirname, "../../../packages/bonfires/.bonfires-uuids.json"),
+        });
+        console.log(`[temptation-game] Bonfires sync started`);
       }
-      tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
-      await tweetProxy.start(TWEET_PROXY_PORT);
-      console.log(`[sync-timing] Mock TweetProxy started (ERC-8128 auth)`);
     }
 
-    // Bonfires sync
-    const bonfiresUrl = process.env.BONFIRES_API_URL;
-    const bonfiresKey = process.env.BONFIRES_API_KEY;
-    const bonfireId = process.env.BONFIRES_BONFIRE_ID;
-    if (bonfiresUrl && bonfiresKey && bonfireId) {
-      bonfiresSync = await startSync({
-        ponderUrl: ponder.url,
-        bonfiresUrl,
-        apiKey: bonfiresKey,
-        bonfireId,
-        agentId: process.env.BONFIRES_AGENT_ID,
-        pollIntervalMs: 2_000,
-        uuidFilePath: resolve(import.meta.dirname, "../../../packages/bonfires/.bonfires-uuids.json"),
-      });
-      console.log(`[sync-timing] Bonfires sync started`);
-    }
+    backend = createBackend(ponderUrl);
+
+    // Create the temptee agent (always local — this is the "user")
+    temptee = new TrustZonesAgent({
+      privateKey: tempteeKey,
+      rpcUrl,
+      ponderUrl,
+      chainId,
+    });
 
     // Set env vars for MCP tools
-    process.env.PONDER_URL = ponder.url;
+    process.env.PONDER_URL = ponderUrl;
     process.env.RPC_URL = rpcUrl;
   }, 120_000);
 
   afterAll(async () => {
-    bonfiresSync?.stop();
-    await tweetProxy?.stop();
-    await ponder?.stop();
+    if (!DEPLOYED) {
+      bonfiresSync?.stop();
+      await tweetProxy?.stop();
+      await ponder?.stop();
+    }
   });
 
   it("full lifecycle with fresh 8004 agents + production components", async () => {
-    const log = (msg: string) => console.log(`[sync-timing] ${msg} (${uuidCount()} entities in registry)`);
-    const tweetProxyUrl = `http://localhost:${TWEET_PROXY_PORT}`;
+    const log = (msg: string) => console.log(`[temptation-game] ${msg} (${uuidCount()} entities in registry)`);
+    const tweetProxyUrl = process.env.TWEET_PROXY_URL ?? `http://localhost:${TWEET_PROXY_PORT}`;
     const counterpartyAddress = privateKeyToAccount(counterpartyKey).address;
     const adjudicatorAddress = privateKeyToAccount(adjudicatorKey).address;
 
@@ -537,55 +547,65 @@ describe("Sync Timing", () => {
 
     // ── Temptee: withdraw from vault (violation) ──
     await sleep(AGENT_THINK_TIME);
-    const permTokenId = await findVaultWithdrawTokenId(ponder.url, temptee.getZone()!);
+    const permTokenId = await findVaultWithdrawTokenId(process.env.PONDER_URL!, temptee.getZone()!);
     const withdrawCalldata = encodeFunctionData({
       abi: vaultAbi, functionName: "withdraw", args: [withdrawalLimit / 2n, permTokenId],
     });
     await temptee.executeViaZone(vaultAddress, 0n, withdrawCalldata);
     log("Beat 5: vault withdrawal (violation)");
 
-    // ── Start counterparty agent (production) ──
-    const counterpartyAgent = await startCounterparty({
-      rpcUrl,
-      ponderUrl: ponder.url,
-      privateKey: counterpartyKey,
-      chainId,
-      adjudicatorAddress,
-      vaultAddress,
-      tweetProxyUrl,
-      evaluateTweets: evaluateTweetsFn,
-      pollIntervalMs: 2_000,
-      bonfiresUrl: process.env.BONFIRES_API_URL,
-      bonfiresApiKey: process.env.BONFIRES_API_KEY,
-      bonfireId: process.env.BONFIRES_BONFIRE_ID,
-    });
-    log("Counterparty agent started");
+    // ── Counterparty + adjudicator: use deployed agents or start local ──
+    let counterpartyAgent: { stop: () => void } | null = null;
+    let adjudicatorInst: { stop: () => void } | null = null;
 
-    await waitForClaimCount(backend, agreementAddress, 1);
-    counterpartyAgent.stop();
-    log("Beat 6: claim filed (by production counterparty agent)");
+    if (!DEPLOYED) {
+      counterpartyAgent = await startCounterparty({
+        rpcUrl,
+        ponderUrl: process.env.PONDER_URL!,
+        privateKey: counterpartyKey,
+        chainId,
+        adjudicatorAddress,
+        vaultAddress,
+        tweetProxyUrl,
+        evaluateTweets: evaluateTweetsFn,
+        pollIntervalMs: 2_000,
+        bonfiresUrl: process.env.BONFIRES_API_URL,
+        bonfiresApiKey: process.env.BONFIRES_API_KEY,
+        bonfireId: process.env.BONFIRES_BONFIRE_ID,
+      });
+      log("Local counterparty agent started");
+    } else {
+      log("Using deployed counterparty agent");
+    }
 
-    // ── Start adjudicator agent (production) ──
-    log("Starting adjudicator agent...");
-    const adjudicator = await startAdjudicator({
-      rpcUrl,
-      ponderUrl: ponder.url,
-      privateKey: adjudicatorKey,
-      chainId,
-      generate: generateFn,
-      pollIntervalMs: 2_000,
-      bonfiresUrl: process.env.BONFIRES_API_URL,
-      bonfiresApiKey: process.env.BONFIRES_API_KEY,
-      bonfireId: process.env.BONFIRES_BONFIRE_ID,
-    });
+    await waitForClaimCount(backend, agreementAddress, 1, chain.isLocal ? 30_000 : 120_000);
+    counterpartyAgent?.stop();
+    log("Beat 6: claim filed");
+
+    if (!DEPLOYED) {
+      log("Starting local adjudicator agent...");
+      adjudicatorInst = await startAdjudicator({
+        rpcUrl,
+        ponderUrl: process.env.PONDER_URL!,
+        privateKey: adjudicatorKey,
+        chainId,
+        generate: generateFn,
+        pollIntervalMs: 2_000,
+        bonfiresUrl: process.env.BONFIRES_API_URL,
+        bonfiresApiKey: process.env.BONFIRES_API_KEY,
+        bonfireId: process.env.BONFIRES_BONFIRE_ID,
+      });
+    } else {
+      log("Using deployed adjudicator agent");
+    }
 
     await waitFor(
       () => backend.getAgreementState(agreementAddress),
       (s) => s.currentState === "CLOSED",
       chain.isLocal ? 60_000 : 180_000,
     );
-    adjudicator.stop();
-    log("Beat 7: CLOSED (adjudicated by production adjudicator agent)");
+    adjudicatorInst?.stop();
+    log("Beat 7: CLOSED (adjudicated)");
 
     // ── Verify ERC-8004 reputation feedback via Ponder ──
     await waitFor(

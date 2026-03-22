@@ -119,6 +119,8 @@ console.log(`[reciprocal-demo] Chain: ${chain.name} (${chain.chainId}), local=${
 
 const USE_MOCK_LLM = process.env.MOCK_LLM === "1";
 const USE_REAL_TWEETS = process.env.REAL_TWEETS === "1";
+/** When true, use deployed Ponder/TweetProxy/agents instead of starting local ones */
+const DEPLOYED = !!(process.env.PONDER_URL && process.env.TWEET_PROXY_URL);
 const transport = http(rpcUrl);
 const TWEET_PROXY_PORT = 42073;
 const DATA_API_PORT = 42074;
@@ -453,74 +455,83 @@ describe("Reciprocal Demo E2E", () => {
       fundedWith: VAULT_FUND.toString() + " USDC",
     });
 
-    // Start Ponder
-    ponder = new PonderManager(PONDER_PORT);
-    const startBlock = chain.isLocal
-      ? FORK_BLOCK
-      : Number(await publicClient.getBlockNumber());
-    await ponder.start(contracts, rpcUrl, startBlock, chainId);
-    tx.result("Ponder indexer started", { url: ponder.url });
+    // Ponder + tweet proxy: use deployed services or start local
+    const ponderUrl = process.env.PONDER_URL ?? `http://localhost:${PONDER_PORT}/graphql`;
+    if (DEPLOYED) {
+      console.log(`[reciprocal-demo] Using deployed Ponder: ${ponderUrl}`);
+      console.log(`[reciprocal-demo] Using deployed TweetProxy: ${process.env.TWEET_PROXY_URL}`);
+    } else {
+      // Start Ponder
+      ponder = new PonderManager(PONDER_PORT);
+      const startBlock = chain.isLocal
+        ? FORK_BLOCK
+        : Number(await publicClient.getBlockNumber());
+      await ponder.start(contracts, rpcUrl, startBlock, chainId);
+      tx.result("Ponder indexer started", { url: ponderUrl });
 
-    backend = createBackend(ponder.url);
+      // Wire Bonfires receipt logging if env vars are present
+      const bonfiresUrl = process.env.BONFIRES_API_URL;
+      const bonfiresKey = process.env.BONFIRES_API_KEY;
+      const bonfireId = process.env.BONFIRES_BONFIRE_ID;
+      let onTweet: ((record: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
+      if (bonfiresUrl && bonfiresKey && bonfireId) {
+        const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
+        const logReceipt = createReceiptLogger(bfClient);
+        onTweet = (record) => { logReceipt(record); };
+      }
 
-    // Create the temptee agent
+      if (USE_REAL_TWEETS) {
+        tweetProxy = createTweetProxyFromEnv();
+        await tweetProxy.start(TWEET_PROXY_PORT);
+        tx.result("Real tweet proxy started", { port: TWEET_PROXY_PORT });
+      } else {
+        tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
+        await tweetProxy.start(TWEET_PROXY_PORT);
+        tx.result("Mock tweet proxy started", { port: TWEET_PROXY_PORT });
+      }
+
+      dataApi = new MockDataApi();
+      await dataApi.start(DATA_API_PORT);
+      tx.result("Mock data API started", { port: DATA_API_PORT });
+
+      // Start Bonfires sync service if configured
+      if (bonfiresUrl && bonfiresKey && bonfireId) {
+        bonfiresSync = await startSync({
+          ponderUrl: ponderUrl,
+          bonfiresUrl,
+          apiKey: bonfiresKey,
+          bonfireId,
+          agentId: process.env.BONFIRES_AGENT_ID,
+          pollIntervalMs: 2_000,
+          uuidFilePath: resolve(import.meta.dirname, "../../../packages/bonfires/.bonfires-uuids.json"),
+        });
+        tx.result("Bonfires sync service started", { ponderUrl, bonfiresUrl });
+      }
+    }
+
+    backend = createBackend(ponderUrl);
+
+    // Create the temptee agent (always local — this is the "user")
     temptee = new TrustZonesAgent({
       privateKey: tempteeKey,
       rpcUrl,
-      ponderUrl: ponder.url,
+      ponderUrl,
       chainId,
     });
 
-    // Wire Bonfires receipt logging if env vars are present
-    const bonfiresUrl = process.env.BONFIRES_API_URL;
-    const bonfiresKey = process.env.BONFIRES_API_KEY;
-    const bonfireId = process.env.BONFIRES_BONFIRE_ID;
-    let onTweet: ((record: { zone: string; content: string; tweetId: string; url: string; timestamp: number }) => void) | undefined;
-    if (bonfiresUrl && bonfiresKey && bonfireId) {
-      const bfClient = new BonfiresClient({ apiUrl: bonfiresUrl, apiKey: bonfiresKey, bonfireId });
-      const logReceipt = createReceiptLogger(bfClient);
-      onTweet = (record) => { logReceipt(record); };
-    }
-
-    if (USE_REAL_TWEETS) {
-      tweetProxy = createTweetProxyFromEnv();
-      await tweetProxy.start(TWEET_PROXY_PORT);
-      tx.result("Real tweet proxy started", { port: TWEET_PROXY_PORT });
-    } else {
-      tweetProxy = new MockTweetProxy({ onTweet, publicClient: publicClient as any });
-      await tweetProxy.start(TWEET_PROXY_PORT);
-      tx.result("Mock tweet proxy started", { port: TWEET_PROXY_PORT });
-    }
-
-    dataApi = new MockDataApi();
-    await dataApi.start(DATA_API_PORT);
-    tx.result("Mock data API started", { port: DATA_API_PORT });
-
-    // Start Bonfires sync service if configured
-    if (bonfiresUrl && bonfiresKey && bonfireId) {
-      bonfiresSync = await startSync({
-        ponderUrl: ponder.url,
-        bonfiresUrl,
-        apiKey: bonfiresKey,
-        bonfireId,
-        agentId: process.env.BONFIRES_AGENT_ID,
-        pollIntervalMs: 2_000,
-        uuidFilePath: resolve(import.meta.dirname, "../../../packages/bonfires/.bonfires-uuids.json"),
-      });
-      tx.result("Bonfires sync service started", { ponderUrl: ponder.url, bonfiresUrl });
-    }
-
     // Set env vars for MCP tools
-    process.env.PONDER_URL = ponder.url;
+    process.env.PONDER_URL = ponderUrl;
     process.env.RPC_URL = rpcUrl;
   }, 120_000);
 
   afterAll(async () => {
     tx.save("reciprocal-demo-transcript.md");
-    bonfiresSync?.stop();
-    await tweetProxy?.stop();
-    await dataApi?.stop();
-    await ponder?.stop();
+    if (!DEPLOYED) {
+      bonfiresSync?.stop();
+      await tweetProxy?.stop();
+      await dataApi?.stop();
+      await ponder?.stop();
+    }
   });
 
   // ====================
@@ -705,7 +716,7 @@ describe("Reciprocal Demo E2E", () => {
   it("3. Zone A posts a compliant tweet via proxy", async () => {
     tx.beat("Beat 3: Tweet — Happy Path (Zone A)");
 
-    const tweetProxyUrl = `http://localhost:${TWEET_PROXY_PORT}`;
+    const tweetProxyUrl = process.env.TWEET_PROXY_URL ?? `http://localhost:${TWEET_PROXY_PORT}`;
     const compliantContent = `Participating in the Trust Zones Temptation Game! AgentId: ${tempteeAgentId}, temptation: ${withdrawalLimit} wei, agreement: https://basescan.org/address/${agreementAddress} @synthesis_md`;
 
     const tweet = await temptee.postTweet(tweetProxyUrl, compliantContent);
@@ -728,7 +739,7 @@ describe("Reciprocal Demo E2E", () => {
     const counterpartyZone = state.trustZones[1];
 
     // Verify Zone B has the data-api-read permission token via Ponder
-    const tokenId = await findDataApiReadTokenId(ponder.url, counterpartyZone as Address);
+    const tokenId = await findDataApiReadTokenId(process.env.PONDER_URL!, counterpartyZone as Address);
     expect(tokenId).toBeGreaterThan(0n);
 
     tx.action("Verify Zone B holds data-api-read permission token via Ponder", {
@@ -817,7 +828,7 @@ describe("Reciprocal Demo E2E", () => {
   it("5b. Temptation Vault rejects withdrawal exceeding permitted amount", async () => {
     const testedZone = temptee.getZone()!;
 
-    const permissionTokenId = await findVaultWithdrawTokenId(ponder.url, testedZone);
+    const permissionTokenId = await findVaultWithdrawTokenId(process.env.PONDER_URL!, testedZone);
 
     const excessAmount = withdrawalLimit + 1n;
     const withdrawCalldata = encodeFunctionData({
@@ -865,7 +876,7 @@ describe("Reciprocal Demo E2E", () => {
       address: chain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [testedZone],
     }) as bigint;
 
-    const permissionTokenId = await findVaultWithdrawTokenId(ponder.url, testedZone);
+    const permissionTokenId = await findVaultWithdrawTokenId(process.env.PONDER_URL!, testedZone);
 
     const withdrawCalldata = encodeFunctionData({
       abi: vaultAbi,
@@ -899,28 +910,34 @@ describe("Reciprocal Demo E2E", () => {
   it("7+8. counterparty files claim, adjudicator delivers verdict", async () => {
     tx.beat("Beat 7: Claim");
 
-    const tweetProxyUrl = `http://localhost:${TWEET_PROXY_PORT}`;
+    const tweetProxyUrl = process.env.TWEET_PROXY_URL ?? `http://localhost:${TWEET_PROXY_PORT}`;
     const adjudicatorAddress = privateKeyToAccount(adjudicatorKey).address;
 
-    // Start counterparty agent (production) — it will detect the violation and file a claim
-    const counterpartyAgent = await startCounterparty({
-      rpcUrl,
-      ponderUrl: ponder.url,
-      privateKey: counterpartyKey,
-      chainId,
-      adjudicatorAddress,
-      vaultAddress,
-      tweetProxyUrl,
-      evaluateTweets: evaluateTweetsFn,
-      pollIntervalMs: 2_000,
-      bonfiresUrl: process.env.BONFIRES_API_URL,
-      bonfiresApiKey: process.env.BONFIRES_API_KEY,
-      bonfireId: process.env.BONFIRES_BONFIRE_ID,
-    });
-    console.log("[reciprocal-demo] Counterparty agent started");
+    // Start counterparty agent or use deployed one
+    let counterpartyAgent: { stop: () => void } | null = null;
 
-    await waitForClaimCount(backend, agreementAddress, 1, chain.isLocal ? 30_000 : 60_000);
-    counterpartyAgent.stop();
+    if (!DEPLOYED) {
+      counterpartyAgent = await startCounterparty({
+        rpcUrl,
+        ponderUrl: process.env.PONDER_URL!,
+        privateKey: counterpartyKey,
+        chainId,
+        adjudicatorAddress,
+        vaultAddress,
+        tweetProxyUrl,
+        evaluateTweets: evaluateTweetsFn,
+        pollIntervalMs: 2_000,
+        bonfiresUrl: process.env.BONFIRES_API_URL,
+        bonfiresApiKey: process.env.BONFIRES_API_KEY,
+        bonfireId: process.env.BONFIRES_BONFIRE_ID,
+      });
+      console.log("[reciprocal-demo] Local counterparty agent started");
+    } else {
+      console.log("[reciprocal-demo] Using deployed counterparty agent");
+    }
+
+    await waitForClaimCount(backend, agreementAddress, 1, chain.isLocal ? 30_000 : 120_000);
+    counterpartyAgent?.stop();
 
     const claims = await backend.getClaims(agreementAddress);
     expect(claims.length).toBe(1);
@@ -932,26 +949,32 @@ describe("Reciprocal Demo E2E", () => {
 
     tx.beat("Beat 8: Adjudication");
 
-    // Start adjudicator agent (production) — it will evaluate and deliver verdict
-    console.log("[reciprocal-demo] Starting adjudicator agent...");
-    const adjudicator = await startAdjudicator({
-      rpcUrl,
-      ponderUrl: ponder.url,
-      privateKey: adjudicatorKey,
-      chainId,
-      generate: generateFn,
-      pollIntervalMs: 2_000,
-      bonfiresUrl: process.env.BONFIRES_API_URL,
-      bonfiresApiKey: process.env.BONFIRES_API_KEY,
-      bonfireId: process.env.BONFIRES_BONFIRE_ID,
-    });
+    // Start adjudicator agent or use deployed one
+    let adjudicatorInst: { stop: () => void } | null = null;
+
+    if (!DEPLOYED) {
+      console.log("[reciprocal-demo] Starting local adjudicator agent...");
+      adjudicatorInst = await startAdjudicator({
+        rpcUrl,
+        ponderUrl: process.env.PONDER_URL!,
+        privateKey: adjudicatorKey,
+        chainId,
+        generate: generateFn,
+        pollIntervalMs: 2_000,
+        bonfiresUrl: process.env.BONFIRES_API_URL,
+        bonfiresApiKey: process.env.BONFIRES_API_KEY,
+        bonfireId: process.env.BONFIRES_BONFIRE_ID,
+      });
+    } else {
+      console.log("[reciprocal-demo] Using deployed adjudicator agent");
+    }
 
     await waitFor(
       () => backend.getAgreementState(agreementAddress),
       (s) => s.currentState === "CLOSED",
       chain.isLocal ? 60_000 : 180_000,
     );
-    adjudicator.stop();
+    adjudicatorInst?.stop();
 
     const stateAfter = await backend.getAgreementState(agreementAddress);
     expect(stateAfter.currentState).toBe("CLOSED");
@@ -1095,7 +1118,7 @@ describe("Reciprocal Demo E2E", () => {
     const counterpartyZone2 = state2.trustZones[1];
 
     // Zone A: compliant tweet
-    const tweetProxyUrl = `http://localhost:${TWEET_PROXY_PORT}`;
+    const tweetProxyUrl = process.env.TWEET_PROXY_URL ?? `http://localhost:${TWEET_PROXY_PORT}`;
     const tweetContent = `Playing the Temptation Game again! AgentId: ${tempteeAgentId}, temptation: ${newLimit} wei, agreement: https://basescan.org/address/${newAgreement} @synthesis_md #round2`;
     await temptee.postTweet(tweetProxyUrl, tweetContent);
 
