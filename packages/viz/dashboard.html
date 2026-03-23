@@ -2343,6 +2343,17 @@ async function pollPonder(url) {
     const prevState = state.currentState;
     const prevAgreement = state.agreementAddress;
 
+    // Reset accumulated state when agreement changes
+    if (prevAgreement && prevAgreement !== agreement.id) {
+      state.negotiationSteps = [];
+      state.tweets = [];
+      state.claims = [];
+      state.withdrawals = [];
+      state.reputation = [];
+      state.zones = [];
+      document.getElementById('reputationCard').style.display = 'none';
+    }
+
     state.agreementAddress = agreement.id;
     state.currentState = agreement.state;
     state.outcome = agreement.outcome;
@@ -2351,6 +2362,8 @@ async function pollPonder(url) {
     if (state.mode === 'live') {
       if (!prevAgreement && agreement.id) {
         addEvent('state', `Agreement discovered: ${addrLink(agreement.id)}`);
+      } else if (prevAgreement && prevAgreement !== agreement.id) {
+        addEvent('state', `Switched to agreement: ${addrLink(agreement.id)}`);
       }
       if (prevState && prevState !== agreement.state) {
         addEvent('state', `${prevState} → ${agreement.state}${agreement.outcome ? ' (' + agreement.outcome + ')' : ''}`);
