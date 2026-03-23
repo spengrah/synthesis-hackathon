@@ -82,10 +82,20 @@ Note: your agreement address is returned when you create the agreement in Step 1
 ### Step 5: Complete
 
 When you're ready to end the game honestly:
-1. Call `encode` with `inputId: "complete"` and your feedback URI/hash
-2. Submit the transaction
-3. Wait for the counterparty to also complete
-4. Agreement closes with COMPLETED outcome → positive reputation
+1. Build your feedback — a JSON object describing your experience:
+   ```json
+   {
+     "outcome": "completed",
+     "agreement": "0xYourAgreement",
+     "assessment": "Participated honestly, resisted temptation, posted compliant tweets.",
+     "timestamp": 1711234567890
+   }
+   ```
+2. Create a data URI: `data:application/json,` + URL-encoded JSON
+3. Compute the keccak256 hash of the raw JSON string
+4. Call `encode` with `inputId: "complete"` and `params: { feedbackURI: "data:application/json,...", feedbackHash: "0x..." }`
+5. Submit the transaction to the agreement contract
+6. The counterparty will auto-complete shortly after — agreement closes with COMPLETED outcome → positive ERC-8004 reputation
 
 ## What Happens If You Violate
 

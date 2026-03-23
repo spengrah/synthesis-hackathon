@@ -1,4 +1,4 @@
-import type { Hex, Address } from "viem";
+import { keccak256, toHex, type Hex, type Address } from "viem";
 import { generateObject, generateText } from "ai";
 import {
   encodeCounter,
@@ -312,11 +312,74 @@ export async function startCounterparty(
     }
   }
 
-  // Start both loops
+  // Loop 3: Watch for agreements where the other party has completed — auto-complete
+  async function watchCompletions() {
+    try {
+      const agreements = await ponder.getActiveAgreementsForParty(
+        chain.account.address,
+      );
+
+      for (const agreement of agreements) {
+        if (!running) break;
+
+        // Check if the other party has signaled completion
+        const myIndex = agreement.parties[0]?.toLowerCase() === chain.account.address.toLowerCase() ? 0 : 1;
+        const otherIndex = myIndex === 0 ? 1 : 0;
+
+        const completionSignaled = await chain.public.readContract({
+          address: agreement.id as Address,
+          abi: AgreementABI,
+          functionName: "completionSignaled",
+          args: [BigInt(otherIndex)],
+        });
+
+        if (!completionSignaled) continue;
+
+        // Other party completed — auto-complete with positive feedback
+        const alreadySignaled = await chain.public.readContract({
+          address: agreement.id as Address,
+          abi: AgreementABI,
+          functionName: "completionSignaled",
+          args: [BigInt(myIndex)],
+        });
+
+        if (alreadySignaled) continue;
+
+        const feedbackContent = JSON.stringify({
+          agreement: agreement.id,
+          outcome: "completed",
+          counterparty: agreement.parties[otherIndex],
+          assessment: "Agent participated honestly, no violations detected.",
+          timestamp: Date.now(),
+        });
+        const { inputId, payload } = encodeComplete(
+          `data:application/json,${encodeURIComponent(feedbackContent)}`,
+          keccak256(toHex(feedbackContent)),
+        );
+
+        const txHash = await chain.wallet.writeContract({
+          address: agreement.id as Address,
+          abi: AgreementABI,
+          functionName: "submitInput",
+          args: [inputId, payload],
+          chain: null,
+        });
+
+        console.log(
+          `Auto-completed agreement ${agreement.id}, tx=${txHash}`,
+        );
+      }
+    } catch (err) {
+      console.error("Counterparty completion watch error:", err);
+    }
+  }
+
+  // Start all loops
   const loop = async () => {
     while (running) {
       await watchProposals();
       await watchViolations();
+      await watchCompletions();
       await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
   };
