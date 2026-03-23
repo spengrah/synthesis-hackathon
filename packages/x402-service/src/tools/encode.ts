@@ -11,6 +11,8 @@ import {
   encodeComplete,
   encodeExit,
   encodeFinalize,
+  PROPOSE,
+  COUNTER,
 } from "@trust-zones/sdk";
 import { encodeFunctionData, type Hex } from "viem";
 import type { ProposalData, AdjudicationAction } from "@trust-zones/sdk";
@@ -31,17 +33,27 @@ const AGREEMENT_ABI_SUBMIT = [
 export function handleEncode(args: {
   inputId: string;
   params?: Record<string, unknown>;
+  proposalData?: string;
 }): { inputId: Hex; payload: Hex; calldata: Hex } {
-  const { inputId, params } = args;
+  const { inputId, params, proposalData } = args;
   let result: { inputId: Hex; payload: Hex };
 
   switch (inputId.toLowerCase()) {
-    case "propose":
-      result = encodePropose(params as unknown as ProposalData);
+    case "propose": {
+      // Accept hex proposalData (from compile) or structured ProposalData
+      const propHex = (proposalData || (params as any)?.proposalData) as Hex | undefined;
+      result = propHex
+        ? { inputId: PROPOSE, payload: propHex }
+        : encodePropose(params as unknown as ProposalData);
       break;
-    case "counter":
-      result = encodeCounter(params as unknown as ProposalData);
+    }
+    case "counter": {
+      const propHex = (proposalData || (params as any)?.proposalData) as Hex | undefined;
+      result = propHex
+        ? { inputId: COUNTER, payload: propHex }
+        : encodeCounter(params as unknown as ProposalData);
       break;
+    }
     case "accept":
       result = encodeAccept();
       break;
