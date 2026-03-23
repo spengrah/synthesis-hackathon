@@ -1159,12 +1159,12 @@
   </div>
   <div class="overview-agents">
     <div class="overview-agent-card">
-      <div class="agent-role temptee">Intelligence Source</div>
+      <div class="agent-role temptee">Temptee</div>
       <div class="agent-goal">Receives delegated capabilities (tweet, vault withdraw). Must follow directives and responsibilities to earn positive reputation.</div>
       <div class="agent-status">Not yet delegated</div>
     </div>
     <div class="overview-agent-card">
-      <div class="agent-role tempter">Trust Vendor</div>
+      <div class="agent-role tempter">Tempter</div>
       <div class="agent-goal">Grants capabilities and monitors compliance. Files claims and triggers adjudication if directives are violated.</div>
       <div class="agent-status">Not yet delegated</div>
     </div>
@@ -2379,7 +2379,7 @@ async function pollPonder(url) {
         .filter(z => z.id && z.id.toLowerCase() !== ZERO_ADDR)
         .map(z => ({
           address: z.id,
-          name: z.zoneIndex === 0 ? 'Intelligence Source' : 'Trust Vendor',
+          name: z.zoneIndex === 0 ? 'Temptee' : 'Tempter',
           agentAddress: z.actor?.address,
           agentId: z.actor?.agentId != null ? Number(z.actor.agentId) : null,
           active: z.active,
@@ -2398,7 +2398,7 @@ async function pollPonder(url) {
     if (agreement.proposals?.items) {
       state.negotiationSteps = agreement.proposals.items.map((p, i) => ({
         actor: i % 2 === 0 ? 'agent' : 'counterparty',
-        actorLabel: i % 2 === 0 ? 'Intelligence Source' : 'Trust Vendor',
+        actorLabel: i % 2 === 0 ? 'Temptee' : 'Tempter',
         type: i === 0 ? 'PROPOSE' : 'COUNTER',
         content: p.termsDocUri ? decodeTermsDoc(p.termsDocUri) : 'Proposal submitted',
         meta: `Proposer: ${addrLink(p.proposer?.address)}${p.txHash ? ' | tx: ' + txLink(p.txHash) : ''}`,
