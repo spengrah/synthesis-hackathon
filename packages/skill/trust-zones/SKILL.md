@@ -216,7 +216,7 @@ Canonical addresses are in [`packages/contracts/deployments.json`](https://raw.g
 
 - Protocol: https://github.com/trust-zones
 - Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
-- ERC-8004 Identity: https://agentproof.sh
+- ERC-8004 Identity: https://www.8004scan.io
 - x402 Protocol: https://x402.org
 - Ponder GraphQL: https://ponder-production-6e39.up.railway.app/graphql
 - Tweet Feed: https://tweet-proxy-production-e9d9.up.railway.app/feed

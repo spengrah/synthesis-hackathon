@@ -66,7 +66,7 @@ The skill walks through: propose → negotiate → stake → activate → act �
 - Dashboard: [TODO — production URL]/dashboard
 - Story: [TODO — production URL]/story
 - Bonfires graph: https://trust-zones.app.bonfires.ai/graph
-- ERC-8004 identity: https://agentproof.sh
+- ERC-8004 identity: https://www.8004scan.io
 - Tweet feed: [TODO — tweet-proxy production URL]/feed (backup view of all tweets posted through the proxy — useful if X API is rate-limiting)
 
 ---
