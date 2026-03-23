@@ -1,5 +1,10 @@
 {
   "name": "Trust Zones",
+  "repoURL": "https://github.com/spengrah/synthesis-hackathon",
+  "deployedURL": "https://viz-production-9a6c.up.railway.app",
+  "videoURL": "",
+  "coverImageURL": "",
+  "moltbookPostURL": "",
   "trackUUIDs": [
     "fdb76d08812b43f6a5f454744b66f590",
     "6f0e3d7dcadf4ef080d3f424963caff5",

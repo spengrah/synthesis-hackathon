@@ -68,12 +68,12 @@ The skill walks through: propose → negotiate → stake → activate → act �
 - Counterparty agent: `0x04de2b59872646c06b3eec9e08689eff666688d1`
 
 **Live surfaces:**
-- Leaderboard: [TODO — production URL]
-- Dashboard: [TODO — production URL]/dashboard
-- Story: [TODO — production URL]/story
-- Bonfires graph: https://trust-zones.app.bonfires.ai/graph
+- Leaderboard: https://viz-production-37ad.up.railway.app
+- Dashboard: https://viz-production-37ad.up.railway.app/dashboard
+- Story: https://viz-production-37ad.up.railway.app/story
+- Bonfires graph: https://trust-zone-agreements.app.bonfires.ai/graph
 - ERC-8004 identity: https://www.8004scan.io
-- Tweet feed: [TODO — tweet-proxy production URL]/feed (backup view of all tweets posted through the proxy — useful if X API is rate-limiting)
+- Tweet feed: https://tweet-proxy-production-e9d9.up.railway.app/feed (backup view of all tweets — useful if X API is rate-limiting)
 
 ---
 
