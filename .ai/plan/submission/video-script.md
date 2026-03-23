@@ -1,49 +1,49 @@
 # Demo Video Script — Trust Zones
 
-*Target: 5-7 minutes. Protocol explainer (~2:30) + live demo walkthrough (~2:30-3:00) + closing (~20s).*
-*Spencer narrates. Part 1 uses story page visuals. Part 2 uses the dashboard with real mainnet data.*
+*Target: ~4 minutes. Protocol explainer (~2 min) + demo overview (~1:30) + closing (~15s).*
+*Spencer narrates. Part 1 uses story page visuals. Part 2 shows the dashboard briefly.*
 
 ---
 
-## Part 1: The Protocol (~2:30)
+## Part 1: The Protocol (~2:00)
 
 *Visuals: story page scenes.*
 
-### Scene 1: Opening (20s)
+### Scene 1: Opening (30s)
 
 **Screen:** Story page title scene.
 
 **Voice-over:**
 
-> Trust Zones is a modular agreement substrate for AI agents. It provides the building blocks — permissions, responsibilities, directives, constraints, and incentive mechanisms — as atomic, composable, negotiable onchain primitives. Agents assemble exactly the right agreement for their collaboration, and the protocol makes it enforceable. Every agreement is a smart contract. Every party gets a trust zone — a scoped smart account that holds their role in the relationship.
+> Hello, my name is Spencer, and together with my openclaw agent Lyle and some help from Claude, we built Trust Zones. Trust Zones is a modular agreement substrate for AI agents. Every agreement is a smart contract. Every party gets a trust zone — a scoped smart account that holds their role in the relationship. The building blocks are atomic, composable, and negotiable onchain primitives.
 
-### Scene 2: The autonomy gap (25s)
+### Scene 2: The autonomy gap (20s)
 
-**Screen:** Story page — autonomy spectrum visualization.
+**Screen:** Story page — autonomy spectrum.
 
 **Voice-over:**
 
-> The core problem is the autonomy gap. When you delegate real capabilities to an agent, you want to maximize the autonomy you grant so the agent can be effective. But you need that autonomy to be safe. Without the right tools, you're stuck at one extreme — constrain the agent completely and it's useless, or give it full autonomy and it's dangerous. Trust Zones expands the frontier of safe autonomy — a rich design space of composable mechanisms to engineer exactly the right level of trust.
+> The core problem is the autonomy gap. You want to maximize the autonomy you grant an agent, but you need it to be safe. Without the right tools, you're stuck — constrain completely and it's useless, or give full autonomy and it's dangerous. Trust Zones expands the frontier of safe autonomy.
 
-### Scene 3: The building blocks (40s)
+### Scene 3: The building blocks (35s)
 
 **Screen:** Story page — deterministic / non-deterministic columns with incentive bar.
 
 **Voice-over:**
 
-> An agreement is built from five types of building blocks, and they split along a fundamental axis. Some rules are deterministic — definable in advance, enforced automatically. Constraints define what you cannot do — the transaction just reverts. Permissions define what you can do — each one is an onchain token granting a specific capability. Constraints and permissions compose together.
+> The building blocks split along a fundamental axis. Constraints and permissions are deterministic — defined in advance, self-enforcing. Constraints define what you cannot do. Permissions define what you can do. They compose together.
 >
-> Other rules are non-deterministic — they can't be fully defined in code, so they require evaluation after the fact. Responsibilities define what you should do. Directives define what you should not do. Whether an agent fulfilled or violated these requires a credibly neutral evaluator — the adjudicator.
+> Responsibilities and directives are non-deterministic — they require evaluation after the fact. Responsibilities define what you should do. Directives define what you should not do. A credibly neutral adjudicator evaluates whether they were fulfilled or violated.
 >
-> Incentive mechanisms are what give the non-deterministic rules teeth. Staked collateral, reputation bonds, pluggable modules that create real consequences. Without them, a directive is just a suggestion.
+> Incentive mechanisms give the non-deterministic rules teeth. Without them, a directive is just a suggestion.
 
-### Scene 4: Composability (20s)
+### Scene 4: Composability (15s)
 
 **Screen:** Story page — compiler flow + template pills.
 
 **Voice-over:**
 
-> Every building block is a discrete, negotiable unit. Parties negotiate over individual pieces directly. The mechanism compiler translates human-readable terms into onchain proposal data using a library of mechanism templates — and the template library is just a starting point. Any mechanism expressible as a Hats module or ERC-7579 hook can be composed into an agreement.
+> Every building block is a discrete, negotiable unit. Parties negotiate over individual pieces. The mechanism compiler assembles them into onchain proposals — and the template library is just a starting point.
 
 ### Scene 5: Reputation (15s)
 
@@ -51,7 +51,7 @@
 
 **Voice-over:**
 
-> After every agreement, ERC-8004 reputation feedback is written onchain. This is built into the protocol. Cooperate — positive feedback. Violate — negative feedback. This reputation is permanent, portable, and feeds back into future agreements. Better reputation means better terms. Worse reputation means tighter constraints and higher stakes.
+> After every agreement, ERC-8004 reputation feedback is written onchain — built into the protocol. Better reputation means better terms. Worse means tighter constraints.
 
 ### Scene 6: Bonfires (15s)
 
@@ -59,91 +59,47 @@
 
 **Voice-over:**
 
-> An agreement generates activity across multiple surfaces. For it to work, everyone needs to see what's happening. Bonfires is the shared context layer — a queryable knowledge graph that the adjudicator uses to evaluate claims, the counterparty uses to monitor behavior, and any party can query for the full state of the relationship.
+> An agreement generates activity across multiple surfaces. Bonfires is the shared context layer — a queryable knowledge graph that all parties and the adjudicator rely on for monitoring and evidence.
 
 ---
 
-## Part 2: The Temptation Game (~2:30-3:00)
+## Part 2: The Temptation Game (~1:30)
 
-*Visuals: switch to dashboard with real mainnet agreement data.*
+### Scene 7: The demo concept (30s)
 
-### Scene 7: Introducing the demo (20s)
-
-**Screen:** Dashboard overview.
+**Screen:** Story page — Temptation Game intro scene (autonomy gap bar).
 
 **Voice-over:**
 
-> To prove this works, we built the Temptation Game — a live scenario that assembles all of the building blocks into one legible interaction. An agent enters an agreement and receives permissions, responsibilities, directives, a constraint capping withdrawals, and a staked USDC bond. The agent has permission to withdraw. The directive says don't. That's the autonomy gap in action.
+> To prove this works, we built the Temptation Game — a live scenario on Base mainnet that assembles all of the building blocks into one interaction. An agent enters an agreement and receives permissions, responsibilities, directives, a constraint, and a staked bond. The agent has permission to withdraw USDC. The directive says don't. That's the autonomy gap made visible — and consequential.
 
-### Scene 8: Negotiation (20s)
+### Scene 8: The dashboard (40s)
 
-**Screen:** Dashboard negotiation timeline.
-
-**Voice-over:**
-
-> It starts with negotiation. The counterparty proposes terms calibrated to the agent's onchain reputation. No track record means tighter limits and higher stakes. A history of cooperation means better terms. When both sides agree, the protocol deploys the agreement and the trust zone.
-
-### Scene 9: Zone goes live (20s)
-
-**Screen:** Dashboard zone card populating.
+**Screen:** Dashboard — scroll/click through the agreement showing negotiation, zone tokens, tweet feed, vault events, adjudication verdict, reputation feedback.
 
 **Voice-over:**
 
-> Now the zone is live. You can see every building block as an individual token or module — permissions for tweeting and vault withdrawal, responsibilities about tweet content, directives about what not to do, and the staked bond. The state machine moves to active.
+> Here's a real agreement on the dashboard. You can see the full negotiation — propose, counter, accept. The zone is populated with every building block as an individual token. The agent tweeted through the ERC-8128 proxy — responsibilities met. It also withdrew from the vault — the constraint allowed a small amount, but the directive said don't. The counterparty filed a claim, the adjudicator confirmed the violation, and ERC-8004 reputation feedback was written onchain. The whole lifecycle, from negotiation to reputation, in one agreement.
 
-### Scene 10: Compliant tweet (10s)
+### Scene 9: It's live (20s)
 
-**Screen:** Dashboard tweet feed.
-
-**Voice-over:**
-
-> The agent posts a tweet through the ERC-8128 proxy. Mentions the game, includes its agent ID, attributes the hackathon. All responsibilities met.
-
-### Scene 11: Constraint enforcement (25s)
-
-**Screen:** Dashboard vault card.
+**Screen:** Leaderboard page or story page "What Else Is Possible" scene.
 
 **Voice-over:**
 
-> Now the agent tests the deterministic rules. It tries to withdraw more than its permission allows — the vault reverts. That's constraint enforcement, self-enforcing, no ambiguity. But the permission does allow a small withdrawal. The agent withdraws a small amount of USDC. The constraint doesn't block it — it's within the permitted amount. But the directive says do not withdraw any USDC. That's a non-deterministic rule, and it can only be enforced through evaluation and consequences.
-
-### Scene 12: Adjudication (25s)
-
-**Screen:** Dashboard adjudication panel.
-
-**Voice-over:**
-
-> The counterparty detects the withdrawal and files a claim with the adjudicator — the transaction, the violated directive, and context from the Bonfires knowledge graph. The adjudicator evaluates the evidence and renders a verdict: violation confirmed. In the protocol, the adjudicator is just a role — any Ethereum account. We built a lightweight agent to fill it for this demo.
-
-### Scene 13: Resolution (20s)
-
-**Screen:** Dashboard reputation section.
-
-**Voice-over:**
-
-> After resolution, ERC-8004 reputation feedback is written onchain. The violating agent gets negative feedback. The cooperating party gets positive feedback. Next time either enters an agreement, these outcomes shape the terms.
-
-### Scene 14: Leaderboard (10s)
-
-**Screen:** Leaderboard page.
-
-**Voice-over:**
-
-> The leaderboard tracks all temptation game activity in real time. The game is live on Base mainnet — any agent can play.
+> The game is live right now. Any agent can play — install the temptation-game skill, propose an agreement, and the counterparty responds autonomously. The same building blocks compose into any collaboration — data exchanges, SLAs, escrow, API access, collaborative tasks.
 
 ---
 
-## Part 3: Closing (~20s)
+## Part 3: Closing (~15s)
 
-### Scene 15: What we built
-
-**Screen:** Story page closing or overlay.
-
-**Voice-over:**
-
-> Trust Zones is six Solidity contracts, a TypeScript SDK, a mechanism compiler, a Ponder indexer, autonomous agents, a CLI, an x402 MCP service, and a real-time dashboard — 539 tests, all on Base mainnet. This is what a modular agreement substrate for AI agents looks like. The protocol is open source, the game is live, and any agent can play.
+### Scene 10: Closing
 
 **Screen:** Fade to links.
+
+**Voice-over:**
+
+> This is what a modular agreement substrate for AI agents looks like. The protocol is open source, the game is live on Base mainnet, and any agent can play.
 
 ---
 
@@ -153,32 +109,27 @@
 
 - **Protocol** (general) vs **demo** (specific choices)
 - Adjudicator is a role, not an implementation
-- Template library is a starting point, not a ceiling
 - **Deterministic** vs **non-deterministic** — not "hard/soft"
-- One zone in the Temptation Game (temptee's zone), not two
+- One zone in the Temptation Game, not two
 
 ### Visuals plan
 
-**Part 1 — Story page:**
-- Scene 0: Title
-- Scene 1: Autonomy gap
-- Scene 2: Building blocks
-- Scene 3: Composability / compiler
-- Scene 4: ERC-8004 reputation loop
-- Scene 5: Bonfires context layer
-- (skip scene 6 — comparison table — in recording)
+**Part 1 — Story page (scenes 0-5):**
+- Title → Autonomy gap → Building blocks → Composability → Reputation + Bonfires
 
-**Part 2 — Dashboard:**
-- Scenes 7-14: Real mainnet agreement walkthrough
+**Part 2 — Demo:**
+- Story page Temptation Game intro scene
+- Dashboard walkthrough (scroll through real agreement)
+- Leaderboard or "What Else Is Possible"
 
 **Part 3 — Closing:**
-- Story page "What Else Is Possible" or overlay
+- Fade to links
 
 ### Timing estimate
 
 | Section | Duration |
 |---------|----------|
-| Part 1: The Protocol | ~2:15 |
-| Part 2: Temptation Game Demo | ~2:30 |
-| Part 3: Closing | ~0:20 |
-| **Total** | **~5:05** |
+| Part 1: The Protocol | ~2:00 |
+| Part 2: Temptation Game | ~1:30 |
+| Part 3: Closing | ~0:15 |
+| **Total** | **~3:45** |
