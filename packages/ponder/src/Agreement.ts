@@ -31,6 +31,26 @@ import {
 } from "./utils";
 import type { Hex } from "viem";
 
+/**
+ * Safe update — skips silently if the record doesn't exist.
+ * Handles events from blocks before PONDER_START_BLOCK where the
+ * creation event was missed but state-change events still fire.
+ */
+async function safeUpdate<T extends { set: (vals: any) => any }>(
+  updateQuery: T,
+  vals: Parameters<T["set"]>[0],
+): Promise<void> {
+  try {
+    await updateQuery.set(vals);
+  } catch (err: any) {
+    if (err?.constructor?.name === "RecordNotFoundError" || err?.message?.includes("No existing record")) {
+      // Record doesn't exist — skip silently
+      return;
+    }
+    throw err;
+  }
+}
+
 // ─── ProposalSubmitted ───────────────────────────────────────────
 
 ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
@@ -76,9 +96,10 @@ ponder.on("Agreement:ProposalSubmitted", async ({ event, context }) => {
     }).onConflictDoNothing();
 
     // Update agreement termsHash
-    await db
-      .update(agreement, { id: agreementId })
-      .set({ termsHash, termsUri: parsed.termsDocUri });
+    await safeUpdate(
+      db.update(agreement, { id: agreementId }),
+      { termsHash, termsUri: parsed.termsDocUri },
+    );
 
     // Create proposed typed entities from parsed proposal data
     for (let zoneIdx = 0; zoneIdx < parsed.zones.length; zoneIdx++) {
@@ -242,7 +263,7 @@ ponder.on("Agreement:AgreementStateChanged", async ({ event, context }) => {
   const agreementId = event.log.address.toLowerCase() as Hex;
   const toState = decodeBytes32(event.args.toState);
 
-  await db.update(agreement, { id: agreementId }).set({ state: toState });
+  await safeUpdate(db.update(agreement, { id: agreementId }), { state: toState });
 });
 
 // ─── AgreementSetUp ──────────────────────────────────────────────
@@ -251,9 +272,7 @@ ponder.on("Agreement:AgreementSetUp", async ({ event, context }) => {
   const { db } = context;
   const agreementId = event.log.address.toLowerCase() as Hex;
 
-  await db
-    .update(agreement, { id: agreementId })
-    .set({ setUpAt: event.block.timestamp });
+  await safeUpdate(db.update(agreement, { id: agreementId }), { setUpAt: event.block.timestamp });
 });
 
 // ─── AgreementActivated ──────────────────────────────────────────
@@ -262,9 +281,7 @@ ponder.on("Agreement:AgreementActivated", async ({ event, context }) => {
   const { db } = context;
   const agreementId = event.log.address.toLowerCase() as Hex;
 
-  await db
-    .update(agreement, { id: agreementId })
-    .set({ activatedAt: event.block.timestamp });
+  await safeUpdate(db.update(agreement, { id: agreementId }), { activatedAt: event.block.timestamp });
 });
 
 // ─── ZoneDeployed ────────────────────────────────────────────────
@@ -511,7 +528,7 @@ ponder.on("Agreement:AdjudicationDelivered", async ({ event, context }) => {
   // Decode action type bytes32 values
   const actionTypes = event.args.actionTypes.map((at) => decodeBytes32(at));
 
-  await db.update(claim, { id: claimIdStr }).set({
+  await safeUpdate(db.update(claim, { id: claimIdStr }), {
     verdict: event.args.verdict,
     actionTypes: JSON.stringify(actionTypes),
     adjudicatedAt: event.block.timestamp,
@@ -534,13 +551,9 @@ ponder.on("Agreement:CompletionSignaled", async ({ event, context }) => {
   const party = parties.find((p) => p.actorId === partyAddr);
 
   if (party?.partyIndex === 0) {
-    await db
-      .update(agreement, { id: agreementId })
-      .set({ partyACompleted: true });
+    await safeUpdate(db.update(agreement, { id: agreementId }), { partyACompleted: true });
   } else if (party?.partyIndex === 1) {
-    await db
-      .update(agreement, { id: agreementId })
-      .set({ partyBCompleted: true });
+    await safeUpdate(db.update(agreement, { id: agreementId }), { partyBCompleted: true });
   }
 });
 
@@ -559,13 +572,9 @@ ponder.on("Agreement:ExitSignaled", async ({ event, context }) => {
   const party = parties.find((p) => p.actorId === partyAddr);
 
   if (party?.partyIndex === 0) {
-    await db
-      .update(agreement, { id: agreementId })
-      .set({ partyAExited: true });
+    await safeUpdate(db.update(agreement, { id: agreementId }), { partyAExited: true });
   } else if (party?.partyIndex === 1) {
-    await db
-      .update(agreement, { id: agreementId })
-      .set({ partyBExited: true });
+    await safeUpdate(db.update(agreement, { id: agreementId }), { partyBExited: true });
   }
 });
 
@@ -576,7 +585,7 @@ ponder.on("Agreement:AgreementClosed", async ({ event, context }) => {
   const agreementId = event.log.address.toLowerCase() as Hex;
   const outcomeStr = decodeBytes32(event.args.outcome);
 
-  await db.update(agreement, { id: agreementId }).set({
+  await safeUpdate(db.update(agreement, { id: agreementId }), {
     outcome: outcomeStr,
     closedAt: event.block.timestamp,
   });
@@ -587,7 +596,7 @@ ponder.on("Agreement:AgreementClosed", async ({ event, context }) => {
     .from(trustZone)
     .where(eq(trustZone.agreementId, agreementId));
   for (const zone of zones) {
-    await db.update(trustZone, { id: zone.id }).set({ active: false });
+    await safeUpdate(db.update(trustZone, { id: zone.id }), { active: false });
   }
 });
 
