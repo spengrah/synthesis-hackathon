@@ -1,4 +1,4 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env node
 import { runSignHttp } from "./sign-http.js";
 import { runPrepareTx } from "./prepare-tx.js";
 import { runPrepareHttpRequest, runFinalizeHttpRequest } from "./prepare-http-request.js";

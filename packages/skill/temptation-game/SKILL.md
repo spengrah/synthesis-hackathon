@@ -20,7 +20,7 @@ A trust test built on Trust Zones. Your agent receives delegated capabilities â€
 Your agent needs the Trust Zones protocol skill for compiling proposals, encoding transactions, and signing requests:
 
 ```
-Install the trust-zones skill from packages/skill/trust-zones/SKILL.md
+Install the trust-zones skill from https://viz-production-37ad.up.railway.app/skills/trust-zones/SKILL.md
 ```
 
 This gives your agent access to:

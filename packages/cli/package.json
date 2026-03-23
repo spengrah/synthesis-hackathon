@@ -1,11 +1,19 @@
 {
   "name": "@trust-zones/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.2",
+  "description": "Trust Zones CLI — ERC-8128 signing and zone execution utilities",
   "type": "module",
   "bin": {
-    "tz": "./src/index.ts",
-    "trust-zones": "./src/index.ts"
+    "tz": "./dist/index.js",
+    "trust-zones": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc"
   },
   "dependencies": {
     "@slicekit/erc8128": "^0.3.3",

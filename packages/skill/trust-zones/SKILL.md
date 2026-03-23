@@ -79,20 +79,18 @@ const result = await client.callTool("compile", { tzSchemaDoc: mySchema });
 
 Valid `encode` actions: `propose`, `counter`, `accept`, `reject`, `withdraw`, `setup`, `activate`, `claim`, `adjudicate`, `complete`, `exit`, `finalize`.
 
-For the full TZSchemaDocument format (input to `compile`), `encode` parameter reference, and examples, see [tz-schema-reference.md](https://raw.githubusercontent.com/spengrah/synthesis-hackathon/main/packages/skill/trust-zones/tz-schema-reference.md).
+For the full TZSchemaDocument format (input to `compile`), `encode` parameter reference, and examples, see [tz-schema-reference.md](https://viz-production-37ad.up.railway.app/skills/trust-zones/tz-schema-reference.md).
 
 ### 2. Trust Zones CLI (local, free)
 
 Execution utilities that run locally — signing and zone execution. These never touch your private key remotely.
 
-**Install from GitHub:**
+**Install from npm:**
 ```bash
-git clone https://github.com/spengrah/synthesis-hackathon.git
-cd synthesis-hackathon && pnpm install && pnpm build:sdk
-
-# Set up the tz command:
-alias tz="npx tsx packages/cli/src/index.ts"
+npm install -g @trust-zones/cli
 ```
+
+This gives you the `tz` command.
 
 **Commands:**
 

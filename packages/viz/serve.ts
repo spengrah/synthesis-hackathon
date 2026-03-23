@@ -32,13 +32,39 @@ const ROUTES: Record<string, string> = {
   "/protocol-story.html": "protocol-story.html",
 };
 
+// Skill files served as plain text from the monorepo skill directory
+const SKILL_DIR = resolve(DIR, "../skill");
+const SKILL_ROUTES: Record<string, string> = {
+  "/skills/trust-zones/SKILL.md": "trust-zones/SKILL.md",
+  "/skills/temptation-game/SKILL.md": "temptation-game/SKILL.md",
+  "/skills/trust-zones/tz-schema-reference.md": "trust-zones/tz-schema-reference.md",
+};
+
 const server = createServer((req, res) => {
   const url = req.url?.split("?")[0] || "/";
+
+  // Skill routes — serve markdown as plain text
+  const skillFile = SKILL_ROUTES[url];
+  if (skillFile) {
+    try {
+      const content = readFileSync(resolve(SKILL_DIR, skillFile), "utf-8");
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(content);
+    } catch {
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Skill not found");
+    }
+    return;
+  }
+
   const file = ROUTES[url];
 
   if (!file) {
     res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("Not found. Try / (leaderboard), /dashboard, or /story.");
+    res.end("Not found. Try / (leaderboard), /dashboard, /story, or /skill/temptation-game.");
     return;
   }
 

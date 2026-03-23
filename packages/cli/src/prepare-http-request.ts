@@ -53,7 +53,7 @@ interface FinalizeArgs {
   /** The request body (if any). */
   body?: string;
   /** TTL in seconds. */
-  ttlSeconds: number;
+  ttlSeconds?: number;
 }
 
 /**
