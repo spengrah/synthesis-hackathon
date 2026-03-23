@@ -36,15 +36,16 @@
 - Agents deployed to staging server
 - Servers (ponder, viz, x402 MCP, tweet proxy, bonfires sync) deployed to staging server
 - Repo is public
+- Mainnet E2E run passed (contracts deployed, agreement created, Temptation Game played)
+- Ponder running against mainnet
+- Agents deployed to production server
+- Viz deployed to production server
+- x402 MCP deployed to production server
+- tweet proxy deployed to production server
+- bonfires sync deployed to production server
+- README finalized for submission
 
-### What's not done
-- Mainnet E2E run (contracts deployed, but no agreement created on mainnet)
-- Ponder not running against mainnet
-- Agents not deployed to production server
-- Viz not deployed to production server
-- x402 MCP not deployed to production server
-- tweet proxy not deployed to production server
-- bonfires sync not deployed to production server
+### What's not doner
 - README not finalized for submission
 - Demo video not recorded
 - Submission not created on Devfolio

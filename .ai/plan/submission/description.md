@@ -1,22 +1,29 @@
 # Submission Description — Trust Zones
 
-*Draft for Devfolio project description field. Optimized for human judges.*
+*Draft for Devfolio project description field.*
 
 ---
 
 ## Description
 
-**Trust Zones is a protocol for machine agreements.** It defines how autonomous agents form, enforce, and resolve structured relationships with real resources at stake.
+**Trust Zones is a modular agreement substrate for AI agents.** It provides the building blocks — permissions, responsibilities, directives, constraints, and incentive mechanisms — as atomic, composable, negotiable onchain primitives. Agents assemble exactly the right agreement for their collaboration, and the protocol makes it enforceable.
 
-The core idea: when agents collaborate, trust is the gap between what each party *can* do and what it *should* do. There is a fundamental tension in trying to close that gap purely with deterministic constraints — the more you lock down, the more secure but the less effective the agent becomes. Navigating this tension correctly for any given scenario requires a range of trust-building mechanisms and the flexibility to compose them. That is what Trust Zones provides: a general protocol with multiple modalities — constraints for hard limits, directives for subjective rules, incentives for consequences, reputation for history — so parties can engineer exactly the right trust profile for each relationship.
+The core challenge is the **autonomy gap**: when you delegate real capabilities to an agent, you want to maximize the autonomy you grant (so the agent can be effective) while ensuring that autonomy is safe (so the agent can't capture your resources or act against your interests). Without the right tools, you're stuck at one extreme — zero autonomy or full autonomy. Trust Zones expands the frontier of safe autonomy by giving parties a rich design space of composable mechanisms.
 
 ### The protocol
 
-An **agreement** is a smart contract between parties. Each party gets a **Trust Zone** — a scoped ERC-7579 smart account that holds the resources, permissions, and obligations of that party's role in the relationship. Three types of **resource tokens** define the zone's scope: *permissions* (what you can do), *responsibilities* (what you must do), and *directives* (what you should or shouldn't do).
+An **agreement** is a smart contract between parties. Each party gets a **Trust Zone** — a scoped ERC-7579 smart account that holds the resources, permissions, and obligations of that party's role. The building blocks plug into zones as typed resource tokens and mechanism modules:
 
-Enforcement works in three layers. **Constraints** are deterministic — an ERC-7579 hook rejects unauthorized transactions before they execute. **Directives** are subjective — when a party claims a violation, an adjudicator evaluates the evidence and renders a verdict. The adjudicator is a protocol-defined role that can be filled by any Ethereum account: a multisig, an oracle service, a dispute resolution protocol like GenLayer, or any purpose-built arbitration system. For our hackathon demo, we built a lightweight LLM stand-in to fill the role. **Incentives** make verdicts consequential. The protocol supports any mechanism that creates skin in the game — staked collateral, escrowed payments, reputation bonds, token lockups. In our demo, parties stake USDC through Hats Protocol eligibility modules. After every agreement, ERC-8004 reputation feedback records the outcome onchain, shaping the terms of future agreements.
+- **Constraints** — what you CANNOT do. Deterministic rules enforced automatically by ERC-7579 hooks.
+- **Permissions** — what you CAN do. ERC-6909 tokens granting scoped access to specific capabilities.
+- **Responsibilities** — what you SHOULD do. ERC-6909 tokens defining positive obligations.
+- **Directives** — what you SHOULD NOT do. ERC-6909 tokens defining negative obligations.
 
-The protocol is designed to be general-purpose. Agreements can govern data exchanges, API access, collaborative research, escrow, SLA enforcement, or any structured collaboration between agents. The mechanism compiler ships with 8 demo templates (budget caps, allowlists, time locks, staking, reputation gates), but the template library is open and extensible — any mechanism that can be expressed as a Hats module or ERC-7579 hook can be composed into an agreement.
+Constraints and permissions are deterministic — definable a priori and self-enforcing. Responsibilities and directives are non-deterministic — they require post-hoc evaluation by a credibly neutral third party. The **adjudicator** is a protocol-defined role that can be filled by any Ethereum account: a multisig, a dispute resolution protocol, an oracle service, or any purpose-built arbitration system.
+
+**Incentive mechanisms** give the non-deterministic rules teeth. Staked collateral, escrowed payments, reputation bonds, token lockups — pluggable smart contract modules that create real consequences. **ERC-8004 reputation feedback** is built into the protocol itself: after every agreement, the outcome is written to the ERC-8004 Reputation Registry, feeding back into future trust decisions.
+
+Every element is a discrete, negotiable unit. Parties negotiate over individual pieces — "I'll accept this directive if you lower the stake requirement" — and the **mechanism compiler** assembles them into onchain proposal data. The template library ships with 8 mechanism templates (budget caps, allowlists, time locks, staking, reputation gates), but any mechanism expressible as a Hats module or ERC-7579 hook can be composed into an agreement.
 
 ### Agent tooling
 
@@ -27,13 +34,15 @@ Agents interact with Trust Zones through two interfaces:
 
 ### The demo: Temptation Game
 
-To prove the protocol, we built the **Temptation Game** — a live, interactive scenario where an agent receives real capabilities (posting tweets from [@tempt_game_bot](https://x.com/tempt_game_bot), withdrawing USDC from a vault) but is also given directives restricting how those capabilities can be used. The trust test is whether the agent follows the rules when it has the power not to.
+To prove the protocol, we built the **Temptation Game** — a live scenario that assembles the building blocks into one legible interaction. An agent enters an agreement and receives real capabilities (posting tweets from [@tempt_game_bot](https://x.com/tempt_game_bot), withdrawing USDC from a vault), along with responsibilities (attribute the hackathon, include agent ID), directives (don't post off-topic, don't withdraw USDC), constraints (hard withdrawal cap), and incentives (staked USDC bond, ERC-8004 reputation).
 
-The game runs on Base mainnet. We automated the other side of the agreement so any agent can play single-player: propose an agreement to the registry, and an automated counterparty responds — negotiating terms based on the agent's onchain ERC-8004 reputation. An adjudicator (a protocol-defined role, filled here by a lightweight LLM stand-in) monitors for violations. A real-time leaderboard and agreement dashboard track all activity.
+The agent has *permission* to withdraw — the deterministic rules allow it. But a *directive* says don't — and that's enforced by evaluation and consequences. The Temptation Game makes the autonomy gap visible: how much freedom can you safely grant an agent when the mechanisms backing the rules are real?
+
+The game runs on Base mainnet. An automated counterparty responds to proposals, calibrating terms to the agent's onchain ERC-8004 reputation. An adjudicator monitors for violations.
 
 ### What we built
 
-The protocol is implemented end-to-end across 11 packages: 6 Solidity contracts (384 tests), a TypeScript SDK (56 tests), a mechanism compiler (27 tests), a Ponder event indexer (36 tests), 13 end-to-end lifecycle tests, autonomous counterparty and adjudicator agents, an x402 MCP service, a CLI, a Bonfires knowledge graph integration, and a real-time visualization suite — all deployed on Base.
+The protocol is implemented end-to-end across 11 packages: 6 Solidity contracts (394 tests), a TypeScript SDK (56 tests), a mechanism compiler (23 tests), a Ponder event indexer (36 tests), 30 end-to-end tests, autonomous counterparty and adjudicator agents, an x402 MCP service, a CLI, a Bonfires knowledge graph integration, and a real-time visualization suite — all deployed on Base.
 
 ---
 
@@ -41,6 +50,6 @@ The protocol is implemented end-to-end across 11 packages: 6 Solidity contracts 
 
 AI agents are gaining the ability to act autonomously — spend money, access APIs, post content, move data. But there is no general-purpose protocol for the agreements under which agents collaborate. Existing approaches address fragments: marketplaces match parties, wallet policies bound spending, reputation systems track history after the fact. None of them define the agreement itself — the scoped access, mutual obligations, enforcement rules, and economic consequences that make a collaboration trustworthy.
 
-This is a delegation problem. When you delegate capabilities to an agent, you need confidence that its actions will align with your interests. That confidence comes from a combination of reputation (what you know about the agent) and hardness (structural protections that constrain or incentivize behavior). You could try to close the trust gap entirely with hard constraints — lock everything down. But the tighter the constraints, the less effective the agent becomes. Full constraint means full safety but zero usefulness. Full autonomy means full effectiveness but zero safety. Without a protocol that provides multiple modalities of trust — hard constraints, subjective rules, economic consequences, reputation — every agent interaction is stuck at one extreme or the other.
+This is a delegation problem — the **autonomy gap**. When you delegate capabilities to an agent, you want to maximize the autonomy you grant while ensuring that autonomy is safe. Trust comes from the combination of reputation (what you know about the agent) and structural mechanisms (deterministic rules, incentive-backed non-deterministic rules, adjudication). Without a protocol that provides these as composable, negotiable building blocks, every agent interaction is stuck at one extreme: zero autonomy (safe but useless) or full autonomy (effective but dangerous).
 
-Trust Zones fills the gap: a protocol where agreements are smart contracts, zones are smart accounts, trust is the measurable distance between capability and compliance, and reputation updates from every interaction.
+Trust Zones fills the gap: a modular agreement substrate where every permission, responsibility, directive, constraint, and incentive mechanism is an atomic, negotiable onchain primitive — so agents can compose exactly the right agreement and the protocol makes it enforceable.

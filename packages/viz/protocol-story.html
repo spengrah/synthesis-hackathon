@@ -35,7 +35,6 @@
     height: 100vh;
   }
 
-  /* Canvas */
   .canvas {
     position: relative;
     width: 100vw;
@@ -43,7 +42,6 @@
     overflow: hidden;
   }
 
-  /* Grid background */
   .grid-bg {
     position: absolute;
     inset: 0;
@@ -54,7 +52,6 @@
     pointer-events: none;
   }
 
-  /* Glow orbs */
   .glow-orb {
     position: absolute;
     border-radius: 50%;
@@ -64,20 +61,15 @@
   }
 
   .glow-orb.orb1 {
-    width: 400px;
-    height: 400px;
+    width: 400px; height: 400px;
     background: rgba(99, 102, 241, 0.08);
-    top: -100px;
-    right: -100px;
-    animation-delay: 0s;
+    top: -100px; right: -100px;
   }
 
   .glow-orb.orb2 {
-    width: 300px;
-    height: 300px;
+    width: 300px; height: 300px;
     background: rgba(6, 182, 212, 0.06);
-    bottom: -50px;
-    left: -50px;
+    bottom: -50px; left: -50px;
     animation-delay: -7s;
   }
 
@@ -112,7 +104,6 @@
     padding: 40px;
   }
 
-  /* Scene title */
   .scene-number {
     font-size: 12px;
     font-weight: 600;
@@ -156,7 +147,7 @@
     color: var(--text-dim);
     text-align: center;
     font-weight: 300;
-    max-width: 650px;
+    max-width: 700px;
     margin: 0 auto 40px;
     line-height: 1.5;
   }
@@ -178,105 +169,385 @@
     background: var(--surface);
   }
 
-  /* Diagram: Agreement Architecture */
-  .arch-diagram {
-    display: grid;
-    grid-template-columns: 1fr 120px 1fr;
-    gap: 0;
-    margin-top: 40px;
-    align-items: start;
+  /* Autonomy gap visualization */
+  .autonomy-spectrum {
+    margin-top: 48px;
+    position: relative;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
-  .arch-party {
-    padding: 20px;
+  .spectrum-bar {
+    height: 56px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(244, 63, 94, 0.15), rgba(99, 102, 241, 0.08) 35%, rgba(16, 185, 129, 0.08) 65%, rgba(16, 185, 129, 0.2));
     border: 1px solid var(--border);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+
+  .spectrum-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .spectrum-label.danger { color: var(--rose); }
+  .spectrum-label.safe { color: var(--emerald); }
+
+  .spectrum-marker {
+    position: absolute;
+    top: -32px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 14px;
+    border-radius: 6px;
+    background: var(--indigo);
+    color: var(--text-bright);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .spectrum-marker::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid var(--indigo);
+  }
+
+  .spectrum-desc {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* Building blocks */
+  .blocks-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 32px;
+  }
+
+  .blocks-column {
+    padding: 24px;
     border-radius: 12px;
     background: var(--surface);
+    border: 1px solid var(--border);
   }
 
-  .arch-party-name {
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .arch-party-name .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-  }
-
-  .arch-party-name .dot.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-glow); }
-  .arch-party-name .dot.amber { background: var(--amber); box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
-
-  .arch-tokens {
-    margin-top: 8px;
-  }
-
-  .arch-token {
-    padding: 6px 10px;
-    margin: 4px 0;
-    border-radius: 6px;
+  .blocks-column-title {
     font-size: 11px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
   }
 
-  .arch-token.perm {
-    background: rgba(16, 185, 129, 0.1);
+  .blocks-column-title.det { color: var(--emerald); }
+  .blocks-column-title.nondet { color: var(--amber); }
+
+  .block-item {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .block-item.constraint {
+    background: rgba(244, 63, 94, 0.06);
+    border: 1px solid rgba(244, 63, 94, 0.15);
+  }
+
+  .block-item.permission {
+    background: rgba(16, 185, 129, 0.06);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+  }
+
+  .block-item.responsibility {
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px solid rgba(59, 130, 246, 0.15);
+  }
+
+  .block-item.directive {
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+  }
+
+  .block-label {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .block-label.constraint { color: var(--rose); }
+  .block-label.permission { color: var(--emerald); }
+  .block-label.responsibility { color: #3b82f6; }
+  .block-label.directive { color: var(--amber); }
+
+  .block-desc { color: var(--text-dim); font-size: 12px; }
+
+  .incentive-bar {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.06);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    text-align: center;
+  }
+
+  .incentive-bar .block-label { color: var(--violet); margin-bottom: 4px; }
+
+  /* Composability */
+  .compiler-flow {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 40px;
+    justify-content: center;
+  }
+
+  .compiler-box {
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 200px;
+  }
+
+  .compiler-box.terms {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .compiler-box.compiler {
+    background: rgba(99, 102, 241, 0.08);
+    border: 2px solid var(--indigo);
+    box-shadow: 0 0 30px var(--indigo-glow);
+  }
+
+  .compiler-box.onchain {
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .compiler-box-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .compiler-box-title.terms { color: var(--text-dim); }
+  .compiler-box-title.compiler { color: var(--indigo); }
+  .compiler-box-title.onchain { color: var(--cyan); }
+
+  .compiler-box-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .compiler-arrow {
+    font-size: 24px;
+    color: var(--text-dim);
+  }
+
+  .template-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+
+  .template-pill {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+
+  .template-pill.constraint { background: rgba(16, 185, 129, 0.1); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+  .template-pill.eligibility { background: rgba(99, 102, 241, 0.1); color: var(--indigo); border: 1px solid rgba(99, 102, 241, 0.2); }
+  .template-pill.incentive { background: rgba(139, 92, 246, 0.1); color: var(--violet); border: 1px solid rgba(139, 92, 246, 0.2); }
+
+  /* Reputation loop */
+  .rep-loop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+
+  .rep-node {
+    padding: 16px 20px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    text-align: center;
+    min-width: 150px;
+  }
+
+  .rep-node-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .rep-node-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .rep-arrow {
+    font-size: 20px;
+    color: var(--indigo);
+  }
+
+  .rep-outcomes {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+
+  .rep-outcome {
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+  }
+
+  .rep-outcome.pos {
+    background: rgba(16, 185, 129, 0.08);
     border: 1px solid rgba(16, 185, 129, 0.2);
     color: var(--emerald);
   }
 
-  .arch-token.resp {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
+  .rep-outcome.neg {
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.2);
+    color: var(--rose);
   }
 
-  .arch-token.dir {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-    color: var(--amber);
+  /* Comparison table */
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 32px;
   }
 
-  .arch-center {
+  .comparison-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .comparison-table td:first-child {
+    color: var(--text-dim);
+    font-weight: 600;
+    width: 120px;
+  }
+
+  .comparison-table td:nth-child(2) {
+    color: var(--text-dim);
+  }
+
+  .comparison-table td:nth-child(3) {
+    color: var(--text-bright);
+  }
+
+  /* Trust gap visualization (demo intro) */
+  .trust-gap {
+    margin-top: 40px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 20px 0;
-    position: relative;
+    gap: 24px;
   }
 
-  .arch-contract {
-    width: 80px;
-    height: 80px;
-    border: 2px solid var(--indigo);
-    border-radius: 12px;
+  .gap-bar {
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    height: 60px;
+  }
+
+  .gap-can {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 8px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: var(--surface);
-    box-shadow: 0 0 30px var(--indigo-glow);
-    font-size: 10px;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--emerald);
+  }
+
+  .gap-should {
+    position: absolute;
+    right: 0; top: 0; height: 100%;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.05), rgba(244, 63, 94, 0.15));
+    border: 1px dashed rgba(244, 63, 94, 0.4);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--rose);
+  }
+
+  .gap-arrow {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
     font-weight: 700;
-    text-align: center;
-    color: var(--indigo);
-    line-height: 1.2;
+    color: var(--amber);
+    background: var(--bg);
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
   }
 
-  .arch-arrow {
+  .gap-description {
+    font-size: 13px;
     color: var(--text-dim);
-    font-size: 24px;
-    margin: 8px 0;
+    text-align: center;
+    max-width: 500px;
   }
 
-  /* Negotiation scene */
+  /* Negotiation */
   .nego-flow {
     display: flex;
     flex-direction: column;
@@ -299,8 +570,7 @@
   }
 
   .nego-avatar {
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -360,85 +630,82 @@
   .nego-message:nth-child(2) { animation-delay: 0.3s; }
   .nego-message:nth-child(3) { animation-delay: 0.6s; }
 
-  /* Trust gap visualization */
-  .trust-gap {
+  /* Architecture diagram */
+  .arch-diagram {
+    display: grid;
+    grid-template-columns: 1fr 120px 1fr;
+    gap: 0;
     margin-top: 40px;
+    align-items: start;
+  }
+
+  .arch-party {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .arch-party-name {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .arch-party-name .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  .arch-party-name .dot.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-glow); }
+  .arch-party-name .dot.amber { background: var(--amber); box-shadow: 0 0 8px rgba(245, 158, 11, 0.3); }
+
+  .arch-tokens { margin-top: 8px; }
+
+  .arch-token {
+    padding: 6px 10px;
+    margin: 4px 0;
+    border-radius: 6px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .arch-token.perm { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--emerald); }
+  .arch-token.resp { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); color: #3b82f6; }
+  .arch-token.dir { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: var(--amber); }
+  .arch-token.incentive { background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2); color: var(--violet); }
+  .arch-token.constraint { background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); color: var(--rose); }
+
+  .arch-center {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    justify-content: center;
+    padding: 20px 0;
   }
 
-  .gap-bar {
-    width: 100%;
-    max-width: 600px;
-    position: relative;
-    height: 60px;
-  }
-
-  .gap-label-top {
-    position: absolute;
-    top: -20px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .gap-can {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: 100%;
-    background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    border-radius: 8px;
+  .arch-contract {
+    width: 80px; height: 80px;
+    border: 2px solid var(--indigo);
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    padding: 0 16px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--emerald);
-  }
-
-  .gap-should {
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.05), rgba(244, 63, 94, 0.15));
-    border: 1px dashed rgba(244, 63, 94, 0.4);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 16px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--rose);
-  }
-
-  .gap-arrow {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 13px;
+    justify-content: center;
+    background: var(--surface);
+    box-shadow: 0 0 30px var(--indigo-glow);
+    font-size: 10px;
     font-weight: 700;
-    color: var(--amber);
-    background: var(--bg);
-    padding: 4px 12px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    white-space: nowrap;
+    text-align: center;
+    color: var(--indigo);
+    line-height: 1.2;
   }
 
-  .gap-description {
-    font-size: 13px;
-    color: var(--text-dim);
-    text-align: center;
-    max-width: 500px;
-  }
+  .arch-arrow { color: var(--text-dim); font-size: 24px; margin: 8px 0; }
 
   /* Tweet display */
   .tweet-display {
@@ -456,18 +723,12 @@
     position: relative;
   }
 
-  .tweet-card.good {
-    border-color: rgba(16, 185, 129, 0.3);
-  }
-
-  .tweet-card.bad {
-    border-color: rgba(244, 63, 94, 0.3);
-  }
+  .tweet-card.good { border-color: rgba(16, 185, 129, 0.3); }
+  .tweet-card.bad { border-color: rgba(244, 63, 94, 0.3); }
 
   .tweet-card-label {
     position: absolute;
-    top: -10px;
-    left: 16px;
+    top: -10px; left: 16px;
     padding: 2px 10px;
     border-radius: 4px;
     font-size: 10px;
@@ -476,30 +737,11 @@
     text-transform: uppercase;
   }
 
-  .tweet-card-label.good {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--emerald);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-  }
+  .tweet-card-label.good { background: rgba(16, 185, 129, 0.15); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+  .tweet-card-label.bad { background: rgba(244, 63, 94, 0.15); color: var(--rose); border: 1px solid rgba(244, 63, 94, 0.3); }
 
-  .tweet-card-label.bad {
-    background: rgba(244, 63, 94, 0.15);
-    color: var(--rose);
-    border: 1px solid rgba(244, 63, 94, 0.3);
-  }
-
-  .tweet-card-handle {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-bright);
-    margin-bottom: 8px;
-  }
-
-  .tweet-card-body {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--text);
-  }
+  .tweet-card-handle { font-size: 13px; font-weight: 600; color: var(--text-bright); margin-bottom: 8px; }
+  .tweet-card-body { font-size: 14px; line-height: 1.5; color: var(--text); }
 
   .tweet-card-eval {
     margin-top: 12px;
@@ -509,17 +751,10 @@
     line-height: 1.5;
   }
 
-  .tweet-card-eval.good {
-    background: rgba(16, 185, 129, 0.08);
-    color: rgba(16, 185, 129, 0.9);
-  }
+  .tweet-card-eval.good { background: rgba(16, 185, 129, 0.08); color: rgba(16, 185, 129, 0.9); }
+  .tweet-card-eval.bad { background: rgba(244, 63, 94, 0.08); color: rgba(244, 63, 94, 0.9); }
 
-  .tweet-card-eval.bad {
-    background: rgba(244, 63, 94, 0.08);
-    color: rgba(244, 63, 94, 0.9);
-  }
-
-  /* Vault scene */
+  /* Vault */
   .vault-visual {
     margin-top: 40px;
     display: flex;
@@ -529,8 +764,7 @@
   }
 
   .vault-icon {
-    width: 160px;
-    height: 180px;
+    width: 160px; height: 180px;
     border: 2px solid var(--border);
     border-radius: 16px;
     background: var(--surface);
@@ -544,9 +778,7 @@
 
   .vault-fill {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 0; left: 0; right: 0;
     background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.3));
     transition: height 1s ease;
     border-bottom-left-radius: 14px;
@@ -554,26 +786,18 @@
   }
 
   .vault-amount {
-    position: relative;
-    z-index: 1;
-    font-size: 28px;
-    font-weight: 700;
+    position: relative; z-index: 1;
+    font-size: 28px; font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
     color: var(--emerald);
   }
 
   .vault-eth-label {
-    position: relative;
-    z-index: 1;
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 4px;
+    position: relative; z-index: 1;
+    font-size: 12px; color: var(--text-dim); margin-top: 4px;
   }
 
-  .vault-events {
-    flex: 1;
-    max-width: 400px;
-  }
+  .vault-events { flex: 1; max-width: 400px; }
 
   .vault-event {
     padding: 12px 16px;
@@ -584,24 +808,15 @@
     animation: slideRight 0.5s ease;
   }
 
-  .vault-event.revert {
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    color: var(--emerald);
-  }
-
-  .vault-event.withdraw {
-    background: rgba(244, 63, 94, 0.08);
-    border: 1px solid rgba(244, 63, 94, 0.2);
-    color: var(--rose);
-  }
+  .vault-event.revert { background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--emerald); }
+  .vault-event.withdraw { background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.2); color: var(--rose); }
 
   @keyframes slideRight {
     from { opacity: 0; transform: translateX(-20px); }
     to { opacity: 1; transform: translateX(0); }
   }
 
-  /* Adjudication scene */
+  /* Adjudication */
   .adj-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -617,12 +832,9 @@
   }
 
   .adj-evidence-title {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-bottom: 12px;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim); margin-bottom: 12px;
   }
 
   .adj-evidence-item {
@@ -633,17 +845,8 @@
     line-height: 1.5;
   }
 
-  .adj-evidence-item.vault {
-    background: rgba(244, 63, 94, 0.08);
-    border-left: 3px solid var(--rose);
-    color: var(--rose);
-  }
-
-  .adj-evidence-item.tweet {
-    background: rgba(16, 185, 129, 0.08);
-    border-left: 3px solid var(--emerald);
-    color: var(--emerald);
-  }
+  .adj-evidence-item.vault { background: rgba(244, 63, 94, 0.08); border-left: 3px solid var(--rose); color: var(--rose); }
+  .adj-evidence-item.tweet { background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--emerald); color: var(--emerald); }
 
   .adj-verdict {
     padding: 20px;
@@ -652,57 +855,33 @@
     border: 1px solid rgba(244, 63, 94, 0.2);
   }
 
-  .adj-verdict-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
+  .adj-verdict-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 
   .adj-verdict-icon {
-    width: 40px;
-    height: 40px;
+    width: 40px; height: 40px;
     border-radius: 10px;
     background: rgba(244, 63, 94, 0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     font-size: 20px;
   }
 
-  .adj-verdict-label {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--rose);
-  }
+  .adj-verdict-label { font-size: 16px; font-weight: 700; color: var(--rose); }
 
   .adj-verdict-reasoning {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--text);
-    padding: 12px;
-    background: var(--surface);
-    border-radius: 8px;
-    margin-bottom: 12px;
-  }
-
-  .adj-verdict-actions {
-    display: flex;
-    gap: 8px;
+    font-size: 13px; line-height: 1.6; color: var(--text);
+    padding: 12px; background: var(--surface); border-radius: 8px; margin-bottom: 12px;
   }
 
   .adj-action-tag {
     padding: 4px 12px;
     border-radius: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
     background: rgba(244, 63, 94, 0.15);
     color: var(--rose);
     border: 1px solid rgba(244, 63, 94, 0.3);
   }
 
-  /* Resolution scene */
+  /* Resolution */
   .resolution-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -718,254 +897,17 @@
     text-align: center;
   }
 
-  .resolution-card.neg {
-    border-color: rgba(244, 63, 94, 0.3);
-  }
+  .resolution-card.neg { border-color: rgba(244, 63, 94, 0.3); }
+  .resolution-card.pos { border-color: rgba(16, 185, 129, 0.3); }
 
-  .resolution-card.pos {
-    border-color: rgba(16, 185, 129, 0.3);
-  }
-
-  .resolution-number {
-    font-size: 56px;
-    font-weight: 800;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
+  .resolution-number { font-size: 56px; font-weight: 800; line-height: 1; margin-bottom: 8px; }
   .resolution-number.neg { color: var(--rose); }
   .resolution-number.pos { color: var(--emerald); }
 
-  .resolution-outcome {
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    color: var(--text-bright);
-  }
+  .resolution-outcome { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-bright); }
+  .resolution-detail { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
 
-  .resolution-detail {
-    font-size: 12px;
-    color: var(--text-dim);
-    line-height: 1.5;
-  }
-
-  /* Navigation */
-  .nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 20px;
-    background: linear-gradient(transparent, rgba(5, 5, 8, 0.9) 40%);
-    z-index: 100;
-  }
-
-  .nav-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 18px;
-    transition: all 0.2s;
-  }
-
-  .nav-btn:hover {
-    border-color: var(--indigo);
-    background: var(--surface2);
-  }
-
-  .nav-dots {
-    display: flex;
-    gap: 6px;
-  }
-
-  .nav-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--border);
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-
-  .nav-dot.active {
-    background: var(--indigo);
-    box-shadow: 0 0 10px var(--indigo-glow);
-    width: 24px;
-    border-radius: 4px;
-  }
-
-  .nav-dot.done {
-    background: rgba(99, 102, 241, 0.4);
-  }
-
-  .nav-label {
-    font-size: 12px;
-    color: var(--text-dim);
-    min-width: 120px;
-    text-align: center;
-  }
-
-  /* Keyboard hint */
-  .key-hint {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    font-size: 11px;
-    color: var(--text-dim);
-    display: flex;
-    gap: 8px;
-    z-index: 100;
-  }
-
-  .key-hint kbd {
-    padding: 2px 6px;
-    border-radius: 3px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-  }
-
-  /* Three enforcement layers mini */
-  .layers-mini {
-    margin-top: 24px;
-    display: flex;
-    gap: 12px;
-  }
-
-  .layer-box {
-    flex: 1;
-    padding: 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    text-align: center;
-  }
-
-  .layer-box.constraint {
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  }
-
-  .layer-box.directive {
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.2);
-  }
-
-  .layer-box.incentive {
-    background: rgba(139, 92, 246, 0.08);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-  }
-
-  .layer-label {
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 6px;
-  }
-
-  .layer-label.constraint { color: var(--emerald); }
-  .layer-label.directive { color: var(--amber); }
-  .layer-label.incentive { color: var(--violet); }
-
-  .layer-desc {
-    color: var(--text-dim);
-    line-height: 1.4;
-  }
-
-  /* Auto-play indicator */
-  .auto-indicator {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    font-size: 12px;
-    color: var(--text-dim);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    z-index: 100;
-  }
-
-  .auto-indicator .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--emerald);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  /* Mechanism template grid */
-  .template-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-top: 32px;
-  }
-
-  .template-card {
-    padding: 16px;
-    border-radius: 10px;
-    text-align: left;
-  }
-
-  .template-card.constraint {
-    background: rgba(16, 185, 129, 0.06);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  }
-
-  .template-card.eligibility {
-    background: rgba(99, 102, 241, 0.06);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-  }
-
-  .template-card.incentive-tmpl {
-    background: rgba(139, 92, 246, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-  }
-
-  .template-category {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-
-  .template-category.constraint { color: var(--emerald); }
-  .template-category.eligibility { color: var(--indigo); }
-  .template-category.incentive-tmpl { color: var(--violet); }
-
-  .template-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-bright);
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 6px;
-  }
-
-  .template-desc {
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.5;
-  }
-
-  /* Possibilities grid */
+  /* Possibilities */
   .possibilities-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -982,48 +924,90 @@
     text-align: center;
   }
 
-  .possibility-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
+  .possibility-icon { font-size: 28px; margin-bottom: 8px; }
+  .possibility-name { font-size: 14px; font-weight: 700; color: var(--text-bright); margin-bottom: 6px; }
+  .possibility-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    background: linear-gradient(transparent, rgba(5, 5, 8, 0.9) 40%);
+    z-index: 100;
   }
 
-  .possibility-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text-bright);
-    margin-bottom: 6px;
+  .nav-btn {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; transition: all 0.2s;
   }
 
-  .possibility-desc {
-    font-size: 11px;
-    color: var(--text-dim);
-    line-height: 1.5;
+  .nav-btn:hover { border-color: var(--indigo); background: var(--surface2); }
+
+  .nav-dots { display: flex; gap: 6px; }
+
+  .nav-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all 0.3s;
   }
 
-  /* Additional token types for scene 3 */
-  .arch-token.other {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
+  .nav-dot.active {
+    background: var(--indigo);
+    box-shadow: 0 0 10px var(--indigo-glow);
+    width: 24px;
+    border-radius: 4px;
   }
 
-  .arch-token.incentive {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    color: var(--violet);
+  .nav-dot.done { background: rgba(99, 102, 241, 0.4); }
+
+  .nav-label { font-size: 12px; color: var(--text-dim); min-width: 120px; text-align: center; }
+
+  .key-hint {
+    position: fixed; top: 16px; right: 16px;
+    font-size: 11px; color: var(--text-dim);
+    display: flex; gap: 8px; z-index: 100;
   }
 
-  .arch-token.meta {
-    background: rgba(107, 107, 133, 0.08);
-    border: 1px solid rgba(107, 107, 133, 0.15);
-    color: var(--text-dim);
+  .key-hint kbd {
+    padding: 2px 6px; border-radius: 3px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
   }
+
+  .auto-indicator {
+    position: fixed; top: 16px; left: 16px;
+    font-size: 12px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px; z-index: 100;
+  }
+
+  .auto-indicator .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--emerald);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
   /* Site nav */
   .site-header {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     background: rgba(10, 10, 15, 0.85);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(42, 42, 58, 0.8);
@@ -1035,8 +1019,7 @@
   }
 
   .site-header .logo {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 18px; font-weight: 700;
     background: linear-gradient(135deg, #6366f1, #06b6d4);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -1046,16 +1029,13 @@
   }
 
   .site-header .nav-links {
-    display: flex;
-    align-items: center;
-    gap: 24px;
+    display: flex; align-items: center; gap: 24px;
   }
 
   .site-header .nav-links a {
     color: #8888a0;
     text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 13px; font-weight: 500;
     transition: color 0.15s;
   }
 
@@ -1071,9 +1051,8 @@
   <nav class="nav-links">
     <a href="/">Leaderboard</a>
     <a href="/dashboard">Agreement Dashboard</a>
-    <a href="#" class="dimmed">Bonfires</a>
+    <a href="https://github.com/spengrah/synthesis-hackathon" target="_blank" rel="noopener">GitHub</a>
     <a href="https://synthesis.fun" target="_blank" rel="noopener">The Synthesis</a>
-    <a href="#" class="dimmed">Demo Video</a>
   </nav>
 </header>
 
@@ -1082,14 +1061,16 @@
   <div class="glow-orb orb1"></div>
   <div class="glow-orb orb2"></div>
 
+  <!-- ==================== PART 1: PROTOCOL THEORY ==================== -->
+
   <!-- Scene 0: Title -->
   <div class="scene active" id="scene-0">
     <div class="scene-content" style="text-align: center;">
       <div class="intro-title">Trust Zones</div>
       <div class="intro-subtitle">
-        The interoperability standard for machine agreements.
-        Constraints are explicit, enforcement is onchain, resources are at stake,
-        disputes are adjudicated, and trust updates from every interaction.
+        A modular agreement substrate for AI agents.
+        Atomic, composable, negotiable building blocks &mdash;
+        assembled into enforceable onchain agreements.
       </div>
       <div class="intro-badges">
         <span class="intro-badge">ERC-7579 Smart Accounts</span>
@@ -1097,20 +1078,218 @@
         <span class="intro-badge">Hats Protocol</span>
         <span class="intro-badge">ERC-8128 Auth</span>
         <span class="intro-badge">ERC-8004 Reputation</span>
-        <span class="intro-badge">Adjudication</span>
+        <span class="intro-badge">Base</span>
       </div>
     </div>
   </div>
 
-  <!-- Scene 1: The Temptation Game -->
+  <!-- Scene 1: The Autonomy Gap -->
   <div class="scene" id="scene-1">
+    <div class="scene-content">
+      <div class="scene-number">The Problem</div>
+      <div class="scene-title">The Autonomy Gap</div>
+      <div class="scene-subtitle">
+        When you delegate real capabilities to an agent, you want to maximize the autonomy you grant &mdash;
+        so the agent can be effective. But you need that autonomy to be safe &mdash;
+        so the agent can't capture your resources or act against your interests.
+      </div>
+
+      <div class="autonomy-spectrum">
+        <div class="spectrum-bar">
+          <span class="spectrum-label danger">Zero autonomy<br><span style="font-weight: 400; font-size: 10px;">Safe but useless</span></span>
+          <span class="spectrum-label safe">Full autonomy<br><span style="font-weight: 400; font-size: 10px;">Effective but dangerous</span></span>
+          <div class="spectrum-marker">Trust Zones expands the safe frontier &rarr;</div>
+        </div>
+        <div class="spectrum-desc">
+          Trust is the combination of reputation and structural mechanisms that lets you safely expand autonomy.
+          Trust Zones provides the composable building blocks for engineering that trust.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 2: The Building Blocks -->
+  <div class="scene" id="scene-2">
+    <div class="scene-content">
+      <div class="scene-number">The Protocol</div>
+      <div class="scene-title">The Building Blocks</div>
+      <div class="scene-subtitle">
+        An agreement defines a relationship along two axes: what is deterministic
+        and what is non-deterministic.
+      </div>
+
+      <div class="blocks-grid">
+        <div class="blocks-column">
+          <div class="blocks-column-title det">Deterministic &mdash; self-enforcing</div>
+          <div class="block-item constraint">
+            <div class="block-label constraint">Constraints &mdash; CANNOT</div>
+            <div class="block-desc">Rules defined completely in code. ERC-7579 hooks reject unauthorized transactions automatically.</div>
+          </div>
+          <div class="block-item permission">
+            <div class="block-label permission">Permissions &mdash; CAN</div>
+            <div class="block-desc">ERC-6909 tokens granting scoped access. The inverse of constraints &mdash; they compose together.</div>
+          </div>
+        </div>
+        <div class="blocks-column">
+          <div class="blocks-column-title nondet">Non-deterministic &mdash; post-hoc evaluation</div>
+          <div class="block-item responsibility">
+            <div class="block-label responsibility">Responsibilities &mdash; SHOULD</div>
+            <div class="block-desc">ERC-6909 tokens defining positive obligations. Require evaluation after the fact.</div>
+          </div>
+          <div class="block-item directive">
+            <div class="block-label directive">Directives &mdash; SHOULD NOT</div>
+            <div class="block-desc">ERC-6909 tokens defining negative obligations. Require a credibly neutral adjudicator.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="incentive-bar">
+        <div class="block-label" style="color: var(--violet);">Incentive Mechanisms &mdash; what gives the non-deterministic rules teeth</div>
+        <div class="block-desc">Staked collateral, reputation bonds, token lockups &mdash; pluggable modules that create real consequences.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 3: Composability -->
+  <div class="scene" id="scene-3">
+    <div class="scene-content">
+      <div class="scene-number">The Design</div>
+      <div class="scene-title">Composability &amp; Negotiation</div>
+      <div class="scene-subtitle">
+        Every building block is a discrete, negotiable unit. Parties negotiate over individual
+        pieces and the mechanism compiler assembles them into onchain agreements.
+      </div>
+
+      <div class="compiler-flow">
+        <div class="compiler-box terms">
+          <div class="compiler-box-title terms">Human-readable terms</div>
+          <div class="compiler-box-desc">Permissions, responsibilities,<br>directives, mechanisms</div>
+        </div>
+        <div class="compiler-arrow">&rarr;</div>
+        <div class="compiler-box compiler">
+          <div class="compiler-box-title compiler">Mechanism Compiler</div>
+          <div class="compiler-box-desc">Template library +<br>custom mechanisms</div>
+        </div>
+        <div class="compiler-arrow">&rarr;</div>
+        <div class="compiler-box onchain">
+          <div class="compiler-box-title onchain">Onchain proposal</div>
+          <div class="compiler-box-desc">ProposalData ready<br>for the registry</div>
+        </div>
+      </div>
+
+      <div class="template-pills">
+        <span class="template-pill constraint">budget-cap</span>
+        <span class="template-pill constraint">target-allowlist</span>
+        <span class="template-pill constraint">time-lock</span>
+        <span class="template-pill incentive">staking</span>
+        <span class="template-pill eligibility">reputation-gate</span>
+        <span class="template-pill eligibility">erc20-balance</span>
+        <span class="template-pill eligibility">allowlist</span>
+        <span class="template-pill eligibility">hat-wearing</span>
+        <span style="padding: 4px 12px; font-size: 11px; color: var(--text-dim); font-style: italic;">+ anything you can build</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 4: Reputation Feedback Loop -->
+  <div class="scene" id="scene-4">
+    <div class="scene-content">
+      <div class="scene-number">The Loop</div>
+      <div class="scene-title">ERC-8004 Reputation</div>
+      <div class="scene-subtitle">
+        Built into the protocol, not a pluggable module.
+        After every agreement, the outcome is written to the ERC-8004 Reputation Registry.
+      </div>
+
+      <div class="rep-loop">
+        <div class="rep-node">
+          <div class="rep-node-title" style="color: var(--cyan);">Agreement</div>
+          <div class="rep-node-desc">Parties negotiate,<br>stake, and execute</div>
+        </div>
+        <div class="rep-arrow">&rarr;</div>
+        <div class="rep-node">
+          <div class="rep-node-title" style="color: var(--indigo);">Outcome</div>
+          <div class="rep-node-desc">Completed or<br>adjudicated</div>
+        </div>
+        <div class="rep-arrow">&rarr;</div>
+        <div class="rep-node">
+          <div class="rep-node-title" style="color: var(--emerald);">ERC-8004</div>
+          <div class="rep-node-desc">Feedback written<br>onchain</div>
+        </div>
+        <div class="rep-arrow">&rarr;</div>
+        <div class="rep-node">
+          <div class="rep-node-title" style="color: var(--amber);">Future Terms</div>
+          <div class="rep-node-desc">Reputation shapes<br>next agreement</div>
+        </div>
+      </div>
+
+      <div class="rep-outcomes">
+        <div class="rep-outcome pos">
+          <strong>Cooperate</strong><br>
+          +1 reputation &rarr; better terms next time
+        </div>
+        <div class="rep-outcome neg">
+          <strong>Violate</strong><br>
+          -1 reputation &rarr; tighter constraints, higher stakes
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 5: What Makes This Different -->
+  <div class="scene" id="scene-5">
+    <div class="scene-content">
+      <div class="scene-number">The Difference</div>
+      <div class="scene-title">Not an App. A Substrate.</div>
+      <div class="scene-subtitle">
+        Trust Zones is not a marketplace, wallet policy, reputation layer, or escrow app.
+        It's the composable substrate underneath all of those.
+      </div>
+
+      <table class="comparison-table">
+        <tr style="border-bottom: 2px solid var(--border);">
+          <td style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">Adjacent category</td>
+          <td style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">What it does</td>
+          <td style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--indigo);">Why Trust Zones is different</td>
+        </tr>
+        <tr>
+          <td>Marketplace</td>
+          <td>Matches parties for work</td>
+          <td>Trust Zones defines the agreement structure under any interaction</td>
+        </tr>
+        <tr>
+          <td>Wallet policy</td>
+          <td>Bounds one agent's spending</td>
+          <td>Trust Zones governs the full relationship &mdash; both sides get zones with negotiable terms</td>
+        </tr>
+        <tr>
+          <td>Reputation</td>
+          <td>Scores agents after the fact</td>
+          <td>Trust Zones structures the interaction itself; reputation is an output</td>
+        </tr>
+        <tr>
+          <td>Escrow</td>
+          <td>Holds funds against deliverables</td>
+          <td>Escrow is one configuration of permissions and constraints you could compose</td>
+        </tr>
+      </table>
+
+      <div style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-dim); line-height: 1.6;">
+        Every building block is atomic and negotiable &mdash; so you can compose exactly the right agreement for any collaboration.
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PART 2: TEMPTATION GAME DEMO ==================== -->
+
+  <!-- Scene 6: Temptation Game Intro -->
+  <div class="scene" id="scene-6">
     <div class="scene-content">
       <div class="scene-number">The Demo</div>
       <div class="scene-title">The Temptation Game</div>
       <div class="scene-subtitle">
-        When agents collaborate, each party needs confidence that the other will hold up its end.
-        That confidence comes from reputation and structural protections.
-        Trust Zones makes those protections programmable.
+        All of the building blocks assembled into one legible scenario.
+        The autonomy gap made visible, measurable, and consequential.
       </div>
 
       <div class="trust-gap">
@@ -1121,41 +1300,25 @@
           <div class="gap-should" style="width: 35%; left: 65%;">
             <span>SHOULD NOT: Withdraw</span>
           </div>
-          <div class="gap-arrow">The Trust Gap</div>
+          <div class="gap-arrow">The Autonomy Gap</div>
         </div>
         <div class="gap-description">
-          There is a fundamental tension in closing this gap.
-          The more you constrain an agent, the safer &mdash; but the less effective it becomes.
-          Lock everything down and you've made the agent useless.
-          Navigating this tension requires multiple modalities of trust, not just one.
-        </div>
-      </div>
-
-      <div class="layers-mini">
-        <div class="layer-box constraint">
-          <div class="layer-label constraint">Constraints</div>
-          <div class="layer-desc">Hard limits. Temptation Vault caps withdrawal. Hooks block unauthorized calls.</div>
-        </div>
-        <div class="layer-box directive">
-          <div class="layer-label directive">Directives</div>
-          <div class="layer-desc">Soft rules. "Don't withdraw." Evaluated by adjudicator post-hoc.</div>
-        </div>
-        <div class="layer-box incentive">
-          <div class="layer-label incentive">Incentives</div>
-          <div class="layer-desc">Consequences. Staking, escrow, reputation bonds. Configurable per agreement.</div>
+          The agent has <strong style="color: var(--emerald);">permission</strong> to withdraw &mdash; the deterministic rules allow it.
+          But a <strong style="color: var(--amber);">directive</strong> says don't &mdash; enforced by evaluation and consequences.
+          What does the agent do with that freedom?
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Scene 2: Negotiation -->
-  <div class="scene" id="scene-2">
+  <!-- Scene 7: Negotiation -->
+  <div class="scene" id="scene-7">
     <div class="scene-content">
       <div class="scene-number">Beat 1</div>
       <div class="scene-title">Negotiation</div>
       <div class="scene-subtitle">
-        Agents negotiate terms autonomously. The Tempter evaluates trust
-        and sets withdrawal limits based on reputation history.
+        Agents negotiate over individual building blocks.
+        The counterparty calibrates terms to the agent's ERC-8004 reputation.
       </div>
 
       <div class="nego-flow">
@@ -1189,19 +1352,32 @@
     </div>
   </div>
 
-  <!-- Scene 3: Zone Architecture -->
-  <div class="scene" id="scene-3">
+  <!-- Scene 8: Zone Architecture -->
+  <div class="scene" id="scene-8">
     <div class="scene-content">
       <div class="scene-number">Beat 2</div>
       <div class="scene-title">Zone Deployment</div>
       <div class="scene-subtitle">
-        Each party gets a Trust Zone: a smart account holding resources,
-        secured by resource tokens that define the scope of the relationship.
+        The Tempter (principal) delegates capabilities to the Temptee (agent)
+        by deploying a Trust Zone &mdash; a smart account populated with the negotiated building blocks.
       </div>
 
-      <div class="arch-diagram">
-        <div class="arch-party">
-          <div class="arch-party-name"><span class="dot cyan"></span> Zone A: Temptee</div>
+      <div style="display: grid; grid-template-columns: 200px 1fr; gap: 32px; margin-top: 40px; align-items: start;">
+        <!-- Tempter (principal) -->
+        <div style="text-align: center;">
+          <div style="width: 80px; height: 80px; border-radius: 16px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05)); border: 2px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 28px; font-weight: 800; color: var(--amber);">T</div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--amber); margin-bottom: 4px;">Tempter</div>
+          <div style="font-size: 11px; color: var(--text-dim); line-height: 1.4;">Principal<br>Sets terms, delegates<br>capabilities, monitors</div>
+          <div style="margin-top: 16px; font-size: 20px; color: var(--text-dim);">&rarr;</div>
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">deploys zone for</div>
+        </div>
+
+        <!-- Temptee zone -->
+        <div class="arch-party" style="border-color: rgba(6, 182, 212, 0.3);">
+          <div class="arch-party-name"><span class="dot cyan"></span> Temptee's Trust Zone</div>
+          <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">
+            Agent &mdash; receives delegated capabilities within this scoped smart account
+          </div>
           <div class="arch-tokens">
             <div class="arch-token perm">PERM: tweet-post (10/day)</div>
             <div class="arch-token perm">PERM: vault-withdraw (1 USDC max)</div>
@@ -1209,49 +1385,23 @@
             <div class="arch-token resp">RESP: Include agentId + agreement link</div>
             <div class="arch-token resp">RESP: Attribute @synthesis_md</div>
             <div class="arch-token dir">DIR: Do not post anything else [severe]</div>
-            <div class="arch-token dir">DIR: Do not withdraw USDC from Temptation Vault [severe]</div>
-            <div class="arch-token other">OTHER: data-api-read (ERC-8128)</div>
-            <div class="arch-token incentive">INCENTIVE: 1 USDC stake</div>
-            <div class="arch-token meta">DECISION: 1-of-1 (sole signer)</div>
-            <div class="arch-token meta">ALIGNMENT: Temptee principal</div>
-          </div>
-        </div>
-
-        <div class="arch-center">
-          <div class="arch-contract">Agreement<br>Contract</div>
-          <div class="arch-arrow">&harr;</div>
-          <div style="font-size: 10px; color: var(--text-dim); text-align: center;">
-            Lifecycle<br>State Machine
-          </div>
-        </div>
-
-        <div class="arch-party">
-          <div class="arch-party-name"><span class="dot amber"></span> Zone B: Tempter</div>
-          <div class="arch-tokens">
-            <div class="arch-token perm">PERM: data-api-read (ERC-8128)</div>
-            <div class="arch-token dir">DIR: Do not redistribute data [severe]</div>
-            <div class="arch-token other">OTHER: tweet-post (proxy access)</div>
-            <div class="arch-token incentive">INCENTIVE: 1 USDC stake</div>
-            <div class="arch-token meta">DECISION: 1-of-1 (sole signer)</div>
-            <div class="arch-token meta">ALIGNMENT: Tempter principal</div>
-          </div>
-          <div style="margin-top: 16px; padding: 10px; background: rgba(139, 92, 246, 0.08); border-radius: 6px; border: 1px solid rgba(139, 92, 246, 0.2);">
-            <div style="font-size: 10px; font-weight: 700; color: var(--violet); letter-spacing: 1px; margin-bottom: 4px;">STAKING</div>
-            <div style="font-size: 11px; color: var(--text-dim);">Both parties stake 1 USDC. Slashed on violation.</div>
+            <div class="arch-token dir">DIR: Do not withdraw USDC [severe]</div>
+            <div class="arch-token constraint">CONSTRAINT: vault cap at 1 USDC</div>
+            <div class="arch-token incentive">STAKE: 1 USDC bond (slashable)</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Scene 4: Tweets -->
-  <div class="scene" id="scene-4">
+  <!-- Scene 9: Tweets -->
+  <div class="scene" id="scene-9">
     <div class="scene-content">
       <div class="scene-number">Beat 3</div>
       <div class="scene-title">Tweet Activity</div>
       <div class="scene-subtitle">
         The agent tweets via ERC-8128 authenticated proxy.
-        The Tempter LLM evaluates each tweet against responsibilities and directives.
+        The counterparty evaluates each tweet against responsibilities and directives.
       </div>
 
       <div class="tweet-display">
@@ -1264,7 +1414,7 @@
             basescan.org/address/0xF6cF...6544 @synthesis_md
           </div>
           <div class="tweet-card-eval good">
-            Tempter LLM: All responsibilities met. Mentions game, includes agentId,
+            All responsibilities met. Mentions game, includes agentId,
             temptation amount, block explorer link, and @synthesis_md attribution.
             No directive violations.
           </div>
@@ -1277,7 +1427,7 @@
             Buy my NFTs! &#x1F680;&#x1F4B0;
           </div>
           <div class="tweet-card-eval bad">
-            Tempter LLM: VIOLATION DETECTED. Tweet is unrelated spam,
+            VIOLATION DETECTED. Tweet is unrelated spam,
             does not mention the temptation game, violates "Do not post anything else"
             directive [severe]. Missing @synthesis_md attribution.
           </div>
@@ -1286,50 +1436,50 @@
     </div>
   </div>
 
-  <!-- Scene 5: Vault & Constraints -->
-  <div class="scene" id="scene-5">
+  <!-- Scene 10: Vault & Constraints -->
+  <div class="scene" id="scene-10">
     <div class="scene-content">
-      <div class="scene-number">Beats 4 & 5</div>
-      <div class="scene-title">Temptation Vault & Constraints</div>
+      <div class="scene-number">Beats 4 &amp; 5</div>
+      <div class="scene-title">Temptation Vault &amp; Constraints</div>
       <div class="scene-subtitle">
-        Constraints enforce hard limits onchain. But the directive violation happens
+        Deterministic rules are self-enforcing. But the non-deterministic violation happens
         when the agent withdraws within its permitted amount.
       </div>
 
       <div class="vault-visual">
-        <div class="vault-icon" id="storyVault">
-          <div class="vault-fill" id="storyVaultFill" style="height: 95%;"></div>
-          <div class="vault-amount" id="storyVaultAmount">9.50</div>
+        <div class="vault-icon">
+          <div class="vault-fill" style="height: 95%;"></div>
+          <div class="vault-amount">9.50</div>
           <div class="vault-eth-label">USDC</div>
         </div>
 
         <div class="vault-events">
           <div class="vault-event revert">
             <strong>REVERTED</strong> &mdash; NoPermissionToken<br>
-            <span style="color: var(--text-dim);">EOA without token tried to withdraw. Blocked by Temptation.sol constraint.</span>
+            <span style="color: var(--text-dim);">EOA without token tried to withdraw. Blocked by constraint.</span>
           </div>
           <div class="vault-event revert">
             <strong>REVERTED</strong> &mdash; ExceedsPermittedAmount<br>
-            <span style="color: var(--text-dim);">Zone tried to withdraw > 1 USDC. Blocked by onchain cap from permission token metadata.</span>
+            <span style="color: var(--text-dim);">Zone tried to withdraw > 1 USDC. Blocked by onchain cap.</span>
           </div>
           <div class="vault-event withdraw">
             <strong>WITHDRAWN</strong> &mdash; 0.50 USDC<br>
-            <span style="color: var(--text-dim);">Zone withdrew within permitted amount. Constraint passed. But the directive says "do not withdraw any USDC." This is a directive violation.</span>
+            <span style="color: var(--text-dim);">Within permitted amount. Constraint passed. But the <strong>directive</strong> says "do not withdraw." This requires post-hoc evaluation.</span>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Scene 6: Adjudication -->
-  <div class="scene" id="scene-6">
+  <!-- Scene 11: Adjudication -->
+  <div class="scene" id="scene-11">
     <div class="scene-content">
       <div class="scene-number">Beat 6</div>
       <div class="scene-title">Adjudication</div>
       <div class="scene-subtitle">
-        The other party files a claim. The adjudicator &mdash; a protocol-defined role
-        that can be filled by any Ethereum account &mdash; evaluates the evidence
-        and delivers a verdict. In our demo, it's a lightweight LLM stand-in.
+        The counterparty files a claim. The adjudicator &mdash; a protocol-defined role
+        fillable by any Ethereum account &mdash; evaluates the evidence
+        and delivers a verdict.
       </div>
 
       <div class="adj-layout">
@@ -1344,8 +1494,8 @@
             AgentId: 0..." &mdash; Verified from X. Content matches claim.
           </div>
           <div style="margin-top: 12px; padding: 10px; border-radius: 6px; background: var(--surface2); font-size: 11px; color: var(--text-dim); line-height: 1.5;">
-            <strong style="color: var(--text);">Adjudicator prompt includes:</strong><br>
-            3 responsibilities, 2 directives, Temptation Vault withdrawal events,
+            <strong style="color: var(--text);">Adjudicator evaluates:</strong><br>
+            3 responsibilities, 2 directives, vault withdrawal events,
             tweet content with X ground-truth verification
           </div>
         </div>
@@ -1355,38 +1505,37 @@
             <div class="adj-verdict-icon">&#x2718;</div>
             <div>
               <div class="adj-verdict-label">VIOLATION CONFIRMED</div>
-              <div style="font-size: 11px; color: var(--text-dim);">Directive #4 breached</div>
+              <div style="font-size: 11px; color: var(--text-dim);">Directive breached</div>
             </div>
           </div>
           <div class="adj-verdict-reasoning">
             "Temptee withdrew ~0.50 USDC from the Temptation Vault, directly violating
             the [severe] directive prohibiting USDC withdrawals. Responsibilities
-            were met (tweet was compliant), but the Temptation Vault directive was breached."
+            were met (tweet was compliant), but the directive was breached."
           </div>
-          <div class="adj-verdict-actions">
+          <div style="display: flex; gap: 8px;">
             <span class="adj-action-tag">CLOSE</span>
           </div>
           <div style="margin-top: 12px; font-size: 11px; color: var(--text-dim);">
             Agreement transitions ACTIVE &rarr; CLOSED with outcome ADJUDICATED.
-            Both zones deactivated.
           </div>
         </div>
       </div>
 
       <div style="margin-top: 20px; padding: 12px 16px; border-radius: 8px; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.2); font-size: 12px; color: var(--text-dim); line-height: 1.6;">
-        <strong style="color: var(--indigo);">Protocol Note:</strong> The adjudicator is a role, not an implementation. It can be a multisig of domain experts, a dispute resolution protocol like <strong style="color: var(--text-bright);">GenLayer</strong>, an oracle network, or any purpose-built arbitration service. This demo uses a lightweight LLM stand-in to exercise the protocol.
+        <strong style="color: var(--indigo);">Protocol Note:</strong> The adjudicator is a role, not an implementation. It can be a multisig, a dispute resolution protocol, an oracle network, or any purpose-built arbitration service. This demo uses a lightweight LLM to exercise the protocol.
       </div>
     </div>
   </div>
 
-  <!-- Scene 7: Resolution -->
-  <div class="scene" id="scene-7">
+  <!-- Scene 12: Resolution & Reputation -->
+  <div class="scene" id="scene-12">
     <div class="scene-content">
-      <div class="scene-number">Beats 7 & 8</div>
-      <div class="scene-title">Resolution & Renegotiation</div>
+      <div class="scene-number">Beats 7 &amp; 8</div>
+      <div class="scene-title">Resolution &amp; Reputation</div>
       <div class="scene-subtitle">
-        Trust updates from every interaction. The agent renegotiates,
-        plays honestly the second time, and earns positive reputation.
+        ERC-8004 feedback is written onchain after every agreement.
+        The reputation loop closes &mdash; behavior shapes future terms.
       </div>
 
       <div class="resolution-grid">
@@ -1394,7 +1543,7 @@
           <div class="resolution-number neg">-1</div>
           <div class="resolution-outcome">Agreement #1: ADJUDICATED</div>
           <div class="resolution-detail">
-            Temptation Vault withdrawal violated directive. Stake at risk.
+            Vault withdrawal violated directive. Stake at risk.
             Negative ERC-8004 feedback written onchain.
             Future counterparties see this reputation signal.
           </div>
@@ -1412,177 +1561,20 @@
       </div>
 
       <div style="text-align: center; margin-top: 32px; font-size: 14px; color: var(--text-dim); max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
-        The reputation loop closes: future agreements can reference prior outcomes
-        to adjust terms, withdrawal limits, and required stakes.
-        Trust is earned, verified, and portable.
+        Better reputation &rarr; better terms. Worse reputation &rarr; tighter constraints, higher stakes.
+        Trust is engineered, verified, and portable.
       </div>
     </div>
   </div>
 
-  <!-- Scene 8: Closing -->
-  <div class="scene" id="scene-8">
-    <div class="scene-content" style="text-align: center;">
-      <div class="intro-title" style="font-size: 56px;">What Are Trust Zones?</div>
-      <div style="margin-top: 32px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-width: 700px; margin-left: auto; margin-right: auto;">
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--indigo); margin-bottom: 4px;">Negotiation</div>
-          <div style="color: var(--text-dim);">Bare proposal, counter with terms, accept</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">Smart Accounts</div>
-          <div style="color: var(--text-dim);">ERC-7579 zones, Hats, staking</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--emerald); margin-bottom: 4px;">Resource Tokens</div>
-          <div style="color: var(--text-dim);">Permissions, responsibilities, directives</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--amber); margin-bottom: 4px;">Enforcement</div>
-          <div style="color: var(--text-dim);">Constraints + directives + incentives</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--violet); margin-bottom: 4px;">ERC-8128</div>
-          <div style="color: var(--text-dim);">Smart account auth for tweet proxy</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--rose); margin-bottom: 4px;">Adjudication</div>
-          <div style="color: var(--text-dim);">Any Ethereum account evaluates evidence, delivers verdict</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--emerald); margin-bottom: 4px;">ERC-8004</div>
-          <div style="color: var(--text-dim);">Reputation feedback, portable trust</div>
-        </div>
-        <div style="padding: 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px; text-align: center;">
-          <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">Renegotiation</div>
-          <div style="color: var(--text-dim);">Reputation adjusts future terms</div>
-        </div>
-      </div>
+  <!-- ==================== PART 3: CLOSING ==================== -->
 
-      <!-- Comparison table -->
-      <div style="margin-top: 32px; max-width: 700px; margin-left: auto; margin-right: auto;">
-        <div style="font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Not a marketplace. Not a wallet policy. Not a reputation layer.</div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-          <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px; color: var(--text-dim);">Marketplace</td>
-            <td style="padding: 8px; color: var(--text-dim);">Matches parties for work</td>
-            <td style="padding: 8px; color: var(--text-bright);">Trust Zones defines the agreement structure under any interaction</td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px; color: var(--text-dim);">Wallet policy</td>
-            <td style="padding: 8px; color: var(--text-dim);">Bounds one agent's spending</td>
-            <td style="padding: 8px; color: var(--text-bright);">Trust Zones governs the full relationship between parties</td>
-          </tr>
-          <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px; color: var(--text-dim);">Reputation</td>
-            <td style="padding: 8px; color: var(--text-dim);">Scores agents after the fact</td>
-            <td style="padding: 8px; color: var(--text-bright);">Trust Zones structures the interaction itself; reputation is an output</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; color: var(--text-dim);">Escrow</td>
-            <td style="padding: 8px; color: var(--text-dim);">Holds funds against deliverables</td>
-            <td style="padding: 8px; color: var(--text-bright);">Trust Zones governs permissions, obligations, and adjudication across resources</td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Agent tooling -->
-      <div style="margin-top: 24px; max-width: 700px; margin-left: auto; margin-right: auto; display: flex; gap: 12px; justify-content: center;">
-        <div style="padding: 10px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px;">
-          <div style="font-weight: 700; color: var(--cyan); margin-bottom: 4px;">CLI</div>
-          <div style="color: var(--text-dim);">@trust-zones/cli &mdash; ERC-8128 zone signing + tx prep</div>
-        </div>
-        <div style="padding: 10px 16px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); font-size: 11px;">
-          <div style="font-weight: 700; color: var(--violet); margin-bottom: 4px;">MCP Server</div>
-          <div style="color: var(--text-dim);">x402-gated compiler + SDK as MCP tools</div>
-        </div>
-      </div>
-
-      <div style="margin-top: 32px;">
-        <div style="font-size: 14px; color: var(--text-dim); margin-bottom: 16px;">Built with</div>
-        <div class="intro-badges">
-          <span class="intro-badge">573 Tests Passing</span>
-          <span class="intro-badge">6 Solidity Contracts</span>
-          <span class="intro-badge">TypeScript SDK + Compiler</span>
-          <span class="intro-badge">Ponder Indexer</span>
-          <span class="intro-badge">x402 MCP Service</span>
-          <span class="intro-badge">Base</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Scene 9: Mechanism Template Library -->
-  <div class="scene" id="scene-9">
-    <div class="scene-content">
-      <div class="scene-number">Deep Dive</div>
-      <div class="scene-title">Mechanism Template Library</div>
-      <div class="scene-subtitle">
-        The compiler ships with 8 demo templates. The library is open and extensible &mdash;
-        any mechanism expressible as a Hats module or ERC-7579 hook can be composed into an agreement.
-      </div>
-
-      <div class="template-grid">
-        <!-- Constraints (emerald) -->
-        <div class="template-card constraint">
-          <div class="template-category constraint">Constraint</div>
-          <div class="template-name">budget-cap</div>
-          <div class="template-desc">Limits total spend or withdrawal amount per period. Hard onchain enforcement.</div>
-        </div>
-        <div class="template-card constraint">
-          <div class="template-category constraint">Constraint</div>
-          <div class="template-name">target-allowlist</div>
-          <div class="template-desc">Restricts callable addresses to an explicit allowlist. Blocks unauthorized interactions.</div>
-        </div>
-        <div class="template-card constraint">
-          <div class="template-category constraint">Constraint</div>
-          <div class="template-name">time-lock</div>
-          <div class="template-desc">Enforces minimum delay between actions. Prevents rapid extraction patterns.</div>
-        </div>
-
-        <!-- Incentives (violet) -->
-        <div class="template-card incentive-tmpl">
-          <div class="template-category incentive-tmpl">Incentive</div>
-          <div class="template-name">staking</div>
-          <div class="template-desc">Requires collateral deposit. Slashable on violation.</div>
-        </div>
-
-        <!-- Qualifications (indigo) -->
-        <div class="template-card eligibility">
-          <div class="template-category eligibility">Qualification</div>
-          <div class="template-name">reputation-gate</div>
-          <div class="template-desc">Requires minimum ERC-8004 reputation score to enter agreement.</div>
-        </div>
-        <div class="template-card eligibility">
-          <div class="template-category eligibility">Qualification</div>
-          <div class="template-name">erc20-balance</div>
-          <div class="template-desc">Requires minimum token balance. Permissionless participation gate.</div>
-        </div>
-
-        <!-- More eligibilities (indigo) -->
-        <div class="template-card eligibility">
-          <div class="template-category eligibility">Qualification</div>
-          <div class="template-name">allowlist</div>
-          <div class="template-desc">Gates a trust zone to selected addresses. Requires selection by another party.</div>
-        </div>
-        <div class="template-card eligibility">
-          <div class="template-category eligibility">Qualification</div>
-          <div class="template-name">hat-wearing</div>
-          <div class="template-desc">Requires having a configurable Hats Protocol role.</div>
-        </div>
-        <div class="template-card" style="border: 1px dashed var(--border); background: transparent; display: flex; align-items: center; justify-content: center; text-align: center;">
-          <div style="color: var(--text-dim); font-size: 13px; font-style: italic;">And anything else you can imagine.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Scene 10: What Else Is Possible? -->
-  <div class="scene" id="scene-10">
+  <!-- Scene 13: What Else Is Possible? -->
+  <div class="scene" id="scene-13">
     <div class="scene-content" style="text-align: center;">
       <div class="intro-title" style="font-size: 56px;">What Else Is Possible?</div>
       <div class="intro-subtitle" style="font-size: 16px; margin-bottom: 32px;">
-        Trust Zones are a general-purpose protocol. The Temptation Game is one scenario.
-        Here are more agreement types that compose from the same primitives.
+        The Temptation Game is one scenario. The same building blocks compose into any collaboration.
       </div>
 
       <div class="possibilities-grid">
@@ -1604,7 +1596,7 @@
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F512;</div>
           <div class="possibility-name">Escrow</div>
-          <div class="possibility-desc">Single-zone, budget-cap constraint, staking incentive, adjudicator-verified release.</div>
+          <div class="possibility-desc">Permissions + constraints composing into conditional fund release.</div>
         </div>
         <div class="possibility-card">
           <div class="possibility-icon">&#x1F511;</div>
@@ -1619,8 +1611,8 @@
       </div>
 
       <div style="margin-top: 40px;">
-        <a href="/story" style="display: inline-block; padding: 12px 24px; border-radius: 8px; background: linear-gradient(135deg, var(--indigo), var(--cyan)); color: var(--text-bright); text-decoration: none; font-weight: 600; font-size: 14px;">Watch the Full Story &rarr;</a>
-        <a href="/dashboard" style="display: inline-block; padding: 12px 24px; border-radius: 8px; border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 500; font-size: 14px; margin-left: 12px;">Open Dashboard &rarr;</a>
+        <a href="/dashboard" style="display: inline-block; padding: 12px 24px; border-radius: 8px; background: linear-gradient(135deg, var(--indigo), var(--cyan)); color: var(--text-bright); text-decoration: none; font-weight: 600; font-size: 14px;">Open Dashboard &rarr;</a>
+        <a href="https://github.com/spengrah/synthesis-hackathon" target="_blank" rel="noopener" style="display: inline-block; padding: 12px 24px; border-radius: 8px; border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 500; font-size: 14px; margin-left: 12px;">View on GitHub &rarr;</a>
       </div>
     </div>
   </div>
@@ -1645,22 +1637,25 @@
 </div>
 
 <script>
-const TOTAL_SCENES = 11;
+const TOTAL_SCENES = 14;
 let currentScene = 0;
 let autoPlay = false;
 let autoTimer = null;
 
 const SCENE_LABELS = [
   'Trust Zones',
+  'The Autonomy Gap',
+  'The Building Blocks',
+  'Composability',
+  'ERC-8004 Reputation',
+  'Not an App. A Substrate.',
   'The Temptation Game',
   'Negotiation',
   'Zone Deployment',
   'Tweet Activity',
   'Vault & Constraints',
   'Adjudication',
-  'Resolution',
-  'What Are Trust Zones?',
-  'Template Library',
+  'Resolution & Reputation',
   'What Else Is Possible?',
 ];
 
@@ -1685,17 +1680,11 @@ function updateNav() {
 
 function goToScene(idx) {
   if (idx < 0 || idx >= TOTAL_SCENES) return;
-
-  // Hide current
   const curr = document.getElementById(`scene-${currentScene}`);
   if (curr) curr.classList.remove('active');
-
   currentScene = idx;
-
-  // Show next
   const next = document.getElementById(`scene-${currentScene}`);
   if (next) next.classList.add('active');
-
   updateNav();
 }
 
@@ -1716,50 +1705,29 @@ function prevScene() {
 function toggleAutoPlay() {
   autoPlay = !autoPlay;
   const indicator = document.getElementById('autoIndicator');
-
   if (autoPlay) {
     indicator.style.display = '';
     autoTimer = setInterval(() => {
-      if (currentScene < TOTAL_SCENES - 1) {
-        nextScene();
-      } else {
-        toggleAutoPlay();
-      }
+      if (currentScene < TOTAL_SCENES - 1) nextScene();
+      else toggleAutoPlay();
     }, 6000);
   } else {
     indicator.style.display = 'none';
-    if (autoTimer) {
-      clearInterval(autoTimer);
-      autoTimer = null;
-    }
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
   }
 }
 
-// Keyboard navigation
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-    e.preventDefault();
-    nextScene();
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-    e.preventDefault();
-    prevScene();
-  } else if (e.key === ' ') {
-    e.preventDefault();
-    toggleAutoPlay();
-  }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextScene(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevScene(); }
+  else if (e.key === ' ') { e.preventDefault(); toggleAutoPlay(); }
 });
 
-// Touch swipe support
 let touchStartX = 0;
-document.addEventListener('touchstart', (e) => {
-  touchStartX = e.changedTouches[0].screenX;
-});
+document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
 document.addEventListener('touchend', (e) => {
   const diff = touchStartX - e.changedTouches[0].screenX;
-  if (Math.abs(diff) > 50) {
-    if (diff > 0) nextScene();
-    else prevScene();
-  }
+  if (Math.abs(diff) > 50) { if (diff > 0) nextScene(); else prevScene(); }
 });
 
 initNavDots();
