@@ -323,8 +323,12 @@ export async function startCounterparty(
         if (!running) break;
 
         // Check if the other party has signaled completion
-        const myIndex = agreement.parties[0]?.address?.toLowerCase() === chain.account.address.toLowerCase() ? 0 : 1;
-        const otherIndex = myIndex === 0 ? 1 : 0;
+        // Use partyIndex from Ponder (matches onchain party order)
+        const myParty = agreement.parties.find(p => p.address.toLowerCase() === chain.account.address.toLowerCase());
+        const otherParty = agreement.parties.find(p => p.address.toLowerCase() !== chain.account.address.toLowerCase());
+        if (!myParty || !otherParty) continue;
+        const myIndex = myParty.partyIndex;
+        const otherIndex = otherParty.partyIndex;
 
         const completionSignaled = await chain.public.readContract({
           address: agreement.id as Address,
