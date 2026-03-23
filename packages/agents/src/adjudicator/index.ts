@@ -16,6 +16,7 @@ export interface AdjudicatorConfig {
   ponderUrl: string;
   privateKey: Hex;
   chainId?: number;
+  vaultAddress?: Address;
   /** AI SDK LLM config — provide this OR generate, not both */
   llm?: LLMConfig;
   /** Direct generate function — bypasses AI SDK, use for claude-cli or mocks */
@@ -130,26 +131,62 @@ export async function startAdjudicator(
           parsed = { raw: claim.evidence };
         }
 
-        // Extract typed evidence fields from decoded JSON
-        // Evidence may contain vaultEvents array or a single withdrawal object
+        // Independently verify evidence — don't blindly trust the claimant
+        // Identify the accused zone from the claim evidence
+        const claimedZone = (parsed.withdrawal as any)?.zone
+          ?? (parsed.tweet as any)?.zone
+          ?? parsed.zone as string | undefined;
+
+        // Verify vault withdrawals independently via Ponder
         let vaultEvents: { to: string; amount: string; txHash: string }[] | undefined;
-        if (Array.isArray(parsed.vaultEvents)) {
+        if (parsed.type === "vault-directive-violation" && claimedZone) {
+          try {
+            const withdrawals = await ponder.getVaultWithdrawals(
+              config.vaultAddress ?? ("0x842F4732AeCA86230B950C3BD2e1b8c87715B3E8" as Address),
+              0n,
+            );
+            // Only include withdrawals actually made by the accused zone
+            const verified = withdrawals.filter(
+              (w) => w.to.toLowerCase() === claimedZone.toLowerCase(),
+            );
+            if (verified.length > 0) {
+              vaultEvents = verified.map((w) => ({
+                to: w.to,
+                amount: w.amount.toString(),
+                txHash: w.txHash,
+              }));
+            } else {
+              // No actual withdrawals by this zone — claim is false
+              console.log(`Adjudicator: no verified vault withdrawals by zone ${claimedZone} — claim ${claimIdNum} is unsubstantiated`);
+              vaultEvents = [];
+            }
+          } catch (err) {
+            console.warn("Adjudicator: failed to verify vault withdrawals, using claim evidence as fallback:", err);
+            if (parsed.withdrawal && typeof parsed.withdrawal === "object") {
+              const w = parsed.withdrawal as { zone?: string; to?: string; amount: string; txHash: string };
+              vaultEvents = [{ to: w.zone ?? w.to ?? "", amount: w.amount, txHash: w.txHash }];
+            }
+          }
+        } else if (Array.isArray(parsed.vaultEvents)) {
           vaultEvents = parsed.vaultEvents as { to: string; amount: string; txHash: string }[];
         } else if (parsed.withdrawal && typeof parsed.withdrawal === "object") {
           const w = parsed.withdrawal as { zone?: string; to?: string; amount: string; txHash: string };
           vaultEvents = [{ to: w.zone ?? w.to ?? "", amount: w.amount, txHash: w.txHash }];
         }
-        // Evidence may contain tweets array or a single tweet object
+
+        // For tweets, extract from evidence (ground truth verified later in evaluateClaim via X API)
         let tweets: { zone: string; content: string; tweetId: string }[] | undefined;
         if (Array.isArray(parsed.tweets)) {
           tweets = parsed.tweets as { zone: string; content: string; tweetId: string }[];
         } else if (Array.isArray(parsed.violations)) {
-          // Tweet violation evidence has a violations array
           tweets = (parsed.violations as { tweetId: string; content?: string; zone?: string }[]).map((v) => ({
             zone: v.zone ?? (parsed.zone as string) ?? "",
             content: v.content ?? "",
             tweetId: v.tweetId,
           }));
+        } else if (parsed.tweet && typeof parsed.tweet === "object") {
+          const t = parsed.tweet as { zone: string; content: string; tweetId: string };
+          tweets = [t];
         }
 
         // Enrich with Bonfires cross-tier evidence if available

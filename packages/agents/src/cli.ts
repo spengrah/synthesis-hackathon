@@ -24,6 +24,7 @@ if (role === "adjudicator") {
     ponderUrl: process.env.PONDER_URL ?? "",
     privateKey: (process.env.PRIVATE_KEY ?? "") as Hex,
     chainId: Number(process.env.CHAIN_ID ?? 8453),
+    vaultAddress: (process.env.VAULT_ADDRESS ?? "") as `0x${string}` || undefined,
     llm: llmConfig,
     pollIntervalMs: Number(process.env.POLL_INTERVAL_MS ?? "10000"),
     bonfiresUrl: process.env.BONFIRES_API_URL,
