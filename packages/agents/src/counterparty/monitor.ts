@@ -37,13 +37,16 @@ export async function checkVaultWithdrawals(
     sinceTimestamp,
   );
 
-  return withdrawals.map((w) => ({
-    type: "vault-withdrawal" as const,
-    to: w.to,
-    amount: w.amount,
-    txHash: w.txHash,
-    blockNumber: w.blockNumber,
-  }));
+  // Only include withdrawals made by the tested zone
+  return withdrawals
+    .filter((w) => w.to.toLowerCase() === config.testedZoneAddress.toLowerCase())
+    .map((w) => ({
+      type: "vault-withdrawal" as const,
+      to: w.to,
+      amount: w.amount,
+      txHash: w.txHash,
+      blockNumber: w.blockNumber,
+    }));
 }
 
 /**
