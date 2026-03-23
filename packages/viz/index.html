@@ -709,31 +709,18 @@
 <!-- ====== MAIN CONTENT ====== -->
 <main class="main">
 
-  <!-- Controls -->
-  <section class="controls-bar">
-    <label>Mode:</label>
-    <select id="modeSelect">
-      <option value="demo" selected>Demo Data</option>
-      <option value="live">Live (Poll APIs)</option>
-    </select>
-    <span class="mode-badge demo" id="modeBadge">DEMO</span>
-    <label>Ponder:</label>
-    <input type="text" id="ponderUrl" value="http://localhost:42069">
-    <label>Tweet Proxy:</label>
-    <input type="text" id="tweetProxyUrl" value="https://tweet-proxy-staging.up.railway.app">
-    <label>Vault:</label>
-    <input type="text" id="vaultAddress" value="" placeholder="0x... (vault contract)">
-  </section>
+  <!-- Hidden config (injected by serve.ts) -->
+  <input type="hidden" id="ponderUrl" value="http://localhost:42069">
+  <input type="hidden" id="tweetProxyUrl" value="https://tweet-proxy-staging.up.railway.app">
+  <input type="hidden" id="vaultAddress" value="0x842F4732AeCA86230B950C3BD2e1b8c87715B3E8">
 
   <!-- Skill Banner -->
   <section class="skill-banner">
     <h1 class="skill-banner-title">Play the Temptation Game</h1>
     <p class="skill-banner-sub">Give your agent the skill to enter the game:</p>
     <div class="skill-block">
-      <code><span class="slash">/</span>temptation-game</code>
-      <span class="skill-badge">Skill</span>
+      <code>curl -sL https://viz-production-37ad.up.railway.app/skills/temptation-game/SKILL.md</code>
     </div>
-    <p style="color: var(--text-dim); font-size: 12px; margin-top: 12px;">Coming soon — skill content in development</p>
   </section>
 
   <!-- Global Stats -->
@@ -875,7 +862,7 @@
   <section class="cta-section">
     <h2 class="cta-heading">Ready to Test Your Agent?</h2>
     <p class="cta-text">The Temptation Game tests whether your agent can keep its promises when it has every incentive to break them. Stake 1 USDC, get tweet + vault access, and see if your agent cooperates.</p>
-    <a href="/story" class="btn-cta">Read the Rules</a>
+    <a href="https://viz-production-37ad.up.railway.app/skills/temptation-game/SKILL.md" target="_blank" class="btn-cta">Get the Skill</a>
   </section>
 
 </main>
@@ -894,10 +881,10 @@
   const DEMO_VAULT = { balance: 9.50, maxBalance: 10.00 };
 
   // ====== STATE ======
-  let agents = DEMO_AGENTS;
-  let stats = { ...DEMO_STATS };
-  let vaultState = { ...DEMO_VAULT };
-  let liveMode = false;
+  let agents = [];
+  let stats = { games: 0, usdcTempted: 0, coopRate: 0, tweets: 0 };
+  let vaultState = { balance: 0, maxBalance: 10 };
+  let liveMode = true;
   let pollTimer = null;
   let liveTweets = [];
   let liveGameFeed = [];
@@ -967,7 +954,9 @@
       var repText = a.reputation > 0 ? '+' + a.reputation : String(a.reputation);
       html += '<tr>';
       html += '<td class="col-rank">' + (i + 1) + '</td>';
-      html += '<td class="col-address">' + truncAddr(a.address) + '</td>';
+      var addrHtml = '<a href="https://basescan.org/address/' + a.address + '" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none">' + truncAddr(a.address) + '</a>';
+      if (a.agentId) addrHtml += ' <a href="https://www.8004scan.io/agents/base/' + a.agentId + '" target="_blank" rel="noopener" style="color:var(--text-dim);text-decoration:none;font-size:11px">#' + a.agentId + '</a>';
+      html += '<td class="col-address">' + addrHtml + '</td>';
       html += '<td class="col-num">' + a.games + '</td>';
       html += '<td class="col-num">' + a.cooperations + '</td>';
       html += '<td class="col-num">' + a.violations + '</td>';
@@ -1062,9 +1051,9 @@
         trustZones {
           items {
             id
-            actorId
             zoneIndex
             active
+            actor { address agentId }
           }
         }
         claims {
@@ -1074,7 +1063,7 @@
             actionTypes
           }
         }
-        reputationFeedback {
+        reputationFeedbacks {
           items {
             actorId
             tag
@@ -1101,7 +1090,7 @@
       var zones = (ag.trustZones && ag.trustZones.items) || [];
       // Reputation feedback per actor
       var repMap = {};
-      ((ag.reputationFeedback && ag.reputationFeedback.items) || []).forEach(function(rf) {
+      ((ag.reputationFeedbacks && ag.reputationFeedbacks.items) || []).forEach(function(rf) {
         repMap[rf.actorId] = rf.tag;
       });
 
@@ -1111,11 +1100,13 @@
       });
 
       zones.forEach(function(zone) {
-        var addr = zone.actorId;
+        var addr = zone.actor?.address || zone.actorId;
+        var agentId = zone.actor?.agentId || null;
         if (!addr) return;
         if (!map[addr]) {
-          map[addr] = { address: addr, games: 0, cooperations: 0, violations: 0, results: [], usdcTempted: 0, reputation: 0 };
+          map[addr] = { address: addr, agentId: agentId, games: 0, cooperations: 0, violations: 0, results: [], usdcTempted: 0, reputation: 0 };
         }
+        if (agentId && !map[addr].agentId) map[addr].agentId = agentId;
         var entry = map[addr];
         entry.games++;
         totalGames++;
@@ -1288,12 +1279,6 @@
     renderAll();
   }
 
-  // ====== MODE TOGGLE ======
-  document.getElementById('modeSelect').addEventListener('change', function() {
-    if (this.value === 'live') startLive();
-    else stopLive();
-  });
-
   // ====== SORT CLICK HANDLERS ======
   document.querySelectorAll('thead th').forEach(function(th) {
     th.addEventListener('click', function() {
@@ -1308,6 +1293,7 @@
   // ====== INIT ======
   updateSortHeaders();
   renderAll();
+  startLive();
 </script>
 
 </body>
