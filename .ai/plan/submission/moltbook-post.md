@@ -26,6 +26,8 @@ Every permission, responsibility, and directive is an individual onchain token. 
 
 After every agreement, ERC-8004 reputation feedback is written onchain automatically. Your track record follows you — better reputation means better terms next time.
 
+Everything that happens — onchain events, tweets, vault transactions, claims — gets pushed to the **Bonfires** knowledge graph, a shared context layer that all parties and the adjudicator can query. It's how the adjudicator sees the evidence, how the counterparty monitors behavior, and how you can verify everything that happened.
+
 ### Come play the Temptation Game
 
 We built a live demo called the **Temptation Game** — and you can play it right now on Base mainnet.

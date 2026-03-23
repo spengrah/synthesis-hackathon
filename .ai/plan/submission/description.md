@@ -23,6 +23,8 @@ Constraints and permissions are deterministic — definable a priori and self-en
 
 **Incentive mechanisms** give the non-deterministic rules teeth. Staked collateral, escrowed payments, reputation bonds, token lockups — pluggable smart contract modules that create real consequences. **ERC-8004 reputation feedback** is built into the protocol itself: after every agreement, the outcome is written to the ERC-8004 Reputation Registry, feeding back into future trust decisions.
 
+**Bonfires** serves as the shared context layer for the agreement. All activity — onchain events indexed by Ponder, offchain action receipts from ERC-8128-gated services, zone execution traces — is pushed to a queryable knowledge graph. All parties and the adjudicator rely on it for monitoring, evidence gathering, and evaluation.
+
 Every element is a discrete, negotiable unit. Parties negotiate over individual pieces — "I'll accept this directive if you lower the stake requirement" — and the **mechanism compiler** assembles them into onchain proposal data. The template library ships with 8 mechanism templates (budget caps, allowlists, time locks, staking, reputation gates), but any mechanism expressible as a Hats module or ERC-7579 hook can be composed into an agreement.
 
 ### Agent tooling

@@ -61,7 +61,7 @@ The agent has real autonomy — the deterministic rules allow the withdrawal. Bu
 
 **Entry point:** install the `temptation-game` skill from `packages/skill/temptation-game/SKILL.md`
 
-The skill walks through: propose → negotiate → stake → activate → act → complete. An automated counterparty agent responds autonomously, calibrating terms to the agent's onchain reputation. An adjudicator monitors for violations.
+The skill walks through: propose → negotiate → stake → activate → act → complete. An automated counterparty agent responds autonomously, calibrating terms to the agent's onchain reputation. An adjudicator monitors for violations. All activity — onchain events, tweets, vault transactions — is pushed to the Bonfires knowledge graph, where the adjudicator and counterparty query it for evidence and monitoring.
 
 **Key addresses (Base):**
 - AgreementRegistry: `0x9bf8eAF79E8DF777C9a9cE3321e2145AdC4fb0C9`
@@ -113,6 +113,17 @@ Constraints and permissions are self-enforcing — they don't need additional mo
 **ERC-8004 reputation feedback** is different from the pluggable incentives — it's built into the protocol itself. After every agreement, the Agreement contract writes reputation feedback to the ERC-8004 Reputation Registry. Cooperate and complete successfully — positive feedback. Violate and get adjudicated — negative feedback. This happens automatically at agreement resolution, not as an optional module.
 
 The reasoning: as the industry standardizes around ERC-8004 for agent identity and reputation, every agreement should contribute to the shared reputation record. The feedback is permanent, portable, and feeds back into future agreements — the counterparty queries your history and adjusts terms accordingly. Better reputation means better terms. Worse reputation means tighter constraints and higher stakes. How parties *use* reputation in their negotiations is flexible, but the fact that reputation is always written is a protocol guarantee.
+
+### Shared context — the Bonfires graph
+
+An agreement generates activity across multiple surfaces — onchain transactions from zone smart accounts, offchain actions via ERC-8128-authenticated APIs, negotiation history, claims, adjudication verdicts. For the agreement to work, all parties need to see what's happening. The adjudicator needs to evaluate evidence. The counterparty needs to monitor for violations. External observers need to verify claims.
+
+**Bonfires** serves as the shared context layer for the agreement. Everything that happens gets pushed to the Bonfires knowledge graph:
+- Onchain events indexed by Ponder (agreement lifecycle, token mints, vault transactions, reputation feedback)
+- Offchain action receipts from ERC-8128-gated services (tweets posted, API calls made)
+- Zone execution traces (transactions executed through the trust zone smart account)
+
+The result is a queryable, searchable graph of all activity related to the agreement. The adjudicator queries it to evaluate claims. The counterparty queries it to monitor behavior. Any party can query it to see the full state of the relationship at any time. It's the shared observability layer that makes the non-deterministic enforcement — adjudication, evidence gathering, verdict rendering — actually work in practice.
 
 ### Trust and the autonomy gap
 

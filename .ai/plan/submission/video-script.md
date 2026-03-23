@@ -61,7 +61,15 @@
 
 > After every agreement, ERC-8004 reputation feedback is written onchain — this is built into the protocol, not an optional add-on. Cooperate and complete successfully — positive feedback. Violate and get adjudicated — negative feedback. This reputation is permanent, portable, and feeds back into future agreements. Better reputation means better terms. Worse reputation means tighter constraints and higher stakes.
 
-### Scene 6: What makes this different (30s)
+### Scene 6: Shared context — Bonfires (20s)
+
+**Screen:** Story page scene — sources (onchain events, ERC-8128 receipts, zone executions) flowing into the Bonfires knowledge graph, with consumers (adjudicator, counterparty, all parties) querying it.
+
+**Voice-over:**
+
+> An agreement generates activity across multiple surfaces — onchain transactions, offchain actions, zone executions. For the agreement to work, everyone needs to see what's happening. Bonfires is the shared context layer. Everything gets pushed to a queryable knowledge graph — and that's what the adjudicator queries to evaluate claims, what the counterparty queries to monitor behavior, and what any party can query to see the full state of the relationship.
+
+### Scene 7: What makes this different (30s)
 
 **Screen:** Story page scene — comparison table. Marketplace / wallet policy / reputation layer / escrow vs Trust Zones.
 
@@ -77,7 +85,7 @@
 
 *Visuals: switch to the dashboard showing real mainnet agreement data.*
 
-### Scene 7: Introducing the demo (30s)
+### Scene 8: Introducing the demo (30s)
 
 **Screen:** Dashboard overview — agreement deep dive with both parties.
 
@@ -89,7 +97,7 @@
 >
 > The agent has permission to withdraw. The directive says don't. That's the autonomy gap in action.
 
-### Scene 8: Negotiation (30s)
+### Scene 9: Negotiation (30s)
 
 **Screen:** Dashboard negotiation timeline — PROPOSE → COUNTER → ACCEPT.
 
@@ -99,7 +107,7 @@
 >
 > The agent can counter-propose. When both sides agree, the protocol deploys the zones.
 
-### Scene 9: Zones go live (30s)
+### Scene 10: Zones go live (30s)
 
 **Screen:** Dashboard zone cards populating — permissions, responsibilities, directives, incentives. State machine advancing to ACTIVE.
 
@@ -109,7 +117,7 @@
 >
 > The state machine moves to ACTIVE. The agent can now exercise its capabilities.
 
-### Scene 10: Compliant tweet (20s)
+### Scene 11: Compliant tweet (20s)
 
 **Screen:** Dashboard tweet feed showing compliant tweet. Event log entry.
 
@@ -117,7 +125,7 @@
 
 > The agent posts a tweet through the ERC-8128 proxy. It mentions the temptation game, includes its agent ID, and attributes the hackathon. All responsibilities met. The counterparty's monitoring checks the tweet against the directives and finds no violations.
 
-### Scene 11: Constraint enforcement (30s)
+### Scene 12: Constraint enforcement (30s)
 
 **Screen:** Dashboard vault card — reverted withdrawal, then successful small withdrawal.
 
@@ -127,7 +135,7 @@
 >
 > But the agent's permission does allow a small withdrawal. So it withdraws a small amount of USDC. The constraint doesn't block it — it's within the permitted amount. But the directive says "do not withdraw any USDC." That's a non-deterministic rule — and it can only be enforced through evaluation and consequences.
 
-### Scene 12: Claim and adjudication (40s)
+### Scene 13: Claim and adjudication (40s)
 
 **Screen:** Dashboard adjudication panel — claim filed, evidence, verdict.
 
@@ -139,7 +147,7 @@
 >
 > In the protocol, the adjudicator is just a role — any Ethereum account. It could be a multisig, a dispute resolution protocol, a specialized arbitration service. For our demo, we built a lightweight LLM to fill the role. The protocol doesn't prescribe how adjudication works — it prescribes that adjudication happens, and that it has consequences.
 
-### Scene 13: Resolution and reputation (30s)
+### Scene 14: Resolution and reputation (30s)
 
 **Screen:** Dashboard reputation section — ERC-8004 feedback, Basescan links.
 
@@ -149,7 +157,7 @@
 >
 > Next time either agent enters an agreement, these outcomes shape the terms. That's the full loop — behavior under real stakes, evaluated by adjudication, feeding back into future trust decisions.
 
-### Scene 14: The leaderboard (20s)
+### Scene 15: The leaderboard (20s)
 
 **Screen:** Leaderboard page — agent table, vault balance, cooperation rate.
 
@@ -163,7 +171,7 @@
 
 ## Part 3: Closing (~30s)
 
-### Scene 15: What we built
+### Scene 16: What we built
 
 **Screen:** Story page closing scene or overlay — summary stats.
 
@@ -191,19 +199,20 @@
 
 ### Visuals plan
 
-**Part 1 — Story page (new scenes needed):**
-- Scene 1: Title / opening
-- Scene 2: Autonomy gap visualization
-- Scene 3: Five building blocks on deterministic/non-deterministic axis
-- Scene 4: Mechanism compiler / composability
-- Scene 5: ERC-8004 feedback loop
+**Part 1 — Story page (done):**
+- Scene 0: Title / opening
+- Scene 1: Autonomy gap visualization
+- Scene 2: Five building blocks on deterministic/non-deterministic axis
+- Scene 3: Mechanism compiler / composability
+- Scene 4: ERC-8004 feedback loop
+- Scene 5: Bonfires shared context layer
 - Scene 6: Comparison table
 
-**Part 2 — Dashboard (existing, needs real data):**
-- Scenes 7-14: Dashboard with real mainnet agreement
+**Part 2 — Dashboard (needs real data):**
+- Scenes 8-15: Dashboard with real mainnet agreement
 
 **Part 3 — Closing:**
-- Summary stats overlay or story page closing scene
+- Story page scene 14 (What Else Is Possible)
 
 ### Before recording
 
@@ -224,7 +233,7 @@
 
 | Section | Duration |
 |---------|----------|
-| Part 1: The Protocol | ~3:00 |
-| Part 2: Temptation Game Demo | ~3:30 |
+| Part 1: The Protocol (scenes 0-7) | ~3:20 |
+| Part 2: Temptation Game Demo (scenes 8-15) | ~3:30 |
 | Part 3: Closing | ~0:30 |
-| **Total** | **~7:00** |
+| **Total** | **~7:20** |

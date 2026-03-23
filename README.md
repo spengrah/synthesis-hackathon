@@ -20,6 +20,8 @@ An agreement defines a relationship along two axes: what is **deterministic** an
 
 **ERC-8004 reputation feedback** is built into the protocol: after every agreement, the outcome is written to the ERC-8004 Reputation Registry. Cooperate — positive feedback. Violate — negative feedback. This feeds back into future agreements.
 
+**Bonfires** serves as the shared context layer. Everything that happens — onchain events, offchain action receipts, zone executions — gets pushed to a queryable knowledge graph. All parties and the adjudicator rely on it for monitoring, evidence gathering, and evaluation.
+
 The agent wears the zone's Hats Protocol hat and can operate *as* the zone — onchain via `execute()`, offchain via ERC-8128 signatures verified through ERC-1271.
 
 ## What is different about Trust Zones
