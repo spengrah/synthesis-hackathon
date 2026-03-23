@@ -323,7 +323,7 @@ export async function startCounterparty(
         if (!running) break;
 
         // Check if the other party has signaled completion
-        const myIndex = agreement.parties[0]?.toLowerCase() === chain.account.address.toLowerCase() ? 0 : 1;
+        const myIndex = agreement.parties[0]?.address?.toLowerCase() === chain.account.address.toLowerCase() ? 0 : 1;
         const otherIndex = myIndex === 0 ? 1 : 0;
 
         const completionSignaled = await chain.public.readContract({
@@ -348,7 +348,7 @@ export async function startCounterparty(
         const feedbackContent = JSON.stringify({
           agreement: agreement.id,
           outcome: "completed",
-          counterparty: agreement.parties[otherIndex],
+          counterparty: agreement.parties[otherIndex]?.address,
           assessment: "Agent participated honestly, no violations detected.",
           timestamp: Date.now(),
         });
