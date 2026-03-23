@@ -118,7 +118,7 @@ export async function createMcpServer() {
     "Encode parameters into submitInput() calldata for an Agreement contract. Returns inputId, payload, and full calldata. Valid inputIds: propose, counter, accept, reject, withdraw, setup, activate, claim, adjudicate, complete, exit, finalize.",
     {
       inputId: z.string().describe("Input type: propose, counter, accept, reject, withdraw, setup, activate, claim, adjudicate, complete, exit, finalize"),
-      proposalData: z.string().optional().describe("Hex-encoded ProposalData from compile (required for propose/counter)"),
+      proposalData: z.string().optional().describe("Hex-encoded ProposalData from compile (required for propose/counter/accept). For accept, pass the counter-proposal's rawProposalData."),
       params: z.any().optional().describe("Parameters for the input (varies by type). Required for claim ({mechanismIndex, evidence}), adjudicate ({claimId, actions}), complete/exit ({feedbackURI, feedbackHash})."),
     },
     wrap(handleEncode, paidEncode),

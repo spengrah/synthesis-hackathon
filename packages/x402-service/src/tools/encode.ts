@@ -54,9 +54,13 @@ export function handleEncode(args: {
         : encodeCounter(params as unknown as ProposalData);
       break;
     }
-    case "accept":
-      result = encodeAccept();
+    case "accept": {
+      // Accept requires the raw counter-proposal data as payload (for terms hash verification)
+      const acceptPayload = (proposalData || (params as any)?.proposalData) as Hex | undefined;
+      const { inputId: acceptId } = encodeAccept();
+      result = { inputId: acceptId, payload: acceptPayload || ("0x" as Hex) };
       break;
+    }
     case "reject":
       result = encodeReject();
       break;

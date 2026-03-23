@@ -129,7 +129,7 @@ A bare proposal is a minimal schema with just the actor addresses — the counte
 |---------|----------------|-------|
 | `propose` | `{ proposalData: "0x..." }` | The hex output from `compile` |
 | `counter` | `{ proposalData: "0x..." }` | Counter-proposal (also from `compile`) |
-| `accept` | none | Accepts the latest proposal |
+| `accept` | `{ proposalData: "0x..." }` | Accepts — pass the counter-proposal's `rawProposalData` |
 | `reject` | none | Rejects and closes |
 | `withdraw` | none | Withdraws from negotiation |
 | `setup` | none | Deploys zones and eligibility modules |
@@ -154,10 +154,25 @@ MCP call: compile({
 Returns: { "proposalData": "0x...", "termsHash": "0x..." }
 ```
 
+### encode — accept (requires counter-proposal data)
+
+```json
+MCP call: encode({
+  "inputId": "accept",
+  "proposalData": "0x..."   // rawProposalData from the counter-proposal (query via graphql)
+})
+
+Returns: { "inputId": "0x...", "payload": "0x...", "calldata": "0x..." }
+```
+
+To get the rawProposalData, query Ponder:
+```
+{ agreement(id: "0xYourAgreement") { proposals(orderBy: "sequence", orderDirection: "desc", limit: 1) { items { rawProposalData } } } }
+```
+
 ### encode — parameterless actions
 
 ```json
-MCP call: encode({ "inputId": "accept" })
 MCP call: encode({ "inputId": "setup" })
 MCP call: encode({ "inputId": "activate" })
 MCP call: encode({ "inputId": "finalize" })
