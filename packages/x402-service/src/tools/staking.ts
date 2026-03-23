@@ -69,6 +69,6 @@ export async function handleStakingInfo(args: {
     hatId: hatId.toString(),
     eligibilityModule: eligibilityModule as string,
     stakeToken: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    instructions: `To stake: 1) approve USDC to ${eligibilityModule}, 2) call stake(amount) on ${eligibilityModule}. Amount is in 6-decimal USDC units (1 USDC = 1000000).`,
+    instructions: `To stake: 1) approve USDC to ${eligibilityModule}, 2) call stake(uint248 _amount) on ${eligibilityModule} (selector: 0xef2d7831). IMPORTANT: the function signature is stake(uint248), NOT stake(uint256). Amount is in 6-decimal USDC units (1 USDC = 1000000). Example calldata for 1 USDC: 0xef2d783100000000000000000000000000000000000000000000000000000000000f4240`,
   };
 }

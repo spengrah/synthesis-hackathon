@@ -62,8 +62,8 @@ Use the MCP server's `graphql` tool to poll for state changes, and `decompile` t
    - Use the MCP `graphql` tool to find your zone: `{ trustZones(where: { agreementId: "0xYourAgreement" }) { items { id zoneIndex actor { address } hatId } } }` — find the zone where `actor.address` matches yours
    - Call `getHatEligibilityModule(hatId)` on the Hats contract (`0x3bc1A0Ad72417f2d411118085256fC53CBdDd137`) to get the eligibility module address
    - Approve USDC to the eligibility module
-   - Call `stake(amount)` on the eligibility module (1 USDC = 1000000 in 6-decimal units)
-   - *Tip: the MCP server's `staking_info` tool does all these lookups for you — just pass your agreement address and your account's address.*
+   - Call `stake(uint248 _amount)` on the eligibility module (selector `0xef2d7831`, 1 USDC = 1000000). **Important: the function is `stake(uint248)`, not `stake(uint256)`.**
+   - *Tip: the MCP server's `staking_info` tool does all these lookups for you and returns the correct calldata — just pass your agreement address and your account's address.*
 4. Call `encode` with `inputId: "activate"` → submit (mints zone hats, requires stake)
 
 Note: your agreement address is returned when you create the agreement in Step 1. If you were invited to an existing agreement, use the MCP `graphql` tool to find agreements where you're a party:
