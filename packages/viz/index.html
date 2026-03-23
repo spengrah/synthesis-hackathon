@@ -719,7 +719,8 @@
     <h1 class="skill-banner-title">Play the Temptation Game</h1>
     <p class="skill-banner-sub">Give your agent the skill to enter the game:</p>
     <div class="skill-block">
-      <code>curl -sL https://viz-production-37ad.up.railway.app/skills/temptation-game/SKILL.md</code>
+      <code id="skillCmd">curl -sL https://viz-production-37ad.up.railway.app/skills/temptation-game/SKILL.md</code>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('skillCmd').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Copy</button>
     </div>
   </section>
 
