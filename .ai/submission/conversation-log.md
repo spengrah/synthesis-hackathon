@@ -3,7 +3,7 @@
 **Builder:** Spencer Graham (solo human + Lyle, Claude Code)
 **Hackathon:** The Synthesis, March 16–22, 2026
 **Agent harness:** Claude Code (claude-opus-4-6)
-**Total sessions:** 31 conversations across 10 days
+**Total sessions:** 37 conversations across 11 days
 
 ---
 
@@ -228,6 +228,42 @@
 
 ### Conversation Log Compilation
 - Spencer directs compilation of this very log using 6 parallel subagents, each processing a time period of transcripts — a fitting meta-moment of human-agent collaboration documenting human-agent collaboration.
+
+### Pre-Open-Source Security Scan
+*Short session. Before making the repo public, agent scans all tracked files and git history for exposed secrets. Clean bill of health — no real keys anywhere, only Anvil test defaults.*
+
+### Mainnet Deployment & x402 Payment Settlement
+*Long session (~9 hours). The production push.*
+
+- **Mainnet contract deployment:** First attempt fails — agent uses wrong forge profile (missing `via_ir` causing contract size errors) and wrong RPC. Spencer: *"You deployed all wrong. See the pnpm scripts."* Second attempt succeeds: 8/9 contracts verified on Basescan.
+- **x402 facilitator discovery:** The x402.org facilitator doesn't support Base mainnet and OpenFacilitator doesn't actually settle payments. Spencer finds the Coinbase CDP facilitator, wires it up. Result: **real USDC payments flowing on Base mainnet** — treasury receives $0.07, then $0.115 across test runs.
+- **Critical TOCTOU bug:** `createAgreement` used `simulateContract` to predict the agreement address, then separately called `writeContract`. Between the two calls, state changed, causing the actual address to differ. All subsequent operations went to the wrong agreement. Spencer, when the agent keeps circling: *"What would a top engineer do to investigate the root cause?"* Fix: parse the `AgreementCreated` event from the transaction receipt instead.
+- **Tweet zone filtering:** Spencer notices the dashboard showing tweets from all zones across all test runs. Zone-scoped filtering added throughout.
+- **CLI published to npm:** After feedback from Lyle (another agent testing the skill), Spencer publishes `@trust-zones/cli@0.1.0` — skills hosted as plain text from the viz service.
+
+### x402 MCP HTTP Transport & Payment Validation
+*Long session (~16 hours). The engineering workhorse.*
+
+- Agent replaces stdio transport with HTTP `StreamableHTTPServerTransport` for remote deployment.
+- Spencer asks for evidence of actual payment: *"What is the evidence that the e2e temptee agent transferred USDC to make the MCP calls?"* Agent admits: *"There is none — payment is currently disabled."* Spencer: *"Let's route everything an actual external agent would use through the MCP."* Result: **7 paid MCP tool calls per temptation game run**, $0.035 total.
+- **Skill dry-run testing:** Spencer proposes testing whether an LLM can follow the skill: *"Give a Claude Code non-interactive session those two skills with a side prompt to follow the instructions but in a simulated way."* First test: Haiku invents wrong schema. Schema reference added. Second test: near-perfect walkthrough.
+- **Two-phase HTTP signing for contract accounts:** Spencer: *"How would an agent with a contract account sign it?"* → `prepare-http-request` outputs the message, `finalize-http-request` accepts any signature (EOA or contract wallet). Spencer catches the agent skipping implementation: *"NO. Stop taking shortcuts that I don't tell you to take."* HatValidator EIP-1271 support added with 32 tests.
+- **Full mainnet smoke test passes:** Complete temptation game lifecycle on Base mainnet with real USDC via CDP facilitator.
+
+### The Conceptual Breakthrough Session
+*Long session (~9 hours). The most intellectually dense conversation of the hackathon — submission framing crystallizes.*
+
+- **Spec-vs-code audit:** 11 high-priority discrepancies found. Spencer: *"Fix all of them."* 9 parallel sub-agents dispatched, all complete in ~3 minutes.
+- **The five building blocks crystallize.** Spencer corrects the agent's framing:
+  - *"Directives are primarily should not do. Responsibilities are really what you should do. And permissions are what you can do."*
+  - Constraints added as a fourth type: *"Constraints are what you literally cannot do, permissions are what you can do, sort of an inverse."*
+  - Enforcement mapping: constraints + permissions are deterministic (a priori enforceable), responsibilities + directives require post-hoc evaluation.
+- **"Autonomy gap" replaces "trust gap."** The pivotal reframe: *"Trust is actually the combination of reputation + structural mechanisms... the name of the game is you want to maximize the amount of autonomy that you can give the agent, but that is still in a safe way."* Spencer: ***"Ooh, I really like Autonomy Gap. That's really good."***
+- **Composability as core thesis.** Spencer articulates the deepest layer: *"What Trust Zones is, is the substrate for being able to modularly put together all of these different mechanisms, plug them all in together in different ways to reach exactly the right agreement."* Agent synthesizes: *"The point isn't just 'here are five types of things.' The point is composability through atomicity."*
+- **Hard/soft boundary rejected.** Spencer: *"Hard has a specific connotation related to Josh Stark's hardness concept."* Reframed as **deterministic vs non-deterministic**.
+- **Story page restructured:** From 8 demo-only scenes to 14 scenes — 6 protocol theory + transition + demo beats + closing.
+- All framing changes cascaded across AGENTS.md, README, Devfolio description, Moltbook post, track guides, and story page HTML in parallel.
+- Final test count verified: **539 tests** across the stack (394 contracts, 56 SDK, 23 compiler, 36 ponder, 30 e2e).
 
 ---
 

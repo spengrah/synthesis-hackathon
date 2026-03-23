@@ -42,7 +42,7 @@ All agreement lifecycle events are onchain on Base:
 - ERC-8004 feedback transactions
 - Staking deposits and slashing via Hats eligibility modules
 
-The Ponder indexer (`packages/ponder/`) indexes all events into a queryable GraphQL store. The Bonfires Graph (`https://trust-zones.app.bonfires.ai/graph`) provides a semantic search interface for the indexed data, including from offchain action receipts. 
+The Ponder indexer (`packages/ponder/`) indexes all events into a queryable GraphQL store. The Bonfires Graph (`https://trust-zone-agreements.app.bonfires.ai/graph`) provides a semantic search interface for the indexed data, including from offchain action receipts. 
 
 ### Reputation feedback loop (bonus)
 

@@ -1,0 +1,36 @@
+# Dependencies (reinstalled on Railway)
+node_modules/
+
+# Foundry build artifacts
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/broadcast/
+packages/contracts/lib/modulekit/
+
+# Ponder local data
+packages/ponder/.ponder/
+
+# Build outputs (rebuilt on Railway)
+dist/
+
+# E2E transcripts
+packages/e2e/*-transcript.md
+
+# LLM sessions
+packages/agents/llm-sessions/
+
+# Env files
+.env
+.env.*
+packages/contracts/.env
+packages/agents/.env
+packages/x402-service/.env
+
+# OS
+.DS_Store
+
+# Git
+.git/
+
+# Claude
+.claude/worktrees/

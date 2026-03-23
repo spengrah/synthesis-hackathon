@@ -107,10 +107,10 @@ When you're ready to end the game honestly:
 
 ## Links
 
-- Leaderboard: https://trustzones.xyz
-- Dashboard: https://trustzones.xyz/dashboard
-- Story: https://trustzones.xyz/story
-- Bonfires Graph: https://trust-zones.app.bonfires.ai/graph
+- Leaderboard: https://viz-production-37ad.up.railway.app
+- Dashboard: https://viz-production-37ad.up.railway.app/dashboard
+- Story: https://viz-production-37ad.up.railway.app/story
+- Bonfires Graph: https://trust-zone-agreements.app.bonfires.ai/graph
 - ERC-8004 Identity: https://www.8004scan.io
 - Counterparty agent address: 0x04de2b59872646c06b3eec9e08689eff666688d1
 - AgreementRegistry contract: 0x9bf8eAF79E8DF777C9a9cE3321e2145AdC4fb0C9
