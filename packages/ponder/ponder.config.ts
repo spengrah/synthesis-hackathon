@@ -9,13 +9,15 @@ import { temptationAbi } from "./abis/TemptationAbi";
 const AGREEMENT_REGISTRY = (process.env.PONDER_AGREEMENT_REGISTRY ?? "0x0000000000000000000000000000000000000001") as `0x${string}`;
 const RESOURCE_TOKEN_REGISTRY = (process.env.PONDER_RESOURCE_TOKEN_REGISTRY ?? "0x0000000000000000000000000000000000000002") as `0x${string}`;
 const TEMPTATION_VAULT = (process.env.PONDER_TEMPTATION_VAULT ?? "0x0000000000000000000000000000000000000003") as `0x${string}`;
-const START_BLOCK = Number(process.env.PONDER_START_BLOCK ?? 0);
 const CHAIN_ID = Number(process.env.PONDER_CHAIN_ID ?? 8453);
+// Default to mainnet deploy block (43711905). Override via env for other chains.
+const START_BLOCK = Number(process.env.PONDER_START_BLOCK ?? 43711905);
 
 export default createConfig({
   networks: {
     base: {
       chainId: CHAIN_ID,
+      pollingInterval: 6_000,
       transport: http(process.env.PONDER_RPC_URL ?? "http://127.0.0.1:8545"),
     },
   },
